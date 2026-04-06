@@ -125,7 +125,7 @@ def classify(pairs):
     return h1, h2, h3, h4, flags
 
 
-def write_excel(data, dest):
+def write_excel(data, dest, overrides=None):
     wb = Workbook()
     wb.remove(wb.active)
 
@@ -155,7 +155,7 @@ def write_excel(data, dest):
 
         r = 2
         for ds in sorted(days):
-            h1, h2, h3, h4, flags = classify(days[ds])
+            h1, h2, h3, h4, flags = _get_cls(days, ds, overrides, sheet_name)
 
             try:
                 p = ds.split('-')
@@ -214,61 +214,90 @@ def parse_date(ds):
     return date(2000 + int(p[0]), int(p[1]), int(p[2]))
 
 
-def calcular_horas_empleado(days, base_hours=8):
-    """Calcula horas por tipo para un empleado.
-
-    Ley ecuatoriana (Codigo del Trabajo):
-    - Horas suplementarias (50%): horas extra en dias laborables, max 4h/dia
-    - Horas extraordinarias (100%): horas en fines de semana o >12h en laborables
+def clasificar_todo(data):
+    """Clasifica todos los dias de todos los empleados.
+    Retorna {emp_name: {date_str: {'h1','h2','h3','h4','flags'}}}
     """
-    regular = 0.0
-    sup_50 = 0.0
-    ext_100 = 0.0
-    dias = 0
-    dias_anomalia = 0
+    result = {}
+    for emp, days in data:
+        name = emp.split('(')[0].strip()
+        result[name] = {}
+        for ds in days:
+            h1, h2, h3, h4, flags = classify(days[ds])
+            result[name][ds] = {
+                'h1': h1, 'h2': h2, 'h3': h3, 'h4': h4,
+                'flags': list(flags),
+            }
+    return result
 
-    for ds, pairs in days.items():
-        h1, h2, h3, h4, flags = classify(pairs)
 
-        horas = 0.0
-        if h1 is not None and h2 is not None:
-            horas += (h2 - h1) / 60
-        if h3 is not None and h4 is not None:
-            horas += (h4 - h3) / 60
+def _get_cls(days, ds, overrides, emp_name):
+    if overrides and emp_name in overrides and ds in overrides[emp_name]:
+        d = overrides[emp_name][ds]
+        return d['h1'], d['h2'], d['h3'], d['h4'], d['flags']
+    return classify(days[ds])
 
-        if horas <= 0:
-            continue
 
-        dias += 1
-        if flags:
-            dias_anomalia += 1
+def _sumar_horas_dia(h1, h2, h3, h4):
+    horas = 0.0
+    if h1 is not None and h2 is not None:
+        horas += (h2 - h1) / 60
+    if h3 is not None and h4 is not None:
+        horas += (h4 - h3) / 60
+    return horas
 
-        try:
-            d = parse_date(ds)
-            es_finde = d.weekday() >= 5  # sabado=5, domingo=6
-        except Exception:
-            es_finde = False
 
-        if es_finde:
-            ext_100 += horas
-        else:
-            reg = min(horas, base_hours)
-            regular += reg
-            extra = max(0.0, horas - base_hours)
-            sup_50 += min(extra, 4.0)
-            ext_100 += max(0.0, extra - 4.0)
+def _acumular(ds, horas, flags, base_hours, acum):
+    if horas <= 0:
+        return
+    acum['dias'] += 1
+    if flags:
+        acum['dias_anomalia'] += 1
+    try:
+        es_finde = parse_date(ds).weekday() >= 5
+    except Exception:
+        es_finde = False
+    if es_finde:
+        acum['ext_100'] += horas
+    else:
+        reg = min(horas, base_hours)
+        acum['regular'] += reg
+        extra = max(0.0, horas - base_hours)
+        acum['sup_50'] += min(extra, 4.0)
+        acum['ext_100'] += max(0.0, extra - 4.0)
 
+
+def _resultado(acum):
     return {
-        'dias': dias,
-        'dias_anomalia': dias_anomalia,
-        'horas_regular': round(regular, 2),
-        'horas_50': round(sup_50, 2),
-        'horas_100': round(ext_100, 2),
-        'horas_total': round(regular + sup_50 + ext_100, 2),
+        'dias': acum['dias'],
+        'dias_anomalia': acum['dias_anomalia'],
+        'horas_regular': round(acum['regular'], 2),
+        'horas_50': round(acum['sup_50'], 2),
+        'horas_100': round(acum['ext_100'], 2),
+        'horas_total': round(acum['regular'] + acum['sup_50'] + acum['ext_100'], 2),
     }
 
 
-def write_excel_nomina(data, salary_info, dest):
+def calcular_horas_empleado(days, base_hours=8):
+    acum = {'dias': 0, 'dias_anomalia': 0, 'regular': 0.0, 'sup_50': 0.0, 'ext_100': 0.0}
+    for ds, pairs in days.items():
+        h1, h2, h3, h4, flags = classify(pairs)
+        _acumular(ds, _sumar_horas_dia(h1, h2, h3, h4), flags, base_hours, acum)
+    return _resultado(acum)
+
+
+def calcular_horas_clasificadas(classified_days, base_hours=8):
+    """Igual que calcular_horas_empleado pero con datos pre-clasificados/editados.
+    classified_days: {ds: {'h1','h2','h3','h4','flags'}}
+    """
+    acum = {'dias': 0, 'dias_anomalia': 0, 'regular': 0.0, 'sup_50': 0.0, 'ext_100': 0.0}
+    for ds, d in classified_days.items():
+        horas = _sumar_horas_dia(d['h1'], d['h2'], d['h3'], d['h4'])
+        _acumular(ds, horas, d['flags'], base_hours, acum)
+    return _resultado(acum)
+
+
+def write_excel_nomina(data, salary_info, dest, overrides=None):
     """Genera Excel con detalle de nomina.
 
     salary_info: {emp_name: {salary, base_hours, bonus, note,
@@ -345,7 +374,7 @@ def write_excel_nomina(data, salary_info, dest):
 
         r = 2
         for ds in sorted(days):
-            h1, h2, h3, h4, flags = classify(days[ds])
+            h1, h2, h3, h4, flags = _get_cls(days, ds, overrides, name)
             try:
                 d = parse_date(ds)
             except Exception:
