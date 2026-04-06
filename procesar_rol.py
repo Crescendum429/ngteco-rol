@@ -251,7 +251,7 @@ def _acumular(ds, horas, flags, base_hours, acum):
     if horas <= 0:
         return
     acum['dias'] += 1
-    if flags:
+    if any(f.startswith('REVISAR:') for f in flags):
         acum['dias_anomalia'] += 1
     try:
         es_finde = parse_date(ds).weekday() >= 5
