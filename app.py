@@ -18,6 +18,20 @@ from procesar_rol import (
 )
 
 st.set_page_config(page_title="Roles NGTeco", layout="wide")
+
+# Login
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+if APP_PASSWORD:
+    if not st.session_state.get("_auth"):
+        st.title("Procesador de Roles")
+        pwd = st.text_input("Password", type="password")
+        if pwd and pwd == APP_PASSWORD:
+            st.session_state._auth = True
+            st.rerun()
+        elif pwd:
+            st.error("Password incorrecto")
+        st.stop()
+
 st.title("Procesador de Roles")
 
 uploaded = st.file_uploader("Archivo del NGTeco (.xls)", type=["xls"])
