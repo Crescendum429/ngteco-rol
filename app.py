@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import tempfile
 from datetime import time as dt_time
@@ -38,7 +39,7 @@ uploaded = st.file_uploader("Archivo del NGTeco (.xls)", type=["xls"])
 if not uploaded:
     st.stop()
 
-# Procesar una sola vez por archivo
+# Procesar XLS una sola vez
 if st.session_state.get("_file") != uploaded.name:
     with tempfile.NamedTemporaryFile(suffix=".xls", delete=False) as tmp:
         tmp.write(uploaded.read())
@@ -50,22 +51,33 @@ if st.session_state.get("_file") != uploaded.name:
     finally:
         os.unlink(tmp_path)
 
+    # Inicializar config de empleados (solo nuevos, no sobreescribir existente)
+    if "emp_config" not in st.session_state:
+        st.session_state.emp_config = {}
+    for emp, _ in st.session_state.data:
+        name = emp.split("(")[0].strip()
+        if name not in st.session_state.emp_config:
+            st.session_state.emp_config[name] = {
+                "salario": 0.0,
+                "horas_base": 8,
+                "transporte_dia": 0.0,
+                "region": "Sierra/Amazonia",
+                "notas": "",
+            }
+
 data = st.session_state.data
 cls = st.session_state.cls
 emp_names = [e.split("(")[0].strip() for e, _ in data]
 
-# Anomalias actualizadas (considerando ediciones)
+# Anomalias
 anomalias = []
 for name in emp_names:
     for ds, d in cls[name].items():
-        for f in d['flags']:
-            if f.startswith('REVISAR:'):
+        for f in d["flags"]:
+            if f.startswith("REVISAR:"):
                 anomalias.append({"Empleado": name, "Fecha": ds, "Observacion": f})
 
-tab1, tab2 = st.tabs(["Horas", "Nomina"])
 
-
-# ── Helpers ───────────────────────────────────────────────────
 def _time_to_mins(t):
     if t is None or pd.isna(t):
         return None
@@ -73,6 +85,8 @@ def _time_to_mins(t):
         return t.hour * 60 + t.minute
     return None
 
+
+tab1, tab2, tab3 = st.tabs(["Horas", "Empleados", "Nomina"])
 
 # ── Tab 1: Horas ──────────────────────────────────────────────
 with tab1:
@@ -95,7 +109,6 @@ with tab1:
         with st.expander(f"Ver {len(anomalias)} anomalias pendientes"):
             st.dataframe(anomalias, hide_index=True, use_container_width=True)
 
-    # Editor de horas
     st.divider()
     selected = st.selectbox("Empleado", emp_names, key="edit_emp")
 
@@ -106,28 +119,26 @@ with tab1:
     for ds in dates_sorted:
         d = day_cls[ds]
         total_h = 0.0
-        if d['h1'] is not None and d['h2'] is not None:
-            total_h += (d['h2'] - d['h1']) / 60
-        if d['h3'] is not None and d['h4'] is not None:
-            total_h += (d['h4'] - d['h3']) / 60
+        if d["h1"] is not None and d["h2"] is not None:
+            total_h += (d["h2"] - d["h1"]) / 60
+        if d["h3"] is not None and d["h4"] is not None:
+            total_h += (d["h4"] - d["h3"]) / 60
         try:
             dt = parse_date(ds)
         except Exception:
             dt = ds
         rows.append({
-            'Fecha': dt,
-            'Hora 1': to_time(d['h1']),
-            'Hora 2': to_time(d['h2']),
-            'Hora 3': to_time(d['h3']),
-            'Hora 4': to_time(d['h4']),
-            'Total': round(total_h, 2) if total_h > 0 else None,
-            'Obs.': '; '.join(d['flags']) if d['flags'] else '',
+            "Fecha": dt,
+            "Hora 1": to_time(d["h1"]),
+            "Hora 2": to_time(d["h2"]),
+            "Hora 3": to_time(d["h3"]),
+            "Hora 4": to_time(d["h4"]),
+            "Total": round(total_h, 2) if total_h > 0 else None,
+            "Obs.": "; ".join(d["flags"]) if d["flags"] else "",
         })
 
-    df = pd.DataFrame(rows)
-
     edited_df = st.data_editor(
-        df,
+        pd.DataFrame(rows),
         column_config={
             "Fecha": st.column_config.DateColumn(disabled=True, format="DD/MM ddd"),
             "Hora 1": st.column_config.TimeColumn(format="HH:mm"),
@@ -142,33 +153,90 @@ with tab1:
         key=f"ed_{selected}",
     )
 
-    # Sincronizar ediciones a session_state
     _edits = False
     for idx, ds in enumerate(dates_sorted):
         row = edited_df.iloc[idx]
         new = {
-            'h1': _time_to_mins(row['Hora 1']),
-            'h2': _time_to_mins(row['Hora 2']),
-            'h3': _time_to_mins(row['Hora 3']),
-            'h4': _time_to_mins(row['Hora 4']),
+            "h1": _time_to_mins(row["Hora 1"]),
+            "h2": _time_to_mins(row["Hora 2"]),
+            "h3": _time_to_mins(row["Hora 3"]),
+            "h4": _time_to_mins(row["Hora 4"]),
         }
         old = day_cls[ds]
-        if any(new[k] != old[k] for k in ('h1', 'h2', 'h3', 'h4')):
+        if any(new[k] != old[k] for k in ("h1", "h2", "h3", "h4")):
             _edits = True
-            new_flags = [f for f in old['flags'] if not f.startswith('REVISAR:')]
-            if 'CORREGIDO' not in ' '.join(new_flags):
-                new_flags.append('CORREGIDO MANUALMENTE')
-            new['flags'] = new_flags
+            new_flags = [f for f in old["flags"] if not f.startswith("REVISAR:")]
+            if "CORREGIDO" not in " ".join(new_flags):
+                new_flags.append("CORREGIDO MANUALMENTE")
+            new["flags"] = new_flags
             st.session_state.cls[selected][ds] = new
 
     if _edits:
         st.rerun()
 
 
-# ── Tab 2: Nomina ─────────────────────────────────────────────
+# ── Tab 2: Empleados ──────────────────────────────────────────
 with tab2:
-    st.caption("Los salarios no se almacenan — se borran al cerrar la sesion.")
+    st.caption("Configura los datos de cada empleado. Guarda el archivo JSON para reutilizarlo el proximo mes.")
 
+    ea, eb = st.columns(2)
+
+    config_file = ea.file_uploader("Cargar configuracion guardada", type=["json"], key="cfg_upload")
+    if config_file:
+        try:
+            loaded = json.load(config_file)
+            for name, vals in loaded.items():
+                if name in st.session_state.emp_config:
+                    st.session_state.emp_config[name].update(vals)
+                else:
+                    st.session_state.emp_config[name] = vals
+            st.rerun()
+        except json.JSONDecodeError:
+            ea.error("Archivo JSON invalido")
+
+    cfg_json = json.dumps(st.session_state.emp_config, indent=2, ensure_ascii=False)
+    eb.download_button(
+        "Guardar configuracion (.json)",
+        data=cfg_json,
+        file_name="empleados_config.json",
+        mime="application/json",
+        use_container_width=True,
+    )
+
+    st.divider()
+
+    for name in emp_names:
+        cfg = st.session_state.emp_config[name]
+
+        with st.container(border=True):
+            st.markdown(f"**{name}**")
+            ca, cb, cc, cd = st.columns(4)
+
+            cfg["salario"] = ca.number_input(
+                "Salario base ($)", min_value=0.0, step=10.0,
+                value=cfg["salario"], key=f"cfg_sal_{name}", format="%.2f",
+            )
+            cfg["horas_base"] = cb.number_input(
+                "Horas base / dia", min_value=1, max_value=12,
+                value=cfg["horas_base"], key=f"cfg_base_{name}",
+            )
+            cfg["transporte_dia"] = cc.number_input(
+                "Transporte/comida ($/dia)", min_value=0.0, step=0.5,
+                value=cfg["transporte_dia"], key=f"cfg_transp_{name}", format="%.2f",
+            )
+            cfg["region"] = cd.selectbox(
+                "Region", ["Sierra/Amazonia", "Costa/Galapagos"],
+                index=0 if cfg["region"] == "Sierra/Amazonia" else 1,
+                key=f"cfg_reg_{name}",
+            )
+            cfg["notas"] = st.text_input(
+                "Notas", value=cfg["notas"], key=f"cfg_notas_{name}",
+                placeholder="Cargo, observaciones, etc.",
+            )
+
+
+# ── Tab 3: Nomina ─────────────────────────────────────────────
+with tab3:
     dc1, dc2 = st.columns(2)
     decimo_13 = dc1.toggle(
         "Incluir Decimo Tercer Sueldo",
@@ -178,94 +246,88 @@ with tab2:
     decimo_14 = dc2.toggle(
         f"Incluir Decimo Cuarto Sueldo (${SBU_2026:.0f})",
         help=f"Equivale a 1 SBU (${SBU_2026:.0f} en 2026). "
-             "Sierra/Amazonia: hasta ago 15 (periodo ago 1 — jul 31). "
-             "Costa/Galapagos: hasta mar 15 (periodo mar 1 — feb 28). "
+             "Sierra/Amazonia: hasta ago 15. Costa/Galapagos: hasta mar 15. "
              "(Art. 113, Codigo del Trabajo)",
     )
-
-    if decimo_13 or decimo_14:
-        st.divider()
 
     any_salary = False
     salary_collected = {}
 
     for name in emp_names:
-        with st.container(border=True):
-            r1a, r1b, r1c = st.columns([4, 2, 1])
-            r1a.markdown(f"**{name}**")
-            salary = r1b.number_input(
-                "Salario base ($)", min_value=0.0, step=10.0,
-                key=f"sal_{name}", format="%.2f",
-            )
-            base_h = r1c.number_input(
-                "h/dia", min_value=1, max_value=12, value=8,
-                key=f"base_{name}",
-            )
+        cfg = st.session_state.emp_config[name]
+        salary = cfg["salario"]
+        base_h = cfg["horas_base"]
+        transporte_dia = cfg["transporte_dia"]
 
-            hrs = calcular_horas_clasificadas(cls[name], base_hours=int(base_h))
+        hrs = calcular_horas_clasificadas(cls[name], base_hours=base_h)
+
+        with st.container(border=True):
+            st.markdown(f"**{name}**")
 
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Dias", hrs['dias'])
+            m1.metric("Dias", hrs["dias"])
             m2.metric("Horas", f"{hrs['horas_total']:.1f}")
             m3.metric("H. 50%", f"{hrs['horas_50']:.2f}")
             m4.metric("H. 100%", f"{hrs['horas_100']:.2f}")
 
-            if hrs['dias_anomalia']:
+            if hrs["dias_anomalia"]:
                 st.caption(
                     f"⚠ {hrs['dias_anomalia']} dia(s) con datos incompletos"
                     " — las horas pueden estar subestimadas."
                 )
 
-            if salary > 0:
-                any_salary = True
-                hourly = salary / 30 / int(base_h)
-                pay_50 = hrs['horas_50'] * hourly * 1.5
-                pay_100 = hrs['horas_100'] * hourly * 2.0
+            if salary <= 0:
+                st.caption("Configura el salario en la pestana Empleados.")
+                continue
 
-                ba, bb = st.columns(2)
-                bonus = ba.number_input(
-                    "Bono / Ajuste ($)", step=1.0,
-                    key=f"bonus_{name}", format="%.2f",
-                )
-                note = bb.text_input(
-                    "Nota del ajuste", key=f"note_{name}",
-                    placeholder="Opcional",
-                )
+            any_salary = True
+            hourly = salary / 30 / base_h
+            pay_50 = hrs["horas_50"] * hourly * 1.5
+            pay_100 = hrs["horas_100"] * hourly * 2.0
+            transporte = hrs["dias"] * transporte_dia
 
-                d13 = salary if decimo_13 else 0.0
-                d14 = SBU_2026 if decimo_14 else 0.0
-                total = salary + pay_50 + pay_100 + bonus + d13 + d14
+            bonus = st.number_input(
+                "Bono / Ajuste ($)", step=1.0,
+                key=f"bonus_{name}", format="%.2f",
+            )
 
-                t1, t2, t3, t4 = st.columns(4)
-                t1.metric("Salario", f"${salary:,.2f}")
-                t2.metric("+50%", f"${pay_50:,.2f}",
-                          f"{hrs['horas_50']:.1f}h x ${hourly*1.5:,.2f}")
-                t3.metric("+100%", f"${pay_100:,.2f}",
-                          f"{hrs['horas_100']:.1f}h x ${hourly*2:,.2f}")
+            d13 = salary if decimo_13 else 0.0
+            d14 = SBU_2026 if decimo_14 else 0.0
+            total = salary + pay_50 + pay_100 + transporte + bonus + d13 + d14
 
-                delta_parts = []
-                if d13:
-                    delta_parts.append(f"13ro: ${d13:,.2f}")
-                if d14:
-                    delta_parts.append(f"14to: ${d14:,.0f}")
-                if bonus:
-                    delta_parts.append(f"Bono: ${bonus:,.2f}")
-                t4.metric("TOTAL", f"${total:,.2f}",
-                          " | ".join(delta_parts) if delta_parts else None)
+            t1, t2, t3, t4, t5 = st.columns(5)
+            t1.metric("Salario", f"${salary:,.2f}")
+            t2.metric("+50%", f"${pay_50:,.2f}",
+                      f"{hrs['horas_50']:.1f}h x ${hourly*1.5:,.2f}")
+            t3.metric("+100%", f"${pay_100:,.2f}",
+                      f"{hrs['horas_100']:.1f}h x ${hourly*2:,.2f}")
+            t4.metric("Transp.", f"${transporte:,.2f}",
+                      f"{hrs['dias']}d x ${transporte_dia:,.2f}" if transporte else None)
 
-                salary_collected[name] = {
-                    'salary': salary,
-                    'base_hours': int(base_h),
-                    'bonus': bonus,
-                    'note': note,
-                    'hours': hrs,
-                    'pay_50': pay_50,
-                    'pay_100': pay_100,
-                    'decimo_13': d13,
-                    'decimo_14': d14,
-                    'total': total,
-                    'hourly': hourly,
-                }
+            delta_parts = []
+            if d13:
+                delta_parts.append(f"13ro: ${d13:,.2f}")
+            if d14:
+                delta_parts.append(f"14to: ${d14:,.0f}")
+            if bonus:
+                delta_parts.append(f"Bono: ${bonus:,.2f}")
+            t5.metric("TOTAL", f"${total:,.2f}",
+                      " | ".join(delta_parts) if delta_parts else None)
+
+            salary_collected[name] = {
+                "salary": salary,
+                "base_hours": base_h,
+                "bonus": bonus,
+                "note": "",
+                "hours": hrs,
+                "pay_50": pay_50,
+                "pay_100": pay_100,
+                "transporte": transporte,
+                "decimo_13": d13,
+                "decimo_14": d14,
+                "total": total,
+                "hourly": hourly,
+            }
 
     if any_salary:
         st.divider()
