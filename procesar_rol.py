@@ -4,6 +4,8 @@ from datetime import date, time
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment
 
+SBU_2026 = 482.0  # Salario Basico Unificado Ecuador 2026
+
 MORN_MIN  = 5 * 60        # 05:00
 MORN_MAX  = 8 * 60 + 45   # 08:45
 LUNCH_MIN = 11 * 60       # 11:00
@@ -285,14 +287,14 @@ def write_excel_nomina(data, salary_info, dest):
     # -- Hoja resumen nomina --
     ws_sum = wb.create_sheet('Nomina', 0)
     cols = ['Empleado', 'Salario', 'Dias', 'H. Total', 'H. 50%', 'H. 100%',
-            'Pago 50%', 'Pago 100%', 'Bono', 'TOTAL']
+            'Pago 50%', 'Pago 100%', 'Bono', 'D.13ro', 'D.14to', 'TOTAL']
     for c, h in enumerate(cols, 1):
         cell = ws_sum.cell(1, c, h)
         cell.fill = HDR_BG
         cell.font = HDR_FT
         cell.alignment = Alignment(horizontal='center')
     ws_sum.column_dimensions['A'].width = 24
-    for i in range(2, 11):
+    for i in range(2, 13):
         from openpyxl.utils import get_column_letter
         ws_sum.column_dimensions[get_column_letter(i)].width = 13
     ws_sum.freeze_panes = 'A2'
@@ -313,7 +315,11 @@ def write_excel_nomina(data, salary_info, dest):
         ws_sum.cell(sr, 7, sd['pay_50']).number_format = '$#,##0.00'
         ws_sum.cell(sr, 8, sd['pay_100']).number_format = '$#,##0.00'
         ws_sum.cell(sr, 9, sd['bonus']).number_format = '$#,##0.00'
-        cell_total = ws_sum.cell(sr, 10, sd['total'])
+        d13 = sd.get('decimo_13', 0)
+        d14 = sd.get('decimo_14', 0)
+        ws_sum.cell(sr, 10, d13).number_format = '$#,##0.00'
+        ws_sum.cell(sr, 11, d14).number_format = '$#,##0.00'
+        cell_total = ws_sum.cell(sr, 12, sd['total'])
         cell_total.number_format = '$#,##0.00'
         cell_total.fill = GREEN_BG
         cell_total.font = BOLD
@@ -392,6 +398,12 @@ def write_excel_nomina(data, salary_info, dest):
         if sd['bonus']:
             nota = f" — {sd['note']}" if sd['note'] else ''
             _row(f'Bono / Ajuste{nota}', sd['bonus'], '$#,##0.00')
+        d13 = sd.get('decimo_13', 0)
+        d14 = sd.get('decimo_14', 0)
+        if d13:
+            _row('Decimo Tercer Sueldo', d13, '$#,##0.00')
+        if d14:
+            _row(f'Decimo Cuarto Sueldo (SBU ${SBU_2026:.0f})', d14, '$#,##0.00')
         r += 1
         ws.cell(r, 1, 'TOTAL A RECIBIR').font = BOLD_LG
         total_cell = ws.cell(r, 3, sd['total'])

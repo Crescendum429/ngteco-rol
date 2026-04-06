@@ -5,6 +5,7 @@ import tempfile
 import streamlit as st
 
 from procesar_rol import (
+    SBU_2026,
     calcular_horas_empleado,
     classify,
     parse_xls,
@@ -27,7 +28,6 @@ if st.session_state.get("_file") != uploaded.name:
     try:
         st.session_state.data = parse_xls(tmp_path)
         st.session_state._file = uploaded.name
-        # Pre-generar v1 para no recalcular en cada interaccion
         buf = io.BytesIO()
         write_excel(st.session_state.data, buf)
         st.session_state.v1_bytes = buf.getvalue()
@@ -36,7 +36,6 @@ if st.session_state.get("_file") != uploaded.name:
 
 data = st.session_state.data
 
-# Anomalias (para ambos tabs)
 anomalias = []
 for emp, days in data:
     nombre = emp.split("(")[0].strip()
@@ -70,6 +69,24 @@ with tab1:
 with tab2:
     st.caption("Los salarios no se almacenan — se borran al cerrar la sesion.")
 
+    # Decimos
+    dc1, dc2 = st.columns(2)
+    decimo_13 = dc1.toggle(
+        "Incluir Decimo Tercer Sueldo",
+        help="Equivale a 1 salario mensual. Se paga hasta el 24 de diciembre. "
+             "Periodo: dic 1 — nov 30. (Art. 111-112, Codigo del Trabajo)",
+    )
+    decimo_14 = dc2.toggle(
+        f"Incluir Decimo Cuarto Sueldo (${SBU_2026:.0f})",
+        help=f"Equivale a 1 SBU (${SBU_2026:.0f} en 2026). "
+             "Sierra/Amazonia: hasta ago 15 (periodo ago 1 — jul 31). "
+             "Costa/Galapagos: hasta mar 15 (periodo mar 1 — feb 28). "
+             "(Art. 113, Codigo del Trabajo)",
+    )
+
+    if decimo_13 or decimo_14:
+        st.divider()
+
     any_salary = False
     salary_collected = {}
 
@@ -77,7 +94,6 @@ with tab2:
         name = emp.split("(")[0].strip()
 
         with st.container(border=True):
-            # Fila 1: nombre + inputs
             r1a, r1b, r1c = st.columns([4, 2, 1])
             r1a.markdown(f"**{name}**")
             salary = r1b.number_input(
@@ -91,7 +107,6 @@ with tab2:
 
             hrs = calcular_horas_empleado(days, base_hours=int(base_h))
 
-            # Fila 2: metricas de horas
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Dias", hrs['dias'])
             m2.metric("Horas", f"{hrs['horas_total']:.1f}")
@@ -104,7 +119,6 @@ with tab2:
                     " — las horas pueden estar subestimadas."
                 )
 
-            # Fila 3: calculo de pago (solo si hay salario)
             if salary > 0:
                 any_salary = True
                 hourly = salary / 30 / int(base_h)
@@ -121,7 +135,9 @@ with tab2:
                     placeholder="Opcional",
                 )
 
-                total = salary + pay_50 + pay_100 + bonus
+                d13 = salary if decimo_13 else 0.0
+                d14 = SBU_2026 if decimo_14 else 0.0
+                total = salary + pay_50 + pay_100 + bonus + d13 + d14
 
                 t1, t2, t3, t4 = st.columns(4)
                 t1.metric("Salario", f"${salary:,.2f}")
@@ -129,8 +145,18 @@ with tab2:
                           f"{hrs['horas_50']:.1f}h x ${hourly*1.5:,.2f}")
                 t3.metric("+100%", f"${pay_100:,.2f}",
                           f"{hrs['horas_100']:.1f}h x ${hourly*2:,.2f}")
-                t4.metric("TOTAL", f"${total:,.2f}",
-                          f"Bono: ${bonus:,.2f}" if bonus else None)
+
+                # Linea de decimos en el total
+                delta_parts = []
+                if d13:
+                    delta_parts.append(f"13ro: ${d13:,.2f}")
+                if d14:
+                    delta_parts.append(f"14to: ${d14:,.0f}")
+                if bonus:
+                    delta_parts.append(f"Bono: ${bonus:,.2f}")
+                delta_str = " | ".join(delta_parts) if delta_parts else None
+
+                t4.metric("TOTAL", f"${total:,.2f}", delta_str)
 
                 salary_collected[name] = {
                     'salary': salary,
@@ -140,11 +166,12 @@ with tab2:
                     'hours': hrs,
                     'pay_50': pay_50,
                     'pay_100': pay_100,
+                    'decimo_13': d13,
+                    'decimo_14': d14,
                     'total': total,
                     'hourly': hourly,
                 }
 
-    # Boton de descarga nomina
     if any_salary:
         st.divider()
         buf2 = io.BytesIO()
@@ -160,7 +187,8 @@ with tab2:
             type="primary",
         )
         st.caption(
-            "Horas suplementarias (50%): horas extra en dias laborables, "
-            "max 4h/dia. Horas extraordinarias (100%): fines de semana "
-            "o exceso de 12h diarias. (Art. 55, Codigo del Trabajo Ecuador)"
+            "H. suplementarias (50%): extra en dias laborables, max 4h/dia. "
+            "H. extraordinarias (100%): fines de semana o >12h diarias. "
+            "(Art. 55, Codigo del Trabajo) · "
+            f"13ro: Art. 111-112 · 14to: Art. 113 (SBU ${SBU_2026:.0f})"
         )
