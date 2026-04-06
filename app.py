@@ -129,6 +129,7 @@ with tab1:
     )
 
     # Sincronizar ediciones a session_state
+    _edits = False
     for idx, ds in enumerate(dates_sorted):
         row = edited_df.iloc[idx]
         new = {
@@ -138,14 +139,16 @@ with tab1:
             'h4': _time_to_mins(row['Hora 4']),
         }
         old = day_cls[ds]
-        changed = any(new[k] != old[k] for k in ('h1', 'h2', 'h3', 'h4'))
-
-        if changed:
+        if any(new[k] != old[k] for k in ('h1', 'h2', 'h3', 'h4')):
+            _edits = True
             new_flags = [f for f in old['flags'] if not f.startswith('REVISAR:')]
             if 'CORREGIDO' not in ' '.join(new_flags):
                 new_flags.append('CORREGIDO MANUALMENTE')
             new['flags'] = new_flags
             st.session_state.cls[selected][ds] = new
+
+    if _edits:
+        st.rerun()
 
 
 # ── Tab 2: Nomina ─────────────────────────────────────────────
