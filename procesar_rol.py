@@ -1,7 +1,7 @@
 import re
 import unicodedata
 import xlrd
-from datetime import date, time
+from datetime import date, time, timedelta
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -67,7 +67,14 @@ def parse_xls(path):
             cur_day = None
 
         elif emp and row[0] in WEEKDAYS and row[1]:
-            cur_day = str(row[1])
+            # NGTeco asigna cada registro al dia anterior; corregir +1
+            raw_date = str(row[1])
+            try:
+                p = raw_date.split('-')
+                corrected = date(2000 + int(p[0]), int(p[1]), int(p[2])) + timedelta(days=1)
+                cur_day = corrected.strftime('%y-%m-%d')
+            except Exception:
+                cur_day = raw_date
             in_t = to_mins(row[2])
             out_t = to_mins(row[3])
             note = str(row[6]) if row[6] else ''
