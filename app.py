@@ -77,8 +77,6 @@ if "pagina" not in st.session_state:
     st.session_state.pagina = "Roles"
 pagina = st.session_state.pagina
 
-has_xls = False
-
 
 # ── Pagina: Empleados ─────────────────────────────────────────
 if pagina == "Empleados":
@@ -212,6 +210,7 @@ if pagina == "Empleados":
 # ── Pagina: Roles ─────────────────────────────────────────────
 if pagina == "Roles":
     st.header("Roles")
+    has_xls = False
     uploaded = st.file_uploader("Reporte NGTeco (.xls)", type=["xls"])
 
     if uploaded:
