@@ -23,6 +23,7 @@ from storage import (
     export_json, import_json, load_empleados, save_empleados,
     list_reportes, load_reporte, save_reporte, reporte_exists,
     is_changelog_dismissed, dismiss_changelog,
+    load_arrastre, save_arrastre, get_arrastre_anterior,
 )
 
 APP_VERSION = "3.2"
@@ -296,12 +297,6 @@ if pagina == "Empleados":
                 key=f"db_fondos_{eid}",
                 help="8.33% mensual, aplica despues de 1 ano de servicio",
             )
-            emp["horas_comp_anterior"] = ed.number_input(
-                "H. comp. mes ant.", step=0.5,
-                value=float(emp.get("horas_comp_anterior", 0)),
-                key=f"db_hcomp_{eid}", format="%.2f",
-                help="Horas compensatorias arrastradas del mes anterior",
-            )
 
             if st.button("Eliminar", key=f"db_del_{eid}", type="secondary"):
                 del emp_db[eid]
@@ -524,6 +519,8 @@ if pagina == "Roles":
 
     # ── Sub: Sueldos ───────────────────────────────────────────
     if sub == "Sueldos":
+        rid, periodo_label = _detect_periodo(data)
+
         dc1, dc2 = st.columns(2)
         decimo_13 = dc1.toggle(
             "Decimo Tercer Sueldo",
@@ -534,21 +531,49 @@ if pagina == "Roles":
             help=f"1 SBU (${SBU_2026:.0f}). Sierra: ago 15 / Costa: mar 15. (Art. 113)",
         )
 
+        # Cargar arrastre del mes anterior
+        arrastre_ant, prev_id = get_arrastre_anterior(rid) if rid else ({}, "")
+        if arrastre_ant:
+            with st.expander(f"Horas compensatorias del mes anterior ({prev_id})", expanded=True):
+                st.caption("Estas horas fueron marcadas para pasar a este mes. Puedes aceptarlas o modificarlas.")
+                for emp_name, h in arrastre_ant.items():
+                    st.write(f"**{emp_name}**: {h:.2f}h")
+
+        COLORS = ["#2563eb", "#7c3aed", "#0891b2", "#059669", "#d97706", "#dc2626", "#6366f1", "#0d9488"]
+
         nomina_list = []
         any_salary = False
 
-        for emp_full, days, nid in data:
+        for idx, (emp_full, days, nid) in enumerate(data):
             name = emp_full.split("(")[0].strip()
             db_key = matched.get(name)
             cfg = emp_db.get(db_key, _default_emp()) if db_key else _default_emp()
             salario = cfg.get("salario", 0)
+            color = COLORS[idx % len(COLORS)]
+
+            # Usar arrastre del mes anterior si existe
+            cfg_copy = dict(cfg)
+            h_ant = arrastre_ant.get(name, 0)
+            cfg_copy["horas_comp_anterior"] = st.session_state.get(f"h_ant_{nid}", h_ant)
 
             hrs = calcular_horas_clasificadas(cls.get(name, {}), cfg.get("horas_base", 8))
 
             with st.container(border=True):
-                cargo = f" · {cfg['cargo']}" if cfg.get("cargo") else ""
-                st.markdown(f"**{name}**{cargo}")
+                cargo = f" · {cfg.get('cargo', '')}" if cfg.get("cargo") else ""
+                st.markdown(
+                    f'<div style="border-left:4px solid {color}; padding-left:12px;">'
+                    f'<h4 style="margin:0;">{name}<span style="font-weight:normal; '
+                    f'font-size:0.85em; color:gray;">{cargo}</span></h4></div>',
+                    unsafe_allow_html=True,
+                )
 
+                if salario <= 0:
+                    st.caption("Configura el salario en Empleados.")
+                    continue
+
+                any_salary = True
+
+                # Horas
                 m1, m2, m3, m4 = st.columns(4)
                 m1.metric("Dias", hrs["dias"])
                 m2.metric("Horas", f"{hrs['horas_total']:.1f}")
@@ -558,17 +583,20 @@ if pagina == "Roles":
                 if hrs["dias_anomalia"]:
                     st.caption(f"⚠ {hrs['dias_anomalia']} dia(s) con datos incompletos")
 
-                if salario <= 0:
-                    st.caption("Configura el salario en Empleados.")
-                    continue
-
-                any_salary = True
-                bonus = st.number_input(
+                # Ajustes del mes
+                aa, ab, ac = st.columns(3)
+                bonus = aa.number_input(
                     "Bono / Ajuste ($)", step=1.0,
                     key=f"bonus_{nid}", format="%.2f",
                 )
+                cfg_copy["horas_comp_anterior"] = ab.number_input(
+                    "H. comp. mes anterior", step=0.5,
+                    value=float(cfg_copy["horas_comp_anterior"]),
+                    key=f"h_ant_{nid}", format="%.2f",
+                    help="Horas compensatorias arrastradas del mes pasado",
+                )
 
-                n = calcular_nomina(hrs, cfg, {
+                n = calcular_nomina(hrs, cfg_copy, {
                     'decimo_13': decimo_13,
                     'decimo_14': decimo_14,
                     'bonus': bonus,
@@ -576,7 +604,10 @@ if pagina == "Roles":
                 nomina_list.append({'name': name, 'nomina': n})
 
                 # Ingresos
-                st.markdown("**Ingresos**")
+                st.markdown(
+                    f'<p style="font-weight:600; color:{color}; margin-bottom:4px;">INGRESOS</p>',
+                    unsafe_allow_html=True,
+                )
                 i1, i2, i3, i4 = st.columns(4)
                 i1.metric("1ra Quincena", f"${n['quincena']:,.2f}")
                 i2.metric("2da Quincena", f"${n['quincena']:,.2f}")
@@ -585,8 +616,11 @@ if pagina == "Roles":
                 i4.metric("Transp.", f"${n['transporte']:,.2f}",
                           f"{hrs['dias']}d x ${cfg.get('transporte_dia', 0):,.2f}")
 
-                # Egresos y neto
-                st.markdown("**Resultado**")
+                # Resultado
+                st.markdown(
+                    f'<p style="font-weight:600; color:{color}; margin-bottom:4px;">RESULTADO</p>',
+                    unsafe_allow_html=True,
+                )
                 r1, r2, r3, r4 = st.columns(4)
                 r1.metric("Total Ingresos", f"${n['total_ingresos']:,.2f}")
                 r2.metric("IESS 9.45%", f"-${n['iess']:,.2f}")
@@ -595,19 +629,32 @@ if pagina == "Roles":
                 r4.metric("Total Transferido", f"${n['total_transferido']:,.2f}",
                           f"F.Reserva: ${n['fondos_reserva']:,.2f}" if n['fondos_reserva'] else None)
 
-                # Arrastre sugerido
-                if n['h_50_arrastre'] != 0:
-                    st.caption(
-                        f"Arrastre sugerido para proximo mes: {n['h_50_arrastre']:.2f}h compensatorias"
+                # Arrastre
+                if n['h_50_arrastre'] != 0 or hrs['horas_50'] > 0:
+                    arrastre_key = f"pasar_{nid}"
+                    pasar = ac.checkbox(
+                        f"Pasar {hrs['horas_50']:.2f}h al sig. mes",
+                        key=arrastre_key,
+                        help="Marca para guardar estas horas compensatorias para el proximo mes",
                     )
+
+        # Guardar arrastre
+        if any_salary and rid:
+            arrastre_nuevo = {}
+            for emp_full, days, nid in data:
+                name = emp_full.split("(")[0].strip()
+                if st.session_state.get(f"pasar_{nid}"):
+                    hrs = calcular_horas_clasificadas(cls.get(name, {}),
+                          emp_db.get(matched.get(name), _default_emp()).get("horas_base", 8))
+                    arrastre_nuevo[name] = hrs['horas_50']
+            if arrastre_nuevo:
+                save_arrastre(rid, arrastre_nuevo)
 
         if any_salary:
             st.divider()
             buf2 = io.BytesIO()
-            _, periodo_label = _detect_periodo(data)
             write_excel_nomina(nomina_list, periodo_label or "Periodo", buf2)
-            _, p_label2 = _detect_periodo(data)
-            out2 = (p_label2 or "reporte").replace(" ", "_") + "_nomina.xlsx"
+            out2 = (periodo_label or "reporte").replace(" ", "_") + "_nomina.xlsx"
             st.download_button(
                 "Descargar Nomina Completa (.xlsx)",
                 data=buf2.getvalue(),

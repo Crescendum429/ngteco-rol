@@ -140,6 +140,41 @@ def save_reporte(reporte_id, periodo, data, cls):
         }).execute()
 
 
+def load_arrastre(reporte_id):
+    """Carga horas de arrastre guardadas para un reporte."""
+    if USE_SUPABASE:
+        try:
+            res = _supabase().table("config").select("value").eq("key", f"arrastre_{reporte_id}").execute()
+            if res.data:
+                return res.data[0]["value"]
+        except Exception:
+            pass
+    return {}
+
+
+def save_arrastre(reporte_id, arrastre):
+    """Guarda horas de arrastre para un reporte. arrastre: {emp_name: hours}"""
+    if USE_SUPABASE:
+        _supabase().table("config").upsert({
+            "key": f"arrastre_{reporte_id}",
+            "value": arrastre,
+        }).execute()
+
+
+def get_arrastre_anterior(reporte_id):
+    """Busca arrastre del mes anterior."""
+    try:
+        y, m = reporte_id.split("-")
+        y, m = int(y), int(m)
+        if m == 1:
+            prev = f"{y-1}-12"
+        else:
+            prev = f"{y}-{m-1:02d}"
+        return load_arrastre(prev), prev
+    except Exception:
+        return {}, ""
+
+
 def reporte_exists(reporte_id):
     if USE_SUPABASE:
         try:
