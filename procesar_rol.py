@@ -1,20 +1,31 @@
 import re
+import unicodedata
 import xlrd
 from datetime import date, time
 from openpyxl import Workbook
-from openpyxl.styles import PatternFill, Font, Alignment
+from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
-SBU_2026 = 482.0  # Salario Basico Unificado Ecuador 2026
+SBU_2026 = 482.0
+IESS_EMPLEADO = 0.0945
 
-MORN_MIN  = 5 * 60        # 05:00
-MORN_MAX  = 8 * 60 + 45   # 08:45
-LUNCH_MIN = 11 * 60       # 11:00
-LUNCH_MAX = 15 * 60       # 15:00
-AFT_MIN   = 14 * 60       # 14:00
-AFT_MAX   = 19 * 60       # 19:00
+MORN_MIN  = 5 * 60
+MORN_MAX  = 8 * 60 + 45
+LUNCH_MIN = 11 * 60
+LUNCH_MAX = 15 * 60
+AFT_MIN   = 14 * 60
+AFT_MAX   = 19 * 60
 SHORT_SEG = 60
 
 WEEKDAYS = {'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'}
+
+
+# ── Utilidades ────────────────────────────────────────────────
+
+def normalize(s):
+    s = unicodedata.normalize('NFD', s)
+    s = ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+    return s.strip().lower()
 
 
 def to_mins(s):
@@ -27,6 +38,13 @@ def to_mins(s):
 def to_time(m):
     return time(m // 60, m % 60) if m is not None else None
 
+
+def parse_date(ds):
+    p = ds.split('-')
+    return date(2000 + int(p[0]), int(p[1]), int(p[2]))
+
+
+# ── Parseo XLS ────────────────────────────────────────────────
 
 def parse_xls(path):
     wb = xlrd.open_workbook(path)
@@ -66,6 +84,45 @@ def parse_xls(path):
     return result
 
 
+# ── Matching empleados ────────────────────────────────────────
+
+def match_empleados(data, emp_db):
+    """Retorna (matched, nuevos, faltantes).
+    matched: {xls_name: db_key}
+    nuevos: [(xls_name, ngteco_id)] - en XLS pero no en DB
+    faltantes: [db_key] - en DB pero no en XLS
+    """
+    matched = {}
+    nuevos = []
+
+    db_norm = {}
+    for key, emp in emp_db.items():
+        nombre = emp.get('nombre', '')
+        db_norm[normalize(nombre)] = key
+
+    xls_names_norm = set()
+    for emp_full, days, nid in data:
+        name = emp_full.split('(')[0].strip()
+        n = normalize(name)
+        xls_names_norm.add(n)
+
+        if n in db_norm:
+            matched[name] = db_norm[n]
+        else:
+            nuevos.append((name, nid))
+
+    faltantes = []
+    for key, emp in emp_db.items():
+        n = normalize(emp.get('nombre', ''))
+        if n and n not in xls_names_norm:
+            if not emp.get('ocultar', False):
+                faltantes.append(key)
+
+    return matched, nuevos, faltantes
+
+
+# ── Clasificacion ─────────────────────────────────────────────
+
 def classify(pairs):
     active = [(i, o, n) for i, o, n in pairs if i is not None or o is not None]
     missing_out = any('Missing' in (n or '') for _, _, n in pairs)
@@ -78,7 +135,6 @@ def classify(pairs):
 
     if len(active) == 1:
         i, o, n = active[0]
-
         if i is not None and o is not None:
             dur = o - i
             if MORN_MIN <= i <= MORN_MAX:
@@ -94,7 +150,6 @@ def classify(pairs):
             else:
                 h1, h2 = i, o
                 flags.append('REVISAR: horario fuera de rango esperado')
-
         elif i is not None:
             h1 = i
             flags.append('REVISAR: timbre sin salida correspondiente')
@@ -102,14 +157,12 @@ def classify(pairs):
     elif len(active) == 2:
         i1, o1, n1 = active[0]
         i2, o2, n2 = active[1]
-
         if (i1 is not None and o1 is not None and
                 LUNCH_MIN <= i1 <= LUNCH_MAX and (o1 - i1) < SHORT_SEG):
             flags.append('REVISAR: entrada manana no registrada')
             h2, h3 = i1, o1
             h4 = i2
             return h1, h2, h3, h4, flags
-
         if i1 is not None and MORN_MIN <= i1 <= MORN_MAX:
             h1, h2, h3, h4 = i1, o1, i2, o2
             if o2 is None:
@@ -119,108 +172,15 @@ def classify(pairs):
         else:
             h1, h2, h3, h4 = i1, o1, i2, o2
             flags.append('REVISAR: verificar horarios')
-
     else:
         h1 = active[0][0]
         h4 = active[-1][1] or active[-1][0]
-        flags.append(f'REVISAR: {len(active)} registros en el dia - verificar manualmente')
+        flags.append(f'REVISAR: {len(active)} registros - verificar manualmente')
 
     return h1, h2, h3, h4, flags
 
 
-def write_excel(data, dest, overrides=None):
-    wb = Workbook()
-    wb.remove(wb.active)
-
-    YELLOW = PatternFill('solid', fgColor='FFFF99')
-    HDR_BG = PatternFill('solid', fgColor='4472C4')
-    HDR_FT = Font(bold=True, color='FFFFFF')
-
-    all_flags = []
-
-    for emp, days, *_ in data:
-        sheet_name = emp.split('(')[0].strip()[:31]
-        ws = wb.create_sheet(title=sheet_name)
-
-        headers = ['Fecha', 'Hora 1', 'Hora 2', 'Hora 3', 'Hora 4', 'Total (h)', 'Comentarios']
-        for c, h in enumerate(headers, 1):
-            cell = ws.cell(1, c, h)
-            cell.fill = HDR_BG
-            cell.font = HDR_FT
-            cell.alignment = Alignment(horizontal='center')
-
-        ws.column_dimensions['A'].width = 16
-        for ltr in 'BCDE':
-            ws.column_dimensions[ltr].width = 9
-        ws.column_dimensions['F'].width = 11
-        ws.column_dimensions['G'].width = 58
-        ws.freeze_panes = 'A2'
-
-        r = 2
-        for ds in sorted(days):
-            h1, h2, h3, h4, flags = _get_cls(days, ds, overrides, sheet_name)
-
-            try:
-                p = ds.split('-')
-                d = date(2000 + int(p[0]), int(p[1]), int(p[2]))
-            except Exception:
-                d = ds
-
-            ws.cell(r, 1, d).number_format = 'DD/MM/YY DDD'
-
-            for col, val in [(2, h1), (3, h2), (4, h3), (5, h4)]:
-                if val is not None:
-                    ws.cell(r, col, to_time(val)).number_format = 'HH:MM'
-
-            if h1 is not None and h2 is not None:
-                if h3 is not None and h4 is not None:
-                    ws.cell(r, 6).value = f'=((C{r}-B{r})+(E{r}-D{r}))*24'
-                    ws.cell(r, 6).number_format = '0.00'
-                elif h3 is None and h4 is None:
-                    ws.cell(r, 6).value = f'=(C{r}-B{r})*24'
-                    ws.cell(r, 6).number_format = '0.00'
-
-            if flags:
-                comment = '; '.join(flags)
-                ws.cell(r, 7, comment)
-                for c in range(1, 8):
-                    ws.cell(r, c).fill = YELLOW
-                all_flags.append((sheet_name, d, comment))
-
-            r += 1
-
-    ws_sum = wb.create_sheet(title='Resumen', index=0)
-    for c, h in enumerate(['Empleado', 'Fecha', 'Observacion'], 1):
-        cell = ws_sum.cell(1, c, h)
-        cell.fill = HDR_BG
-        cell.font = HDR_FT
-        cell.alignment = Alignment(horizontal='center')
-    ws_sum.column_dimensions['A'].width = 26
-    ws_sum.column_dimensions['B'].width = 16
-    ws_sum.column_dimensions['C'].width = 62
-    ws_sum.freeze_panes = 'A2'
-    ws_sum.cell(1, 5, f'Total anomalias: {len(all_flags)}').font = Font(bold=True)
-
-    for r, (emp, d, comment) in enumerate(all_flags, 2):
-        ws_sum.cell(r, 1, emp)
-        ws_sum.cell(r, 2, d).number_format = 'DD/MM/YY DDD'
-        ws_sum.cell(r, 3, comment)
-        for c in range(1, 4):
-            ws_sum.cell(r, c).fill = YELLOW
-
-    wb.save(dest)
-    return all_flags
-
-
-def parse_date(ds):
-    p = ds.split('-')
-    return date(2000 + int(p[0]), int(p[1]), int(p[2]))
-
-
 def clasificar_todo(data):
-    """Clasifica todos los dias de todos los empleados.
-    Retorna {emp_name: {date_str: {'h1','h2','h3','h4','flags'}}}
-    """
     result = {}
     for emp, days, *_ in data:
         name = emp.split('(')[0].strip()
@@ -240,6 +200,8 @@ def _get_cls(days, ds, overrides, emp_name):
         return d['h1'], d['h2'], d['h3'], d['h4'], d['flags']
     return classify(days[ds])
 
+
+# ── Calculo de horas ──────────────────────────────────────────
 
 def _sumar_horas_dia(h1, h2, h3, h4):
     horas = 0.0
@@ -281,18 +243,7 @@ def _resultado(acum):
     }
 
 
-def calcular_horas_empleado(days, base_hours=8):
-    acum = {'dias': 0, 'dias_anomalia': 0, 'regular': 0.0, 'sup_50': 0.0, 'ext_100': 0.0}
-    for ds, pairs in days.items():
-        h1, h2, h3, h4, flags = classify(pairs)
-        _acumular(ds, _sumar_horas_dia(h1, h2, h3, h4), flags, base_hours, acum)
-    return _resultado(acum)
-
-
 def calcular_horas_clasificadas(classified_days, base_hours=8):
-    """Igual que calcular_horas_empleado pero con datos pre-clasificados/editados.
-    classified_days: {ds: {'h1','h2','h3','h4','flags'}}
-    """
     acum = {'dias': 0, 'dias_anomalia': 0, 'regular': 0.0, 'sup_50': 0.0, 'ext_100': 0.0}
     for ds, d in classified_days.items():
         horas = _sumar_horas_dia(d['h1'], d['h2'], d['h3'], d['h4'])
@@ -300,70 +251,106 @@ def calcular_horas_clasificadas(classified_days, base_hours=8):
     return _resultado(acum)
 
 
-def write_excel_nomina(data, salary_info, dest, overrides=None):
-    """Genera Excel con detalle de nomina.
+# ── Calculo nomina completa ───────────────────────────────────
 
-    salary_info: {emp_name: {salary, base_hours, bonus, note,
-                              hours, pay_50, pay_100, total, hourly}}
+def calcular_nomina(hrs, cfg, extras=None):
+    """Calcula nomina completa para un empleado.
+    cfg: dict con salario, horas_base, transporte_dia, prestamo_iess, fondos_reserva,
+         horas_comp_anterior
+    extras: dict con decimo_13 (bool), decimo_14 (bool), bonus
     """
+    extras = extras or {}
+    salario = cfg.get('salario', 0)
+    base_h = cfg.get('horas_base', 8)
+    transp_dia = cfg.get('transporte_dia', 0)
+    prestamo = cfg.get('prestamo_iess', 0)
+    tiene_fondos = cfg.get('fondos_reserva', False)
+    h_anterior = cfg.get('horas_comp_anterior', 0)
+
+    hourly = salario / 30 / base_h if salario > 0 and base_h > 0 else 0
+
+    # Horas compensatorias con arrastre opcional
+    h_50_total = hrs['horas_50'] + h_anterior
+    h_50_pagar = max(h_50_total, 0)
+    h_50_arrastre = min(h_50_total, 0)
+
+    pay_50 = h_50_pagar * hourly * 1.5
+    pay_100 = hrs['horas_100'] * hourly * 2.0
+    transporte = hrs['dias'] * transp_dia
+
+    quincena = salario / 2
+    horas_extras = pay_50 + pay_100
+
+    # Ingresos
+    total_ingresos = salario + horas_extras + transporte
+
+    # Decimos (se suman a ingresos si aplican)
+    d13 = salario if extras.get('decimo_13') else 0
+    d14 = SBU_2026 if extras.get('decimo_14') else 0
+    bonus = extras.get('bonus', 0)
+
+    total_ingresos_con_extras = total_ingresos + d13 + d14 + bonus
+
+    # Egresos
+    iess = round(total_ingresos * IESS_EMPLEADO, 2)
+    total_egresos = iess + prestamo
+
+    # Neto
+    valor_recibir = total_ingresos_con_extras - total_egresos
+
+    # Fondos de reserva
+    fondos = round(total_ingresos / 12, 2) if tiene_fondos else 0
+
+    # Detalle transferencias
+    transf_15 = quincena
+    transf_fin = valor_recibir - quincena + fondos
+    total_transferido = transf_15 + transf_fin
+
+    return {
+        'salario': salario,
+        'hourly': hourly,
+        'hours': hrs,
+        'quincena': quincena,
+        'horas_comp_anterior': h_anterior,
+        'h_50_total': h_50_total,
+        'h_50_pagar': h_50_pagar,
+        'h_50_arrastre': round(h_50_arrastre, 2),
+        'pay_50': round(pay_50, 2),
+        'pay_100': round(pay_100, 2),
+        'horas_extras': round(horas_extras, 2),
+        'transporte': round(transporte, 2),
+        'total_ingresos': round(total_ingresos, 2),
+        'decimo_13': d13,
+        'decimo_14': d14,
+        'bonus': bonus,
+        'iess': iess,
+        'prestamo_iess': prestamo,
+        'total_egresos': round(total_egresos, 2),
+        'valor_recibir': round(valor_recibir, 2),
+        'fondos_reserva': fondos,
+        'transf_15': round(transf_15, 2),
+        'transf_fin': round(transf_fin, 2),
+        'total_transferido': round(total_transferido, 2),
+    }
+
+
+# ── Excel horas ───────────────────────────────────────────────
+
+def write_excel(data, dest, overrides=None):
     wb = Workbook()
     wb.remove(wb.active)
 
-    YELLOW   = PatternFill('solid', fgColor='FFFF99')
-    HDR_BG   = PatternFill('solid', fgColor='4472C4')
-    HDR_FT   = Font(bold=True, color='FFFFFF')
-    GREEN_BG = PatternFill('solid', fgColor='E2EFDA')
-    BOLD     = Font(bold=True)
-    BOLD_LG  = Font(bold=True, size=11)
+    YELLOW = PatternFill('solid', fgColor='FFFF99')
+    HDR_BG = PatternFill('solid', fgColor='4472C4')
+    HDR_FT = Font(bold=True, color='FFFFFF')
 
-    # -- Hoja resumen nomina --
-    ws_sum = wb.create_sheet('Nomina', 0)
-    cols = ['Empleado', 'Salario', 'Dias', 'H. Total', 'H. 50%', 'H. 100%',
-            'Pago 50%', 'Pago 100%', 'Transp.', 'Bono', 'D.13ro', 'D.14to', 'TOTAL']
-    for c, h in enumerate(cols, 1):
-        cell = ws_sum.cell(1, c, h)
-        cell.fill = HDR_BG
-        cell.font = HDR_FT
-        cell.alignment = Alignment(horizontal='center')
-    ws_sum.column_dimensions['A'].width = 24
-    for i in range(2, 14):
-        from openpyxl.utils import get_column_letter
-        ws_sum.column_dimensions[get_column_letter(i)].width = 13
-    ws_sum.freeze_panes = 'A2'
+    all_flags = []
 
-    sr = 2
     for emp, days, *_ in data:
-        name = emp.split('(')[0].strip()
-        if name not in salary_info:
-            continue
-        sd = salary_info[name]
-        hrs = sd['hours']
-        ws_sum.cell(sr, 1, name)
-        ws_sum.cell(sr, 2, sd['salary']).number_format = '$#,##0.00'
-        ws_sum.cell(sr, 3, hrs['dias'])
-        ws_sum.cell(sr, 4, hrs['horas_total']).number_format = '0.00'
-        ws_sum.cell(sr, 5, hrs['horas_50']).number_format = '0.00'
-        ws_sum.cell(sr, 6, hrs['horas_100']).number_format = '0.00'
-        ws_sum.cell(sr, 7, sd['pay_50']).number_format = '$#,##0.00'
-        ws_sum.cell(sr, 8, sd['pay_100']).number_format = '$#,##0.00'
-        ws_sum.cell(sr, 9, sd.get('transporte', 0)).number_format = '$#,##0.00'
-        ws_sum.cell(sr, 10, sd['bonus']).number_format = '$#,##0.00'
-        d13 = sd.get('decimo_13', 0)
-        d14 = sd.get('decimo_14', 0)
-        ws_sum.cell(sr, 11, d13).number_format = '$#,##0.00'
-        ws_sum.cell(sr, 12, d14).number_format = '$#,##0.00'
-        cell_total = ws_sum.cell(sr, 13, sd['total'])
-        cell_total.number_format = '$#,##0.00'
-        cell_total.fill = GREEN_BG
-        cell_total.font = BOLD
-        sr += 1
+        sheet_name = emp.split('(')[0].strip()[:31]
+        ws = wb.create_sheet(title=sheet_name)
 
-    # -- Hojas individuales --
-    for emp, days, *_ in data:
-        name = emp.split('(')[0].strip()
-        ws = wb.create_sheet(title=name[:31])
-
-        headers = ['Fecha', 'Hora 1', 'Hora 2', 'Hora 3', 'Hora 4', 'Total (h)', 'Obs.']
+        headers = ['Fecha', 'Hora 1', 'Hora 2', 'Hora 3', 'Hora 4', 'Total (h)', 'Comentarios']
         for c, h in enumerate(headers, 1):
             cell = ws.cell(1, c, h)
             cell.fill = HDR_BG
@@ -373,12 +360,12 @@ def write_excel_nomina(data, salary_info, dest, overrides=None):
         for ltr in 'BCDE':
             ws.column_dimensions[ltr].width = 9
         ws.column_dimensions['F'].width = 11
-        ws.column_dimensions['G'].width = 40
+        ws.column_dimensions['G'].width = 58
         ws.freeze_panes = 'A2'
 
         r = 2
         for ds in sorted(days):
-            h1, h2, h3, h4, flags = _get_cls(days, ds, overrides, name)
+            h1, h2, h3, h4, flags = _get_cls(days, ds, overrides, sheet_name)
             try:
                 d = parse_date(ds)
             except Exception:
@@ -394,58 +381,197 @@ def write_excel_nomina(data, salary_info, dest, overrides=None):
                     ws.cell(r, 6).value = f'=(C{r}-B{r})*24'
                 ws.cell(r, 6).number_format = '0.00'
             if flags:
-                ws.cell(r, 7, '; '.join(flags))
-                for ci in range(1, 8):
-                    ws.cell(r, ci).fill = YELLOW
+                comment = '; '.join(flags)
+                ws.cell(r, 7, comment)
+                for c in range(1, 8):
+                    ws.cell(r, c).fill = YELLOW
+                all_flags.append((sheet_name, d, comment))
             r += 1
 
-        if name not in salary_info:
-            continue
+    ws_sum = wb.create_sheet(title='Resumen', index=0)
+    for c, h in enumerate(['Empleado', 'Fecha', 'Observacion'], 1):
+        cell = ws_sum.cell(1, c, h)
+        cell.fill = HDR_BG
+        cell.font = HDR_FT
+        cell.alignment = Alignment(horizontal='center')
+    ws_sum.column_dimensions['A'].width = 26
+    ws_sum.column_dimensions['B'].width = 16
+    ws_sum.column_dimensions['C'].width = 62
+    ws_sum.freeze_panes = 'A2'
+    ws_sum.cell(1, 5, f'Total anomalias: {len(all_flags)}').font = Font(bold=True)
+    for r, (emp, d, comment) in enumerate(all_flags, 2):
+        ws_sum.cell(r, 1, emp)
+        ws_sum.cell(r, 2, d).number_format = 'DD/MM/YY DDD'
+        ws_sum.cell(r, 3, comment)
+        for c in range(1, 4):
+            ws_sum.cell(r, c).fill = YELLOW
 
-        sd = salary_info[name]
-        hrs = sd['hours']
+    wb.save(dest)
+    return all_flags
+
+
+# ── Excel nomina (formato Rol de Pagos) ───────────────────────
+
+def write_excel_nomina(nomina_data, periodo, dest):
+    """nomina_data: [{name, nomina (dict from calcular_nomina)}]
+    periodo: str como 'Marzo 2026'
+    """
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    HDR_BG = PatternFill('solid', fgColor='4472C4')
+    HDR_FT = Font(bold=True, color='FFFFFF')
+    GREEN  = PatternFill('solid', fgColor='E2EFDA')
+    BOLD   = Font(bold=True)
+    BOLD_L = Font(bold=True, size=11)
+    THIN   = Border(
+        bottom=Side(style='thin'),
+        top=Side(style='thin'),
+    )
+
+    # Hoja resumen
+    ws = wb.create_sheet('Resumen Nomina', 0)
+    cols = ['Empleado', '1ra Quinc.', '2da Quinc.', 'H. Extras',
+            'Transp.', 'Total Ing.', 'IESS', 'Prest.', 'Total Egr.',
+            'Neto', 'F. Reserva', 'Total Transf.']
+    for c, h in enumerate(cols, 1):
+        cell = ws.cell(1, c, h)
+        cell.fill = HDR_BG
+        cell.font = HDR_FT
+        cell.alignment = Alignment(horizontal='center')
+    for i in range(1, len(cols) + 1):
+        ws.column_dimensions[get_column_letter(i)].width = 14
+    ws.column_dimensions['A'].width = 24
+    ws.freeze_panes = 'A2'
+
+    for ri, item in enumerate(nomina_data, 2):
+        n = item['nomina']
+        ws.cell(ri, 1, item['name'])
+        ws.cell(ri, 2, n['quincena']).number_format = '$#,##0.00'
+        ws.cell(ri, 3, n['quincena']).number_format = '$#,##0.00'
+        ws.cell(ri, 4, n['horas_extras']).number_format = '$#,##0.00'
+        ws.cell(ri, 5, n['transporte']).number_format = '$#,##0.00'
+        ws.cell(ri, 6, n['total_ingresos']).number_format = '$#,##0.00'
+        ws.cell(ri, 7, n['iess']).number_format = '$#,##0.00'
+        ws.cell(ri, 8, n['prestamo_iess']).number_format = '$#,##0.00'
+        ws.cell(ri, 9, n['total_egresos']).number_format = '$#,##0.00'
+        ws.cell(ri, 10, n['valor_recibir']).number_format = '$#,##0.00'
+        ws.cell(ri, 10).fill = GREEN
+        ws.cell(ri, 10).font = BOLD
+        ws.cell(ri, 11, n['fondos_reserva']).number_format = '$#,##0.00'
+        ws.cell(ri, 12, n['total_transferido']).number_format = '$#,##0.00'
+        ws.cell(ri, 12).fill = GREEN
+
+    # Hojas individuales - formato Rol de Pagos
+    for item in nomina_data:
+        name = item['name']
+        n = item['nomina']
+        hrs = n['hours']
+        ws = wb.create_sheet(title=name[:31])
+
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 14
+        ws.column_dimensions['C'].width = 30
+        ws.column_dimensions['D'].width = 14
+
+        r = 1
+        ws.merge_cells('A1:D1')
+        ws.cell(r, 1, 'ROL DE PAGOS').font = Font(bold=True, size=14)
+        ws.cell(r, 1).alignment = Alignment(horizontal='center')
+        r += 2
+
+        ws.cell(r, 1, 'FECHA:').font = BOLD
+        ws.cell(r, 2, periodo)
         r += 1
+        ws.cell(r, 1, 'EMPLEADO:').font = BOLD
+        ws.cell(r, 2, name)
+        r += 2
 
-        ws.cell(r, 1, 'RESUMEN DE PAGO').font = Font(bold=True, size=11, color='FFFFFF')
-        for ci in range(1, 7):
+        # Ingresos / Egresos
+        for ci in range(1, 5):
             ws.cell(r, ci).fill = HDR_BG
+            ws.cell(r, ci).font = HDR_FT
+        ws.cell(r, 1, 'INGRESOS')
+        ws.cell(r, 3, 'EGRESOS')
         r += 1
 
-        def _row(label, val, fmt=None):
+        def _ing(label, val):
             nonlocal r
-            ws.cell(r, 1, label).font = BOLD
-            c = ws.cell(r, 3, val)
-            if fmt:
-                c.number_format = fmt
+            ws.cell(r, 1, label)
+            ws.cell(r, 2, val).number_format = '$#,##0.00'
+
+        def _egr(label, val):
+            ws.cell(r, 3, label)
+            ws.cell(r, 4, val).number_format = '$#,##0.00'
+
+        _ing('Primera Quincena', n['quincena'])
+        _egr(f"Aporte IESS ({IESS_EMPLEADO*100:.2f}%)", n['iess'])
+        r += 1
+        _ing('Segunda Quincena', n['quincena'])
+        if n['prestamo_iess']:
+            _egr('Prestamo IESS', n['prestamo_iess'])
+        r += 1
+        _ing(f"Horas Extras 50% ({n['h_50_pagar']:.2f}h)", n['pay_50'])
+        r += 1
+        _ing(f"Horas Extras 100% ({hrs['horas_100']:.2f}h)", n['pay_100'])
+        r += 1
+        if n['transporte']:
+            _ing(f"Transporte/Comida ({hrs['dias']}d)", n['transporte'])
+            r += 1
+        if n['decimo_13']:
+            _ing('Decimo Tercer Sueldo', n['decimo_13'])
+            r += 1
+        if n['decimo_14']:
+            _ing('Decimo Cuarto Sueldo', n['decimo_14'])
+            r += 1
+        if n['bonus']:
+            _ing('Bono / Ajuste', n['bonus'])
             r += 1
 
-        _row('Dias trabajados', hrs['dias'])
-        _row('Horas regulares', hrs['horas_regular'], '0.00')
-        _row('H. suplementarias 50%', hrs['horas_50'], '0.00')
-        _row('H. extraordinarias 100%', hrs['horas_100'], '0.00')
         r += 1
-        _row('Valor hora', sd['hourly'], '$#,##0.0000')
-        _row('Salario base', sd['salary'], '$#,##0.00')
-        _row(f"Pago horas 50% ({hrs['horas_50']:.2f}h)", sd['pay_50'], '$#,##0.00')
-        _row(f"Pago horas 100% ({hrs['horas_100']:.2f}h)", sd['pay_100'], '$#,##0.00')
-        transp = sd.get('transporte', 0)
-        if transp:
-            _row(f"Transporte/comida ({hrs['dias']}d)", transp, '$#,##0.00')
-        if sd['bonus']:
-            nota = f" — {sd['note']}" if sd['note'] else ''
-            _row(f'Bono / Ajuste{nota}', sd['bonus'], '$#,##0.00')
-        d13 = sd.get('decimo_13', 0)
-        d14 = sd.get('decimo_14', 0)
-        if d13:
-            _row('Decimo Tercer Sueldo', d13, '$#,##0.00')
-        if d14:
-            _row(f'Decimo Cuarto Sueldo (SBU ${SBU_2026:.0f})', d14, '$#,##0.00')
+        for ci in range(1, 5):
+            ws.cell(r, ci).border = THIN
+            ws.cell(r, ci).font = BOLD
+        ws.cell(r, 1, 'TOTAL INGRESOS')
+        ws.cell(r, 2, n['total_ingresos'] + n['decimo_13'] + n['decimo_14'] + n['bonus'])
+        ws.cell(r, 2).number_format = '$#,##0.00'
+        ws.cell(r, 3, 'TOTAL EGRESOS')
+        ws.cell(r, 4, n['total_egresos']).number_format = '$#,##0.00'
         r += 1
-        ws.cell(r, 1, 'TOTAL A RECIBIR').font = BOLD_LG
-        total_cell = ws.cell(r, 3, sd['total'])
-        total_cell.number_format = '$#,##0.00'
-        total_cell.font = BOLD_LG
-        total_cell.fill = GREEN_BG
+        ws.cell(r, 1, 'VALOR A RECIBIR').font = BOLD_L
+        ws.cell(r, 2, n['valor_recibir']).number_format = '$#,##0.00'
+        ws.cell(r, 2).font = BOLD_L
+        ws.cell(r, 2).fill = GREEN
+        r += 2
+
+        # Detalle de pagos
+        for ci in range(1, 3):
+            ws.cell(r, ci).fill = HDR_BG
+            ws.cell(r, ci).font = HDR_FT
+        ws.cell(r, 1, 'DETALLE DE PAGOS')
+        r += 1
+        ws.cell(r, 1, 'Transferencia del 15')
+        ws.cell(r, 2, n['transf_15']).number_format = '$#,##0.00'
+        r += 1
+        ws.cell(r, 1, 'Transferencia fin de mes')
+        ws.cell(r, 2, n['transf_fin']).number_format = '$#,##0.00'
+        r += 1
+        if n['fondos_reserva']:
+            ws.cell(r, 1, 'Fondos de Reserva (incluido)')
+            ws.cell(r, 2, n['fondos_reserva']).number_format = '$#,##0.00'
+            r += 1
+        ws.cell(r, 1, 'TOTAL TRANSFERIDO').font = BOLD
+        ws.cell(r, 2, n['total_transferido']).number_format = '$#,##0.00'
+        ws.cell(r, 2).font = BOLD
+        ws.cell(r, 2).fill = GREEN
+
+        if n['horas_comp_anterior'] != 0:
+            r += 2
+            ws.cell(r, 1, 'Horas compensatorias mes anterior').font = BOLD
+            ws.cell(r, 2, n['horas_comp_anterior']).number_format = '0.00'
+            r += 1
+            ws.cell(r, 1, 'Arrastre sugerido proximo mes').font = BOLD
+            ws.cell(r, 2, n['h_50_arrastre']).number_format = '0.00'
 
     wb.save(dest)
 

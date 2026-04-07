@@ -7,9 +7,12 @@ import pandas as pd
 import streamlit as st
 
 from procesar_rol import (
+    IESS_EMPLEADO,
     SBU_2026,
     calcular_horas_clasificadas,
+    calcular_nomina,
     clasificar_todo,
+    match_empleados,
     parse_date,
     parse_xls,
     to_time,
@@ -18,13 +21,12 @@ from procesar_rol import (
 )
 from storage import export_json, import_json, load_empleados, save_empleados
 
-st.set_page_config(page_title="Roles NGTeco", layout="wide")
+st.set_page_config(page_title="SOLPLAST", layout="wide")
 
-# Login
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 if APP_PASSWORD:
     if not st.session_state.get("_auth"):
-        st.title("Procesador de Roles")
+        st.title("SOLPLAST")
         pwd = st.text_input("Password", type="password")
         if pwd and pwd == APP_PASSWORD:
             st.session_state._auth = True
@@ -33,9 +35,6 @@ if APP_PASSWORD:
             st.error("Password incorrecto")
         st.stop()
 
-st.title("Procesador de Roles")
-
-# Cargar empleados guardados en el servidor
 if "emp_db" not in st.session_state:
     st.session_state.emp_db = load_empleados()
 
@@ -44,19 +43,35 @@ def _save():
     save_empleados(st.session_state.emp_db)
 
 
-def _default_emp():
+def _default_emp(nombre=""):
     return {
+        "nombre": nombre,
         "salario": 0.0,
         "horas_base": 8,
         "transporte_dia": 0.0,
         "region": "Sierra/Amazonia",
         "cargo": "",
-        "notas": "",
+        "prestamo_iess": 0.0,
+        "fondos_reserva": False,
+        "horas_comp_anterior": 0.0,
+        "ocultar": False,
     }
 
 
-# ── Subir XLS (opcional) ──────────────────────────────────────
-uploaded = st.file_uploader("Archivo del NGTeco (.xls)", type=["xls"])
+def _time_to_mins(t):
+    if t is None or pd.isna(t):
+        return None
+    if isinstance(t, dt_time):
+        return t.hour * 60 + t.minute
+    return None
+
+
+# ── Sidebar ───────────────────────────────────────────────────
+st.sidebar.title("SOLPLAST")
+pagina = st.sidebar.radio("Modulo", ["Roles", "Empleados"], label_visibility="collapsed")
+
+# XLS upload en sidebar
+uploaded = st.sidebar.file_uploader("Reporte NGTeco (.xls)", type=["xls"])
 
 has_xls = False
 if uploaded:
@@ -71,65 +86,170 @@ if uploaded:
         finally:
             os.unlink(tmp_path)
 
-        # Auto-registrar empleados nuevos del XLS
-        changed = False
-        for emp, days, nid in st.session_state.data:
-            name = emp.split("(")[0].strip()
-            if nid not in st.session_state.emp_db:
-                st.session_state.emp_db[nid] = _default_emp()
-                st.session_state.emp_db[nid]["nombre"] = name
-                st.session_state.emp_db[nid]["ngteco_id"] = nid
-                changed = True
-            else:
-                # Actualizar nombre por si cambio en el reloj
-                if st.session_state.emp_db[nid].get("nombre") != name:
-                    st.session_state.emp_db[nid]["nombre"] = name
-                    changed = True
-        if changed:
-            _save()
-
     has_xls = True
     data = st.session_state.data
     cls = st.session_state.cls
+    emp_db = st.session_state.emp_db
 
-emp_db = st.session_state.emp_db
+    matched, nuevos, faltantes = match_empleados(data, emp_db)
+    st.session_state.matched = matched
+    st.session_state.nuevos = nuevos
+    st.session_state.faltantes = faltantes
 
-# Mapeo ngteco_id -> nombre para el XLS actual
-xls_id_map = {}
-if has_xls:
-    for emp, days, nid in data:
-        name = emp.split("(")[0].strip()
-        xls_id_map[nid] = name
 
-# Anomalias
-anomalias = []
-if has_xls:
-    for emp, days, nid in data:
-        name = emp.split("(")[0].strip()
+# ── Pagina: Empleados ─────────────────────────────────────────
+if pagina == "Empleados":
+    st.header("Empleados")
+    emp_db = st.session_state.emp_db
+
+    # Alertas de matching
+    if has_xls:
+        nuevos = st.session_state.get("nuevos", [])
+        faltantes = st.session_state.get("faltantes", [])
+
+        if nuevos:
+            st.warning(f"{len(nuevos)} empleado(s) en el reporte no estan en la base de datos.")
+            for name, nid in nuevos:
+                ca, cb = st.columns([4, 1])
+                ca.write(f"**{name}** (ID reloj: {nid})")
+                if cb.button(f"Agregar", key=f"add_{nid}"):
+                    key = nid or name
+                    emp_db[key] = _default_emp(name)
+                    emp_db[key]["ngteco_id"] = nid
+                    _save()
+                    st.rerun()
+
+        if faltantes:
+            st.info(f"{len(faltantes)} empleado(s) de la base no aparecen en este reporte.")
+            for key in faltantes:
+                emp = emp_db[key]
+                ca, cb = st.columns([4, 1])
+                ca.write(f"**{emp.get('nombre', key)}** — no encontrado en el reporte")
+                if cb.checkbox("No preguntar", key=f"hide_{key}"):
+                    emp_db[key]["ocultar"] = True
+                    _save()
+                    st.rerun()
+
+        if nuevos or faltantes:
+            st.divider()
+
+    # Backup
+    ba, bb = st.columns(2)
+    ba.download_button(
+        "Descargar respaldo (.json)",
+        data=export_json(emp_db),
+        file_name="empleados_backup.json",
+        mime="application/json",
+        use_container_width=True,
+    )
+    backup_file = bb.file_uploader("Restaurar respaldo", type=["json"], key="cfg_upload")
+    if backup_file:
+        try:
+            st.session_state.emp_db = import_json(backup_file.read().decode())
+            _save()
+            st.rerun()
+        except Exception:
+            bb.error("Archivo invalido")
+
+    st.divider()
+
+    # Agregar empleado manual
+    with st.expander("Agregar empleado"):
+        new_name = st.text_input("Nombre completo", key="new_emp_name")
+        if st.button("Agregar") and new_name:
+            key = new_name.strip().lower().replace(" ", "_")
+            emp_db[key] = _default_emp(new_name.strip())
+            _save()
+            st.rerun()
+
+    # Lista
+    sorted_keys = sorted(emp_db.keys(), key=lambda k: emp_db[k].get("nombre", ""))
+
+    for eid in sorted_keys:
+        emp = emp_db[eid]
+        nombre = emp.get("nombre", eid)
+
+        with st.container(border=True):
+            st.markdown(f"**{nombre}**")
+            ca, cb, cc, cd = st.columns(4)
+
+            emp["salario"] = ca.number_input(
+                "Salario ($)", min_value=0.0, step=10.0,
+                value=float(emp.get("salario", 0)),
+                key=f"db_sal_{eid}", format="%.2f",
+            )
+            emp["horas_base"] = cb.number_input(
+                "h/dia", min_value=1, max_value=12,
+                value=int(emp.get("horas_base", 8)),
+                key=f"db_base_{eid}",
+            )
+            emp["transporte_dia"] = cc.number_input(
+                "Transp. ($/dia)", min_value=0.0, step=0.5,
+                value=float(emp.get("transporte_dia", 0)),
+                key=f"db_transp_{eid}", format="%.2f",
+            )
+            emp["prestamo_iess"] = cd.number_input(
+                "Prestamo IESS ($)", min_value=0.0, step=1.0,
+                value=float(emp.get("prestamo_iess", 0)),
+                key=f"db_prest_{eid}", format="%.2f",
+            )
+
+            ea, eb, ec, ed = st.columns(4)
+            emp["region"] = ea.selectbox(
+                "Region", ["Sierra/Amazonia", "Costa/Galapagos"],
+                index=0 if emp.get("region") == "Sierra/Amazonia" else 1,
+                key=f"db_reg_{eid}",
+            )
+            emp["cargo"] = eb.text_input(
+                "Cargo", value=emp.get("cargo", ""),
+                key=f"db_cargo_{eid}",
+            )
+            emp["fondos_reserva"] = ec.checkbox(
+                "Fondos de reserva", value=emp.get("fondos_reserva", False),
+                key=f"db_fondos_{eid}",
+                help="8.33% mensual, aplica despues de 1 ano de servicio",
+            )
+            emp["horas_comp_anterior"] = ed.number_input(
+                "H. comp. mes ant.", step=0.5,
+                value=float(emp.get("horas_comp_anterior", 0)),
+                key=f"db_hcomp_{eid}", format="%.2f",
+                help="Horas compensatorias arrastradas del mes anterior",
+            )
+
+            if st.button("Eliminar", key=f"db_del_{eid}", type="secondary"):
+                del emp_db[eid]
+                _save()
+                st.rerun()
+
+    if st.button("Guardar cambios", use_container_width=True, type="primary"):
+        _save()
+        st.success("Guardado.")
+
+
+# ── Pagina: Roles ─────────────────────────────────────────────
+if pagina == "Roles":
+    if not has_xls:
+        st.header("Roles")
+        st.info("Sube un reporte del NGTeco (.xls) en la barra lateral.")
+        st.stop()
+
+    emp_db = st.session_state.emp_db
+    matched = st.session_state.get("matched", {})
+
+    anomalias = []
+    for emp_full, days, nid in data:
+        name = emp_full.split("(")[0].strip()
+        if name not in cls:
+            continue
         for ds, d in cls[name].items():
             for f in d["flags"]:
                 if f.startswith("REVISAR:"):
                     anomalias.append({"Empleado": name, "Fecha": ds, "Obs.": f})
 
+    sub = st.radio("", ["Horas", "Nomina"], horizontal=True, label_visibility="collapsed")
 
-def _time_to_mins(t):
-    if t is None or pd.isna(t):
-        return None
-    if isinstance(t, dt_time):
-        return t.hour * 60 + t.minute
-    return None
-
-
-# ── Tabs ──────────────────────────────────────────────────────
-if has_xls:
-    tab_h, tab_e, tab_n = st.tabs(["Horas", "Empleados", "Nomina"])
-else:
-    tab_e = st.container()
-    tab_h = tab_n = None
-
-# ── Tab Horas ─────────────────────────────────────────────────
-if has_xls and tab_h is not None:
-    with tab_h:
+    # ── Sub: Horas ────────────────────────────────────────────
+    if sub == "Horas":
         c1, c2 = st.columns(2)
         c1.metric("Empleados", len(data))
         c2.metric("Anomalias", len(anomalias))
@@ -215,132 +335,32 @@ if has_xls and tab_h is not None:
         if _edits:
             st.rerun()
 
-
-# ── Tab Empleados ─────────────────────────────────────────────
-with tab_e:
-    if not has_xls:
-        st.subheader("Empleados")
-
-    st.caption("Los datos se guardan automaticamente en el servidor (cifrados).")
-
-    # Backup
-    ba, bb = st.columns(2)
-    cfg_json = export_json(emp_db)
-    ba.download_button(
-        "Descargar respaldo (.json)",
-        data=cfg_json,
-        file_name="empleados_backup.json",
-        mime="application/json",
-        use_container_width=True,
-    )
-    backup_file = bb.file_uploader("Restaurar desde respaldo", type=["json"], key="cfg_upload")
-    if backup_file:
-        try:
-            loaded = import_json(backup_file.read().decode())
-            st.session_state.emp_db = loaded
-            _save()
-            st.rerun()
-        except Exception:
-            bb.error("Archivo JSON invalido")
-
-    st.divider()
-
-    # Agregar empleado manual
-    with st.expander("Agregar empleado"):
-        na, nb = st.columns(2)
-        new_name = na.text_input("Nombre completo", key="new_emp_name")
-        new_id = nb.text_input("ID del reloj (NGTeco)", key="new_emp_id",
-                               help="Numero que aparece entre parentesis en el reporte del reloj")
-        if st.button("Agregar") and new_name and new_id:
-            if new_id in emp_db:
-                st.warning(f"Ya existe un empleado con ID {new_id}")
-            else:
-                emp_db[new_id] = _default_emp()
-                emp_db[new_id]["nombre"] = new_name.strip()
-                emp_db[new_id]["ngteco_id"] = new_id.strip()
-                _save()
-                st.rerun()
-
-    # Lista de empleados
-    sorted_ids = sorted(emp_db.keys(), key=lambda k: emp_db[k].get("nombre", ""))
-
-    for eid in sorted_ids:
-        emp = emp_db[eid]
-        nombre = emp.get("nombre", f"ID {eid}")
-        en_xls = eid in xls_id_map
-
-        with st.container(border=True):
-            ca, cb, cc, cd = st.columns([3, 2, 2, 2])
-            ca.markdown(f"**{nombre}** · ID: `{eid}`" +
-                        (" · En este reporte" if en_xls else ""))
-
-            emp["salario"] = cb.number_input(
-                "Salario ($)", min_value=0.0, step=10.0,
-                value=float(emp.get("salario", 0)),
-                key=f"db_sal_{eid}", format="%.2f",
-            )
-            emp["horas_base"] = cc.number_input(
-                "h/dia", min_value=1, max_value=12,
-                value=int(emp.get("horas_base", 8)),
-                key=f"db_base_{eid}",
-            )
-            emp["transporte_dia"] = cd.number_input(
-                "Transp. ($/dia)", min_value=0.0, step=0.5,
-                value=float(emp.get("transporte_dia", 0)),
-                key=f"db_transp_{eid}", format="%.2f",
-            )
-
-            ea, eb, ec = st.columns([2, 3, 1])
-            emp["region"] = ea.selectbox(
-                "Region", ["Sierra/Amazonia", "Costa/Galapagos"],
-                index=0 if emp.get("region", "Sierra/Amazonia") == "Sierra/Amazonia" else 1,
-                key=f"db_reg_{eid}",
-            )
-            emp["cargo"] = eb.text_input(
-                "Cargo", value=emp.get("cargo", ""),
-                key=f"db_cargo_{eid}", placeholder="Ej: Operario, Administracion",
-            )
-            if ec.button("Eliminar", key=f"db_del_{eid}", type="secondary"):
-                del emp_db[eid]
-                _save()
-                st.rerun()
-
-    if st.button("Guardar cambios", use_container_width=True, type="primary"):
-        _save()
-        st.success("Datos guardados.")
-
-
-# ── Tab Nomina ────────────────────────────────────────────────
-if has_xls and tab_n is not None:
-    with tab_n:
+    # ── Sub: Nomina ───────────────────────────────────────────
+    if sub == "Nomina":
         dc1, dc2 = st.columns(2)
         decimo_13 = dc1.toggle(
-            "Incluir Decimo Tercer Sueldo",
-            help="Equivale a 1 salario mensual. Se paga hasta el 24 de diciembre. "
-                 "Periodo: dic 1 — nov 30. (Art. 111-112, Codigo del Trabajo)",
+            "Decimo Tercer Sueldo",
+            help="1 salario mensual. Hasta dic 24. (Art. 111-112)",
         )
         decimo_14 = dc2.toggle(
-            f"Incluir Decimo Cuarto Sueldo (${SBU_2026:.0f})",
-            help=f"Equivale a 1 SBU (${SBU_2026:.0f} en 2026). "
-                 "Sierra/Amazonia: hasta ago 15. Costa/Galapagos: hasta mar 15. "
-                 "(Art. 113, Codigo del Trabajo)",
+            f"Decimo Cuarto Sueldo (${SBU_2026:.0f})",
+            help=f"1 SBU (${SBU_2026:.0f}). Sierra: ago 15 / Costa: mar 15. (Art. 113)",
         )
 
+        nomina_list = []
         any_salary = False
-        salary_collected = {}
 
         for emp_full, days, nid in data:
             name = emp_full.split("(")[0].strip()
-            cfg = emp_db.get(nid, _default_emp())
-            salary = cfg.get("salario", 0)
-            base_h = cfg.get("horas_base", 8)
-            transporte_dia = cfg.get("transporte_dia", 0)
+            db_key = matched.get(name)
+            cfg = emp_db.get(db_key, _default_emp()) if db_key else _default_emp()
+            salario = cfg.get("salario", 0)
 
-            hrs = calcular_horas_clasificadas(cls[name], base_hours=base_h)
+            hrs = calcular_horas_clasificadas(cls.get(name, {}), cfg.get("horas_base", 8))
 
             with st.container(border=True):
-                cargo_str = f" · {cfg['cargo']}" if cfg.get("cargo") else ""
-                st.markdown(f"**{name}**{cargo_str}")
+                cargo = f" · {cfg['cargo']}" if cfg.get("cargo") else ""
+                st.markdown(f"**{name}**{cargo}")
 
                 m1, m2, m3, m4 = st.columns(4)
                 m1.metric("Dias", hrs["dias"])
@@ -349,68 +369,55 @@ if has_xls and tab_n is not None:
                 m4.metric("H. 100%", f"{hrs['horas_100']:.2f}")
 
                 if hrs["dias_anomalia"]:
-                    st.caption(
-                        f"⚠ {hrs['dias_anomalia']} dia(s) con datos incompletos"
-                        " — las horas pueden estar subestimadas."
-                    )
+                    st.caption(f"⚠ {hrs['dias_anomalia']} dia(s) con datos incompletos")
 
-                if salary <= 0:
-                    st.caption("Configura el salario en la pestana Empleados.")
+                if salario <= 0:
+                    st.caption("Configura el salario en Empleados.")
                     continue
 
                 any_salary = True
-                hourly = salary / 30 / base_h
-                pay_50 = hrs["horas_50"] * hourly * 1.5
-                pay_100 = hrs["horas_100"] * hourly * 2.0
-                transporte = hrs["dias"] * transporte_dia
-
                 bonus = st.number_input(
                     "Bono / Ajuste ($)", step=1.0,
                     key=f"bonus_{nid}", format="%.2f",
                 )
 
-                d13 = salary if decimo_13 else 0.0
-                d14 = SBU_2026 if decimo_14 else 0.0
-                total = salary + pay_50 + pay_100 + transporte + bonus + d13 + d14
+                n = calcular_nomina(hrs, cfg, {
+                    'decimo_13': decimo_13,
+                    'decimo_14': decimo_14,
+                    'bonus': bonus,
+                })
+                nomina_list.append({'name': name, 'nomina': n})
 
-                t1, t2, t3, t4, t5 = st.columns(5)
-                t1.metric("Salario", f"${salary:,.2f}")
-                t2.metric("+50%", f"${pay_50:,.2f}",
-                          f"{hrs['horas_50']:.1f}h x ${hourly*1.5:,.2f}")
-                t3.metric("+100%", f"${pay_100:,.2f}",
-                          f"{hrs['horas_100']:.1f}h x ${hourly*2:,.2f}")
-                t4.metric("Transp.", f"${transporte:,.2f}",
-                          f"{hrs['dias']}d x ${transporte_dia:,.2f}" if transporte else None)
+                # Ingresos
+                st.markdown("**Ingresos**")
+                i1, i2, i3, i4 = st.columns(4)
+                i1.metric("1ra Quincena", f"${n['quincena']:,.2f}")
+                i2.metric("2da Quincena", f"${n['quincena']:,.2f}")
+                i3.metric("H. Extras", f"${n['horas_extras']:,.2f}",
+                          f"50%: ${n['pay_50']:,.2f} | 100%: ${n['pay_100']:,.2f}")
+                i4.metric("Transp.", f"${n['transporte']:,.2f}",
+                          f"{hrs['dias']}d x ${cfg.get('transporte_dia', 0):,.2f}")
 
-                delta_parts = []
-                if d13:
-                    delta_parts.append(f"13ro: ${d13:,.2f}")
-                if d14:
-                    delta_parts.append(f"14to: ${d14:,.0f}")
-                if bonus:
-                    delta_parts.append(f"Bono: ${bonus:,.2f}")
-                t5.metric("TOTAL", f"${total:,.2f}",
-                          " | ".join(delta_parts) if delta_parts else None)
+                # Egresos y neto
+                st.markdown("**Resultado**")
+                r1, r2, r3, r4 = st.columns(4)
+                r1.metric("Total Ingresos", f"${n['total_ingresos']:,.2f}")
+                r2.metric("IESS 9.45%", f"-${n['iess']:,.2f}")
+                prestamo_str = f"Prest: -${n['prestamo_iess']:,.2f}" if n['prestamo_iess'] else None
+                r3.metric("Neto", f"${n['valor_recibir']:,.2f}", prestamo_str)
+                r4.metric("Total Transferido", f"${n['total_transferido']:,.2f}",
+                          f"F.Reserva: ${n['fondos_reserva']:,.2f}" if n['fondos_reserva'] else None)
 
-                salary_collected[name] = {
-                    "salary": salary,
-                    "base_hours": base_h,
-                    "bonus": bonus,
-                    "note": "",
-                    "hours": hrs,
-                    "pay_50": pay_50,
-                    "pay_100": pay_100,
-                    "transporte": transporte,
-                    "decimo_13": d13,
-                    "decimo_14": d14,
-                    "total": total,
-                    "hourly": hourly,
-                }
+                # Arrastre sugerido
+                if n['h_50_arrastre'] != 0:
+                    st.caption(
+                        f"Arrastre sugerido para proximo mes: {n['h_50_arrastre']:.2f}h compensatorias"
+                    )
 
         if any_salary:
             st.divider()
             buf2 = io.BytesIO()
-            write_excel_nomina(data, salary_collected, buf2, overrides=cls)
+            write_excel_nomina(nomina_list, "Marzo 2026", buf2)
             out2 = uploaded.name.rsplit(".", 1)[0] + "_nomina.xlsx"
             st.download_button(
                 "Descargar Nomina Completa (.xlsx)",
@@ -421,8 +428,6 @@ if has_xls and tab_n is not None:
                 type="primary",
             )
             st.caption(
-                "H. suplementarias (50%): extra en dias laborables, max 4h/dia. "
-                "H. extraordinarias (100%): fines de semana o >12h diarias. "
-                "(Art. 55, Codigo del Trabajo) · "
-                f"13ro: Art. 111-112 · 14to: Art. 113 (SBU ${SBU_2026:.0f})"
+                f"H. 50%: Art. 55 · H. 100%: Art. 55 · IESS: {IESS_EMPLEADO*100:.2f}% · "
+                f"13ro: Art. 111 · 14to: Art. 113 (SBU ${SBU_2026:.0f})"
             )
