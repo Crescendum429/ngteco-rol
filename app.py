@@ -335,7 +335,8 @@ if pagina == "Roles":
         c1.metric("Empleados", len(data))
         c2.metric("Anomalias", len(anomalias))
 
-        out_name = uploaded.name.rsplit(".", 1)[0] + "_horas.xlsx"
+        _, p_label = _detect_periodo(data)
+        out_name = (p_label or "reporte").replace(" ", "_") + "_horas.xlsx"
         buf = io.BytesIO()
         write_excel(data, buf, overrides=cls)
         st.download_button(
@@ -500,7 +501,8 @@ if pagina == "Roles":
             buf2 = io.BytesIO()
             _, periodo_label = _detect_periodo(data)
             write_excel_nomina(nomina_list, periodo_label or "Periodo", buf2)
-            out2 = uploaded.name.rsplit(".", 1)[0] + "_nomina.xlsx"
+            _, p_label2 = _detect_periodo(data)
+            out2 = (p_label2 or "reporte").replace(" ", "_") + "_nomina.xlsx"
             st.download_button(
                 "Descargar Nomina Completa (.xlsx)",
                 data=buf2.getvalue(),
