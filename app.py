@@ -150,8 +150,8 @@ def _default_emp(nombre=""):
         "region": "Sierra/Amazonia",
         "cargo": "",
         "prestamo_iess": 0.0,
+        "descuento_iess": True,
         "fondos_reserva": False,
-        "horas_comp_anterior": 0.0,
         "ocultar": False,
     }
 
@@ -293,7 +293,12 @@ if pagina == "Empleados":
                 "Cargo", value=emp.get("cargo", ""),
                 key=f"db_cargo_{eid}",
             )
-            emp["fondos_reserva"] = ec.checkbox(
+            emp["descuento_iess"] = ec.checkbox(
+                "Descuento IESS", value=emp.get("descuento_iess", True),
+                key=f"db_iess_{eid}",
+                help="9.45% aporte personal al IESS",
+            )
+            emp["fondos_reserva"] = ed.checkbox(
                 "Fondos de reserva", value=emp.get("fondos_reserva", False),
                 key=f"db_fondos_{eid}",
                 help="8.33% mensual, aplica despues de 1 ano de servicio",
@@ -647,7 +652,10 @@ if pagina == "Roles":
                 )
                 r1, r2, r3, r4 = st.columns(4)
                 r1.metric("Total Ingresos", f"${n['total_ingresos']:,.2f}")
-                r2.metric("IESS 9.45%", f"-${n['iess']:,.2f}")
+                if n['iess']:
+                    r2.metric("IESS 9.45%", f"-${n['iess']:,.2f}")
+                else:
+                    r2.metric("IESS", "No aplica")
                 prestamo_str = f"Prest: -${n['prestamo_iess']:,.2f}" if n['prestamo_iess'] else None
                 r3.metric("Neto", f"${n['valor_recibir']:,.2f}", prestamo_str)
                 r4.metric("Total Transferido", f"${n['total_transferido']:,.2f}",

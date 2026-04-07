@@ -276,6 +276,7 @@ def calcular_nomina(hrs, cfg, extras=None):
     base_h = cfg.get('horas_base', 8)
     transp_dia = cfg.get('transporte_dia', 0)
     prestamo = cfg.get('prestamo_iess', 0)
+    descuento_iess = cfg.get('descuento_iess', True)
     tiene_fondos = cfg.get('fondos_reserva', False)
     h_anterior = cfg.get('horas_comp_anterior', 0)
     horas_pasar = extras.get('horas_pasar', 0)
@@ -305,7 +306,7 @@ def calcular_nomina(hrs, cfg, extras=None):
     total_ingresos_con_extras = total_ingresos + d13 + d14 + bonus
 
     # Egresos
-    iess = round(total_ingresos * IESS_EMPLEADO, 2)
+    iess = round(total_ingresos * IESS_EMPLEADO, 2) if descuento_iess else 0
     total_egresos = iess + prestamo
 
     # Neto
