@@ -53,3 +53,78 @@ def export_json(empleados):
 
 def import_json(raw):
     return json.loads(raw)
+
+
+# ── Reportes mensuales ────────────────────────────────────────
+
+def _serialize_data(data):
+    """Convierte data de parse_xls a formato JSON-safe."""
+    result = []
+    for emp, days, nid in data:
+        days_ser = {}
+        for ds, pairs in days.items():
+            days_ser[ds] = pairs
+        result.append({"emp": emp, "days": days_ser, "nid": nid})
+    return result
+
+
+def _deserialize_data(raw):
+    """Reconstruye data desde JSON."""
+    result = []
+    for item in raw:
+        days = {}
+        for ds, pairs in item["days"].items():
+            days[ds] = [tuple(p) for p in pairs]
+        result.append((item["emp"], days, item["nid"]))
+    return result
+
+
+def list_reportes():
+    if USE_SUPABASE:
+        try:
+            res = (_supabase().table("reportes")
+                   .select("id, periodo, uploaded_at")
+                   .order("id", desc=True)
+                   .execute())
+            return res.data or []
+        except Exception:
+            return []
+    return []
+
+
+def load_reporte(reporte_id):
+    if USE_SUPABASE:
+        try:
+            res = (_supabase().table("reportes")
+                   .select("data, cls")
+                   .eq("id", reporte_id)
+                   .execute())
+            if res.data:
+                row = res.data[0]
+                return _deserialize_data(row["data"]), row["cls"]
+        except Exception:
+            pass
+    return None, None
+
+
+def save_reporte(reporte_id, periodo, data, cls):
+    if USE_SUPABASE:
+        _supabase().table("reportes").upsert({
+            "id": reporte_id,
+            "periodo": periodo,
+            "data": _serialize_data(data),
+            "cls": cls,
+        }).execute()
+
+
+def reporte_exists(reporte_id):
+    if USE_SUPABASE:
+        try:
+            res = (_supabase().table("reportes")
+                   .select("id")
+                   .eq("id", reporte_id)
+                   .execute())
+            return bool(res.data)
+        except Exception:
+            return False
+    return False

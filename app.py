@@ -19,7 +19,10 @@ from procesar_rol import (
     write_excel,
     write_excel_nomina,
 )
-from storage import export_json, import_json, load_empleados, save_empleados
+from storage import (
+    export_json, import_json, load_empleados, save_empleados,
+    list_reportes, load_reporte, save_reporte, reporte_exists,
+)
 
 st.set_page_config(page_title="SOLPLAST", layout="wide")
 
@@ -210,34 +213,100 @@ if pagina == "Empleados":
 # ── Pagina: Roles ─────────────────────────────────────────────
 if pagina == "Roles":
     st.header("Roles")
-    has_xls = False
-    uploaded = st.file_uploader("Reporte NGTeco (.xls)", type=["xls"])
 
-    if uploaded:
-        if st.session_state.get("_file") != uploaded.name:
-            with tempfile.NamedTemporaryFile(suffix=".xls", delete=False) as tmp:
-                tmp.write(uploaded.read())
-                tmp_path = tmp.name
-            try:
-                st.session_state.data = parse_xls(tmp_path)
-                st.session_state._file = uploaded.name
-                st.session_state.cls = clasificar_todo(st.session_state.data)
-            finally:
-                os.unlink(tmp_path)
+    MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+             'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
-        has_xls = True
-        data = st.session_state.data
-        cls = st.session_state.cls
-        emp_db = st.session_state.emp_db
-        matched, nuevos, faltantes = match_empleados(data, emp_db)
-        st.session_state.matched = matched
-        st.session_state.nuevos = nuevos
-        st.session_state.faltantes = faltantes
+    def _detect_periodo(data):
+        for _, days, _ in data:
+            for ds in days:
+                try:
+                    d = parse_date(ds)
+                    return f"{d.year}-{d.month:02d}", f"{MESES[d.month-1]} {d.year}"
+                except Exception:
+                    pass
+        return None, None
 
-    if not has_xls:
+    # Reportes guardados
+    reportes = list_reportes()
+    reportes_ids = [r["id"] for r in reportes]
+    reportes_labels = {r["id"]: r["periodo"] for r in reportes}
+
+    # Selector de mes guardado + subir nuevo
+    sa, sb = st.columns([3, 2])
+
+    opciones = ["Subir nuevo reporte"] + [reportes_labels.get(rid, rid) for rid in reportes_ids]
+    sel = sa.selectbox("Periodo", opciones, key="sel_periodo")
+
+    loaded_from_db = False
+    has_data = False
+
+    if sel == "Subir nuevo reporte":
+        uploaded = sb.file_uploader("Archivo .xls", type=["xls"], key="xls_upload",
+                                    label_visibility="collapsed")
+        if uploaded:
+            if st.session_state.get("_file") != uploaded.name:
+                with tempfile.NamedTemporaryFile(suffix=".xls", delete=False) as tmp:
+                    tmp.write(uploaded.read())
+                    tmp_path = tmp.name
+                try:
+                    st.session_state.data = parse_xls(tmp_path)
+                    st.session_state._file = uploaded.name
+                    st.session_state.cls = clasificar_todo(st.session_state.data)
+                finally:
+                    os.unlink(tmp_path)
+
+                rid, periodo = _detect_periodo(st.session_state.data)
+                st.session_state._pending_rid = rid
+                st.session_state._pending_periodo = periodo
+
+            # Guardar automaticamente o preguntar
+            rid = st.session_state.get("_pending_rid")
+            periodo = st.session_state.get("_pending_periodo")
+
+            if rid:
+                if reporte_exists(rid):
+                    st.warning(f"Ya existe un reporte para **{periodo}**.")
+                    if st.button(f"Sobreescribir {periodo}"):
+                        save_reporte(rid, periodo, st.session_state.data, st.session_state.cls)
+                        st.session_state._pending_rid = None
+                        st.success("Reporte guardado.")
+                        st.rerun()
+                else:
+                    save_reporte(rid, periodo, st.session_state.data, st.session_state.cls)
+                    st.session_state._pending_rid = None
+                    st.success(f"Reporte {periodo} guardado.")
+                    st.rerun()
+
+            has_data = True
+
+    else:
+        sel_idx = opciones.index(sel) - 1
+        sel_rid = reportes_ids[sel_idx]
+        if st.session_state.get("_loaded_rid") != sel_rid:
+            data_loaded, cls_loaded = load_reporte(sel_rid)
+            if data_loaded:
+                st.session_state.data = data_loaded
+                st.session_state.cls = cls_loaded
+                st.session_state._loaded_rid = sel_rid
+                st.session_state._file = sel_rid
+            else:
+                st.error("Error cargando reporte.")
+                st.stop()
+        loaded_from_db = True
+        has_data = True
+
+    if not has_data:
         st.stop()
 
-    matched = st.session_state.get("matched", {})
+    data = st.session_state.data
+    cls = st.session_state.cls
+    emp_db = st.session_state.emp_db
+    matched, nuevos, faltantes = match_empleados(data, emp_db)
+    st.session_state.matched = matched
+    st.session_state.nuevos = nuevos
+    st.session_state.faltantes = faltantes
+    matched = matched
 
     anomalias = []
     for emp_full, days, nid in data:
@@ -429,7 +498,8 @@ if pagina == "Roles":
         if any_salary:
             st.divider()
             buf2 = io.BytesIO()
-            write_excel_nomina(nomina_list, "Marzo 2026", buf2)
+            _, periodo_label = _detect_periodo(data)
+            write_excel_nomina(nomina_list, periodo_label or "Periodo", buf2)
             out2 = uploaded.name.rsplit(".", 1)[0] + "_nomina.xlsx"
             st.download_button(
                 "Descargar Nomina Completa (.xlsx)",
