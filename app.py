@@ -25,7 +25,7 @@ from storage import (
     is_changelog_dismissed, dismiss_changelog,
 )
 
-APP_VERSION = "3.1"
+APP_VERSION = "3.2"
 
 CHANGELOG = {
     "version": APP_VERSION,
@@ -51,6 +51,9 @@ CHANGELOG = {
         ("Datos de empleados seguros",
          "Los salarios y datos de empleados se almacenan de forma segura "
          "y persisten entre sesiones. Ya no se pierden al cerrar la aplicacion."),
+        ("Modo oscuro",
+         "La interfaz ahora se adapta automaticamente si tu dispositivo "
+         "usa modo oscuro."),
     ],
 }
 
