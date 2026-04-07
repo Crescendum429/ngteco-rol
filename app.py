@@ -415,6 +415,9 @@ if pagina == "Roles":
                 st.session_state.cls[selected][ds] = new
 
         if _edits:
+            rid, periodo = _detect_periodo(data)
+            if rid:
+                save_reporte(rid, periodo, data, st.session_state.cls)
             st.rerun()
 
     # ── Sub: Sueldos ───────────────────────────────────────────
