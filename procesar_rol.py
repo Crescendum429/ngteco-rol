@@ -40,9 +40,12 @@ def parse_xls(path):
         row = [ws.cell(i, j).value for j in range(7)]
 
         if row[0] == 'Employee':
-            emp = re.sub(r'\n', ' ', str(row[3])).strip()
+            raw = str(row[3])
+            emp = re.sub(r'\n', ' ', raw).strip()
+            m_id = re.search(r'\((\d+)\)', raw)
+            ngteco_id = m_id.group(1) if m_id else ''
             days = {}
-            result.append((emp, days))
+            result.append((emp, days, ngteco_id))
             cur_day = None
 
         elif emp and row[0] in WEEKDAYS and row[1]:
@@ -135,7 +138,7 @@ def write_excel(data, dest, overrides=None):
 
     all_flags = []
 
-    for emp, days in data:
+    for emp, days, *_ in data:
         sheet_name = emp.split('(')[0].strip()[:31]
         ws = wb.create_sheet(title=sheet_name)
 
@@ -219,7 +222,7 @@ def clasificar_todo(data):
     Retorna {emp_name: {date_str: {'h1','h2','h3','h4','flags'}}}
     """
     result = {}
-    for emp, days in data:
+    for emp, days, *_ in data:
         name = emp.split('(')[0].strip()
         result[name] = {}
         for ds in days:
@@ -329,7 +332,7 @@ def write_excel_nomina(data, salary_info, dest, overrides=None):
     ws_sum.freeze_panes = 'A2'
 
     sr = 2
-    for emp, days in data:
+    for emp, days, *_ in data:
         name = emp.split('(')[0].strip()
         if name not in salary_info:
             continue
@@ -356,7 +359,7 @@ def write_excel_nomina(data, salary_info, dest, overrides=None):
         sr += 1
 
     # -- Hojas individuales --
-    for emp, days in data:
+    for emp, days, *_ in data:
         name = emp.split('(')[0].strip()
         ws = wb.create_sheet(title=name[:31])
 
