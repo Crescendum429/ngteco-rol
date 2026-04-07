@@ -12,6 +12,7 @@ from procesar_rol import (
     calcular_horas_clasificadas,
     calcular_nomina,
     clasificar_todo,
+    emp_name,
     match_empleados,
     parse_date,
     parse_xls,
@@ -408,7 +409,7 @@ if pagina == "Roles":
 
     anomalias = []
     for emp_full, days, nid in data:
-        name = emp_full.split("(")[0].strip()
+        name = emp_name(emp_full)
         if name not in cls:
             continue
         for ds, d in cls[name].items():
@@ -449,7 +450,7 @@ if pagina == "Roles":
                 st.dataframe(anomalias, hide_index=True, use_container_width=True)
 
         st.divider()
-        emp_names_xls = [e.split("(")[0].strip() for e, _, _ in data]
+        emp_names_xls = [emp_name(e) for e, _, _ in data]
         selected = st.selectbox("Empleado", emp_names_xls, key="edit_emp")
 
         day_cls = cls[selected]
@@ -545,7 +546,7 @@ if pagina == "Roles":
         any_salary = False
 
         for idx, (emp_full, days, nid) in enumerate(data):
-            name = emp_full.split("(")[0].strip()
+            name = emp_name(emp_full)
             db_key = matched.get(name)
             cfg = emp_db.get(db_key, _default_emp()) if db_key else _default_emp()
             salario = cfg.get("salario", 0)
@@ -656,7 +657,7 @@ if pagina == "Roles":
         if any_salary and rid:
             arrastre_nuevo = {}
             for emp_full, days, nid in data:
-                name = emp_full.split("(")[0].strip()
+                name = emp_name(emp_full)
                 if st.session_state.get(f"pasar_{nid}"):
                     h = st.session_state.get(f"h_pasar_{nid}", 0)
                     if h > 0:

@@ -28,6 +28,11 @@ def normalize(s):
     return s.strip().lower()
 
 
+def emp_name(raw):
+    """Extrae nombre limpio de 'Fernando Pinargote (8)'."""
+    return re.sub(r'\s*\(\d+\)\s*$', '', raw).strip()
+
+
 def to_mins(s):
     if not s or not str(s).strip():
         return None
@@ -190,7 +195,7 @@ def classify(pairs):
 def clasificar_todo(data):
     result = {}
     for emp, days, *_ in data:
-        name = emp.split('(')[0].strip()
+        name = emp_name(emp)
         result[name] = {}
         for ds in days:
             h1, h2, h3, h4, flags = classify(days[ds])
@@ -355,7 +360,7 @@ def write_excel(data, dest, overrides=None):
     all_flags = []
 
     for emp, days, *_ in data:
-        sheet_name = emp.split('(')[0].strip()[:31]
+        sheet_name = emp_name(emp)[:31]
         ws = wb.create_sheet(title=sheet_name)
 
         headers = ['Fecha', 'Hora 1', 'Hora 2', 'Hora 3', 'Hora 4', 'Total (h)', 'Comentarios']
