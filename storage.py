@@ -1,42 +1,50 @@
-import base64
-import hashlib
 import json
 import os
 
-from cryptography.fernet import Fernet
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_KEY)
 
-DATA_DIR = os.environ.get("DATA_DIR", "/app/data")
-DATA_FILE = os.path.join(DATA_DIR, "empleados.enc")
-
-
-def _get_key():
-    pwd = os.environ.get("APP_PASSWORD", "default-key-change-me")
-    key = hashlib.pbkdf2_hmac("sha256", pwd.encode(), b"ngteco-rol-salt", 100_000)
-    return base64.urlsafe_b64encode(key)
+_client = None
 
 
-def _fernet():
-    return Fernet(_get_key())
+def _supabase():
+    global _client
+    if _client is None:
+        from supabase import create_client
+        _client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    return _client
 
 
 def load_empleados():
-    if not os.path.exists(DATA_FILE):
+    if USE_SUPABASE:
+        try:
+            res = _supabase().table("config").select("value").eq("key", "empleados").execute()
+            if res.data:
+                return res.data[0]["value"]
+        except Exception:
+            pass
         return {}
-    with open(DATA_FILE, "rb") as f:
-        data = f.read()
-    try:
-        decrypted = _fernet().decrypt(data)
-        return json.loads(decrypted)
-    except Exception:
-        return {}
+
+    # Fallback: archivo local (para desarrollo)
+    path = os.environ.get("DATA_FILE", "empleados.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            return json.load(f)
+    return {}
 
 
 def save_empleados(empleados):
-    os.makedirs(DATA_DIR, exist_ok=True)
-    data = json.dumps(empleados, ensure_ascii=False, indent=2).encode()
-    encrypted = _fernet().encrypt(data)
-    with open(DATA_FILE, "wb") as f:
-        f.write(encrypted)
+    if USE_SUPABASE:
+        _supabase().table("config").upsert({
+            "key": "empleados",
+            "value": empleados,
+        }).execute()
+        return
+
+    path = os.environ.get("DATA_FILE", "empleados.json")
+    with open(path, "w") as f:
+        json.dump(empleados, f, ensure_ascii=False, indent=2)
 
 
 def export_json(empleados):
