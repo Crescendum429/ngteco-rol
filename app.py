@@ -68,33 +68,16 @@ def _time_to_mins(t):
 
 # ── Sidebar ───────────────────────────────────────────────────
 st.sidebar.title("SOLPLAST")
-pagina = st.sidebar.radio("Modulo", ["Roles", "Empleados"], label_visibility="collapsed")
-
-# XLS upload en sidebar
-uploaded = st.sidebar.file_uploader("Reporte NGTeco (.xls)", type=["xls"])
+for mod in ["Roles", "Empleados"]:
+    if st.sidebar.button(mod, use_container_width=True,
+                         type="primary" if st.session_state.get("pagina") == mod else "secondary"):
+        st.session_state.pagina = mod
+        st.rerun()
+if "pagina" not in st.session_state:
+    st.session_state.pagina = "Roles"
+pagina = st.session_state.pagina
 
 has_xls = False
-if uploaded:
-    if st.session_state.get("_file") != uploaded.name:
-        with tempfile.NamedTemporaryFile(suffix=".xls", delete=False) as tmp:
-            tmp.write(uploaded.read())
-            tmp_path = tmp.name
-        try:
-            st.session_state.data = parse_xls(tmp_path)
-            st.session_state._file = uploaded.name
-            st.session_state.cls = clasificar_todo(st.session_state.data)
-        finally:
-            os.unlink(tmp_path)
-
-    has_xls = True
-    data = st.session_state.data
-    cls = st.session_state.cls
-    emp_db = st.session_state.emp_db
-
-    matched, nuevos, faltantes = match_empleados(data, emp_db)
-    st.session_state.matched = matched
-    st.session_state.nuevos = nuevos
-    st.session_state.faltantes = faltantes
 
 
 # ── Pagina: Empleados ─────────────────────────────────────────
@@ -103,7 +86,7 @@ if pagina == "Empleados":
     emp_db = st.session_state.emp_db
 
     # Alertas de matching
-    if has_xls:
+    if st.session_state.get("_file"):
         nuevos = st.session_state.get("nuevos", [])
         faltantes = st.session_state.get("faltantes", [])
 
@@ -228,12 +211,33 @@ if pagina == "Empleados":
 
 # ── Pagina: Roles ─────────────────────────────────────────────
 if pagina == "Roles":
+    st.header("Roles")
+    uploaded = st.file_uploader("Reporte NGTeco (.xls)", type=["xls"])
+
+    if uploaded:
+        if st.session_state.get("_file") != uploaded.name:
+            with tempfile.NamedTemporaryFile(suffix=".xls", delete=False) as tmp:
+                tmp.write(uploaded.read())
+                tmp_path = tmp.name
+            try:
+                st.session_state.data = parse_xls(tmp_path)
+                st.session_state._file = uploaded.name
+                st.session_state.cls = clasificar_todo(st.session_state.data)
+            finally:
+                os.unlink(tmp_path)
+
+        has_xls = True
+        data = st.session_state.data
+        cls = st.session_state.cls
+        emp_db = st.session_state.emp_db
+        matched, nuevos, faltantes = match_empleados(data, emp_db)
+        st.session_state.matched = matched
+        st.session_state.nuevos = nuevos
+        st.session_state.faltantes = faltantes
+
     if not has_xls:
-        st.header("Roles")
-        st.info("Sube un reporte del NGTeco (.xls) en la barra lateral.")
         st.stop()
 
-    emp_db = st.session_state.emp_db
     matched = st.session_state.get("matched", {})
 
     anomalias = []
@@ -246,7 +250,16 @@ if pagina == "Roles":
                 if f.startswith("REVISAR:"):
                     anomalias.append({"Empleado": name, "Fecha": ds, "Obs.": f})
 
-    sub = st.radio("", ["Horas", "Nomina"], horizontal=True, label_visibility="collapsed")
+    ba, bb = st.columns(2)
+    if ba.button("Horas", use_container_width=True,
+                 type="primary" if st.session_state.get("sub_rol") != "Sueldos" else "secondary"):
+        st.session_state.sub_rol = "Horas"
+        st.rerun()
+    if bb.button("Sueldos", use_container_width=True,
+                 type="primary" if st.session_state.get("sub_rol") == "Sueldos" else "secondary"):
+        st.session_state.sub_rol = "Sueldos"
+        st.rerun()
+    sub = st.session_state.get("sub_rol", "Horas")
 
     # ── Sub: Horas ────────────────────────────────────────────
     if sub == "Horas":
@@ -335,8 +348,8 @@ if pagina == "Roles":
         if _edits:
             st.rerun()
 
-    # ── Sub: Nomina ───────────────────────────────────────────
-    if sub == "Nomina":
+    # ── Sub: Sueldos ───────────────────────────────────────────
+    if sub == "Sueldos":
         dc1, dc2 = st.columns(2)
         decimo_13 = dc1.toggle(
             "Decimo Tercer Sueldo",
