@@ -78,13 +78,18 @@ st.markdown("""
     }
     .block-container { padding-top: 2rem; }
     [data-testid="stMetric"] {
-        background: #f8f9fa;
         border-radius: 8px;
         padding: 12px 16px;
         border-left: 3px solid #0f3460;
     }
-    h1 { color: #1a1a2e; }
-    h2 { color: #16213e; }
+    @media (prefers-color-scheme: light) {
+        [data-testid="stMetric"] { background: #f8f9fa; }
+        h1 { color: #1a1a2e; }
+        h2 { color: #16213e; }
+    }
+    @media (prefers-color-scheme: dark) {
+        [data-testid="stMetric"] { background: #1e1e2e; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
