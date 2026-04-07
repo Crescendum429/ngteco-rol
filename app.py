@@ -596,17 +596,25 @@ if pagina == "Roles":
                     help="Horas compensatorias arrastradas del mes pasado",
                 )
 
-                # Checkbox de pasar horas (antes del calculo para que afecte)
-                pasar = False
+                # Pasar horas al siguiente mes
                 horas_pasar = 0.0
                 if hrs['horas_50'] > 0:
                     pasar = ac.checkbox(
-                        f"Pasar {hrs['horas_50']:.2f}h al sig. mes",
+                        f"Pasar horas al sig. mes",
                         key=f"pasar_{nid}",
                         help="Estas horas NO se pagan este mes, se acumulan para el siguiente",
                     )
                     if pasar:
-                        horas_pasar = hrs['horas_50']
+                        horas_pasar = ac.number_input(
+                            "Horas a pasar", min_value=0.0,
+                            max_value=float(hrs['horas_50']),
+                            value=float(hrs['horas_50']),
+                            step=0.5, key=f"h_pasar_{nid}", format="%.2f",
+                        )
+
+                # Advertencia de arrastre
+                if cfg_copy["horas_comp_anterior"] != 0:
+                    ab.caption(f"⚠ {cfg_copy['horas_comp_anterior']:.2f}h del mes anterior")
 
                 n = calcular_nomina(hrs, cfg_copy, {
                     'decimo_13': decimo_13,
