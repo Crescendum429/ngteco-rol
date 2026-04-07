@@ -652,17 +652,16 @@ if pagina == "Roles":
                 r4.metric("Total Transferido", f"${n['total_transferido']:,.2f}",
                           f"F.Reserva: ${n['fondos_reserva']:,.2f}" if n['fondos_reserva'] else None)
 
-        # Guardar arrastre
+        # Guardar arrastre (usa el monto exacto que el usuario eligio)
         if any_salary and rid:
             arrastre_nuevo = {}
             for emp_full, days, nid in data:
                 name = emp_full.split("(")[0].strip()
                 if st.session_state.get(f"pasar_{nid}"):
-                    hrs = calcular_horas_clasificadas(cls.get(name, {}),
-                          emp_db.get(matched.get(name), _default_emp()).get("horas_base", 8))
-                    arrastre_nuevo[name] = hrs['horas_50']
-            if arrastre_nuevo:
-                save_arrastre(rid, arrastre_nuevo)
+                    h = st.session_state.get(f"h_pasar_{nid}", 0)
+                    if h > 0:
+                        arrastre_nuevo[name] = h
+            save_arrastre(rid, arrastre_nuevo)
 
         if any_salary:
             st.divider()
