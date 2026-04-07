@@ -22,14 +22,78 @@ from procesar_rol import (
 from storage import (
     export_json, import_json, load_empleados, save_empleados,
     list_reportes, load_reporte, save_reporte, reporte_exists,
+    is_changelog_dismissed, dismiss_changelog,
 )
 
-st.set_page_config(page_title="SOLPLAST", layout="wide")
+APP_VERSION = "3.1"
+
+CHANGELOG = {
+    "version": APP_VERSION,
+    "titulo": "Nuevo sistema de Roles",
+    "items": [
+        ("Correccion de fechas",
+         "Las fechas del reloj estaban desfasadas un dia. "
+         "Ahora se corrigen automaticamente para que coincidan con el dia real de trabajo."),
+        ("Registro de empleados",
+         "Ya no es necesario ingresar el ID del reloj. "
+         "El sistema reconoce a los empleados por nombre al cargar el reporte. "
+         "Si detecta alguien nuevo, te pregunta si deseas agregarlo."),
+        ("Calculo de sueldos completo",
+         "El sistema ahora calcula quincenas, horas extras (50% y 100%), "
+         "aportes al IESS, prestamos, fondos de reserva, transporte "
+         "y genera un rol de pagos formal en Excel."),
+        ("Reportes guardados",
+         "Los reportes mensuales se guardan en la nube. "
+         "Puedes consultar meses anteriores sin necesidad de volver a subir el archivo."),
+        ("Edicion de horas",
+         "Puedes corregir las horas de cualquier empleado directamente en la tabla. "
+         "Los cambios se guardan automaticamente."),
+        ("Datos de empleados seguros",
+         "Los salarios y datos de empleados se almacenan de forma segura "
+         "y persisten entre sesiones. Ya no se pierden al cerrar la aplicacion."),
+    ],
+}
+
+st.set_page_config(
+    page_title="SOLPLAST",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.markdown("""
+<style>
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+    }
+    [data-testid="stSidebar"] * {
+        color: #e0e0e0 !important;
+    }
+    [data-testid="stSidebar"] .stButton button[kind="primary"] {
+        background-color: #0f3460;
+        border: 1px solid #1a508b;
+    }
+    [data-testid="stSidebar"] .stButton button[kind="secondary"] {
+        background-color: transparent;
+        border: 1px solid #333;
+    }
+    .block-container { padding-top: 2rem; }
+    [data-testid="stMetric"] {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px 16px;
+        border-left: 3px solid #0f3460;
+    }
+    h1 { color: #1a1a2e; }
+    h2 { color: #16213e; }
+</style>
+""", unsafe_allow_html=True)
 
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 if APP_PASSWORD:
     if not st.session_state.get("_auth"):
+        st.markdown("<div style='text-align:center; padding-top:4rem;'>", unsafe_allow_html=True)
         st.title("SOLPLAST")
+        st.markdown("</div>", unsafe_allow_html=True)
         pwd = st.text_input("Password", type="password")
         if pwd and pwd == APP_PASSWORD:
             st.session_state._auth = True
@@ -40,6 +104,27 @@ if APP_PASSWORD:
 
 if "emp_db" not in st.session_state:
     st.session_state.emp_db = load_empleados()
+
+
+# ── Changelog dialog ──────────────────────────────────────────
+@st.dialog("Novedades", width="large")
+def _show_changelog():
+    cl = CHANGELOG
+    for titulo, desc in cl["items"]:
+        st.markdown(f"**{titulo}**")
+        st.caption(desc)
+    st.divider()
+    no_show = st.checkbox("No volver a mostrar")
+    if st.button("Entendido", use_container_width=True, type="primary"):
+        if no_show:
+            dismiss_changelog(cl["version"])
+        st.session_state._changelog_shown = True
+        st.rerun()
+
+
+if not st.session_state.get("_changelog_shown"):
+    if not is_changelog_dismissed(APP_VERSION):
+        _show_changelog()
 
 
 def _save():
@@ -70,14 +155,24 @@ def _time_to_mins(t):
 
 
 # ── Sidebar ───────────────────────────────────────────────────
-st.sidebar.title("SOLPLAST")
-for mod in ["Roles", "Empleados"]:
-    if st.sidebar.button(mod, use_container_width=True,
-                         type="primary" if st.session_state.get("pagina") == mod else "secondary"):
-        st.session_state.pagina = mod
-        st.rerun()
+st.sidebar.markdown("## SOLPLAST")
+st.sidebar.caption("Sistema de gestion")
+st.sidebar.divider()
+
 if "pagina" not in st.session_state:
     st.session_state.pagina = "Roles"
+
+for mod, icon in [("Roles", "📋"), ("Empleados", "👥")]:
+    active = st.session_state.pagina == mod
+    if st.sidebar.button(
+        f"{icon}  {mod}", use_container_width=True,
+        type="primary" if active else "secondary",
+    ):
+        st.session_state.pagina = mod
+        st.rerun()
+
+st.sidebar.divider()
+st.sidebar.caption(f"v{APP_VERSION}")
 pagina = st.session_state.pagina
 
 
@@ -318,15 +413,14 @@ if pagina == "Roles":
                 if f.startswith("REVISAR:"):
                     anomalias.append({"Empleado": name, "Fecha": ds, "Obs.": f})
 
+    st.divider()
     ba, bb = st.columns(2)
-    if ba.button("Horas", use_container_width=True,
-                 type="primary" if st.session_state.get("sub_rol") != "Sueldos" else "secondary"):
-        st.session_state.sub_rol = "Horas"
-        st.rerun()
-    if bb.button("Sueldos", use_container_width=True,
-                 type="primary" if st.session_state.get("sub_rol") == "Sueldos" else "secondary"):
-        st.session_state.sub_rol = "Sueldos"
-        st.rerun()
+    for col, label, icon in [(ba, "Horas", "🕐"), (bb, "Sueldos", "💰")]:
+        active = st.session_state.get("sub_rol", "Horas") == label
+        if col.button(f"{icon} {label}", use_container_width=True,
+                      type="primary" if active else "secondary"):
+            st.session_state.sub_rol = label
+            st.rerun()
     sub = st.session_state.get("sub_rol", "Horas")
 
     # ── Sub: Horas ────────────────────────────────────────────

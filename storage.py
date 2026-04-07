@@ -47,6 +47,29 @@ def save_empleados(empleados):
         json.dump(empleados, f, ensure_ascii=False, indent=2)
 
 
+def is_changelog_dismissed(version):
+    if USE_SUPABASE:
+        try:
+            res = _supabase().table("config").select("value").eq("key", "changelog").execute()
+            if res.data:
+                return version in res.data[0]["value"].get("dismissed", [])
+        except Exception:
+            pass
+    return False
+
+
+def dismiss_changelog(version):
+    if USE_SUPABASE:
+        try:
+            res = _supabase().table("config").select("value").eq("key", "changelog").execute()
+            current = res.data[0]["value"] if res.data else {"dismissed": []}
+        except Exception:
+            current = {"dismissed": []}
+        if version not in current["dismissed"]:
+            current["dismissed"].append(version)
+        _supabase().table("config").upsert({"key": "changelog", "value": current}).execute()
+
+
 def export_json(empleados):
     return json.dumps(empleados, ensure_ascii=False, indent=2)
 
