@@ -596,10 +596,23 @@ if pagina == "Roles":
                     help="Horas compensatorias arrastradas del mes pasado",
                 )
 
+                # Checkbox de pasar horas (antes del calculo para que afecte)
+                pasar = False
+                horas_pasar = 0.0
+                if hrs['horas_50'] > 0:
+                    pasar = ac.checkbox(
+                        f"Pasar {hrs['horas_50']:.2f}h al sig. mes",
+                        key=f"pasar_{nid}",
+                        help="Estas horas NO se pagan este mes, se acumulan para el siguiente",
+                    )
+                    if pasar:
+                        horas_pasar = hrs['horas_50']
+
                 n = calcular_nomina(hrs, cfg_copy, {
                     'decimo_13': decimo_13,
                     'decimo_14': decimo_14,
                     'bonus': bonus,
+                    'horas_pasar': horas_pasar,
                 })
                 nomina_list.append({'name': name, 'nomina': n})
 
@@ -611,8 +624,10 @@ if pagina == "Roles":
                 i1, i2, i3, i4 = st.columns(4)
                 i1.metric("1ra Quincena", f"${n['quincena']:,.2f}")
                 i2.metric("2da Quincena", f"${n['quincena']:,.2f}")
-                i3.metric("H. Extras", f"${n['horas_extras']:,.2f}",
-                          f"50%: ${n['pay_50']:,.2f} | 100%: ${n['pay_100']:,.2f}")
+                extras_detail = f"50%: ${n['pay_50']:,.2f} | 100%: ${n['pay_100']:,.2f}"
+                if pasar:
+                    extras_detail += f" | {horas_pasar:.2f}h al sig. mes"
+                i3.metric("H. Extras", f"${n['horas_extras']:,.2f}", extras_detail)
                 i4.metric("Transp.", f"${n['transporte']:,.2f}",
                           f"{hrs['dias']}d x ${cfg.get('transporte_dia', 0):,.2f}")
 
@@ -628,15 +643,6 @@ if pagina == "Roles":
                 r3.metric("Neto", f"${n['valor_recibir']:,.2f}", prestamo_str)
                 r4.metric("Total Transferido", f"${n['total_transferido']:,.2f}",
                           f"F.Reserva: ${n['fondos_reserva']:,.2f}" if n['fondos_reserva'] else None)
-
-                # Arrastre
-                if n['h_50_arrastre'] != 0 or hrs['horas_50'] > 0:
-                    arrastre_key = f"pasar_{nid}"
-                    pasar = ac.checkbox(
-                        f"Pasar {hrs['horas_50']:.2f}h al sig. mes",
-                        key=arrastre_key,
-                        help="Marca para guardar estas horas compensatorias para el proximo mes",
-                    )
 
         # Guardar arrastre
         if any_salary and rid:

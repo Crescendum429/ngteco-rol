@@ -264,7 +264,7 @@ def calcular_nomina(hrs, cfg, extras=None):
     """Calcula nomina completa para un empleado.
     cfg: dict con salario, horas_base, transporte_dia, prestamo_iess, fondos_reserva,
          horas_comp_anterior
-    extras: dict con decimo_13 (bool), decimo_14 (bool), bonus
+    extras: dict con decimo_13 (bool), decimo_14 (bool), bonus, horas_pasar (float)
     """
     extras = extras or {}
     salario = cfg.get('salario', 0)
@@ -273,13 +273,14 @@ def calcular_nomina(hrs, cfg, extras=None):
     prestamo = cfg.get('prestamo_iess', 0)
     tiene_fondos = cfg.get('fondos_reserva', False)
     h_anterior = cfg.get('horas_comp_anterior', 0)
+    horas_pasar = extras.get('horas_pasar', 0)
 
     hourly = salario / 30 / base_h if salario > 0 and base_h > 0 else 0
 
-    # Horas compensatorias con arrastre opcional
+    # Horas compensatorias con arrastre
     h_50_total = hrs['horas_50'] + h_anterior
-    h_50_pagar = max(h_50_total, 0)
-    h_50_arrastre = min(h_50_total, 0)
+    h_50_pagar = max(h_50_total - horas_pasar, 0)
+    h_50_arrastre = horas_pasar
 
     pay_50 = h_50_pagar * hourly * 1.5
     pay_100 = hrs['horas_100'] * hourly * 2.0
