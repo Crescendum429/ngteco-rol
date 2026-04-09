@@ -3,6 +3,7 @@ import os
 import tempfile
 from datetime import time as dt_time
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -42,9 +43,9 @@ CHANGELOG = {
         ("PDF del rol de pagos",
          "Cada empleado ahora tiene un boton para descargar su rol en PDF, "
          "listo para imprimir o enviar."),
-        ("Panel de historial",
-         "Nueva seccion con graficos del costo mensual y horas extras acumuladas "
-         "mes a mes."),
+        ("Panel de metricas",
+         "Nueva seccion con graficos del costo mensual, desglose por empleado "
+         "y horas extras acumuladas mes a mes."),
         ("Comparativa mensual",
          "En la seccion Sueldos puedes ver como variaron los dias, horas y total "
          "respecto al mes anterior."),
@@ -169,7 +170,7 @@ st.sidebar.divider()
 if "pagina" not in st.session_state:
     st.session_state.pagina = "Roles"
 
-for mod, icon in [("Roles", "📋"), ("Empleados", "👥"), ("Historial", "📊")]:
+for mod, icon in [("Roles", "📋"), ("Empleados", "👥"), ("Metricas", "📊")]:
     active = st.session_state.pagina == mod
     if st.sidebar.button(
         f"{icon}  {mod}", use_container_width=True,
@@ -772,65 +773,188 @@ if pagina == "Roles":
             )
 
 
-# ── Pagina: Historial ─────────────────────────────────────────
-if pagina == "Historial":
-    st.header("Historial")
+# ── Pagina: Metricas ──────────────────────────────────────────
+if pagina == "Metricas":
+    st.header("Metricas")
 
-    resumenes = load_all_nomina_resumenes()
+    all_reportes = list_reportes()
 
-    if not resumenes:
-        st.info(
-            "No hay datos de historial aun. "
-            "Abre un reporte en Roles > Sueldos para generar el resumen del mes."
-        )
+    if not all_reportes:
+        st.info("No hay reportes guardados. Sube un archivo XLS en Roles para comenzar.")
         st.stop()
 
-    sorted_ids = sorted(resumenes.keys())
-    rows = []
-    for rid in sorted_ids:
-        r = resumenes[rid]
-        rows.append({
-            "Mes": r.get("periodo_label", rid),
-            "Costo Total": r.get("total_transferido", 0),
-            "H. Extra 50%": r.get("total_h50", 0),
-            "H. Extra 100%": r.get("total_h100", 0),
-            "Empleados": r.get("empleados", 0),
-        })
+    emp_db = st.session_state.emp_db
 
-    df = pd.DataFrame(rows)
+    ha, hb = st.columns([6, 1])
+    if hb.button("Actualizar", key="btn_actualizar_metricas"):
+        st.session_state.pop("_metricas", None)
+        st.rerun()
 
-    # Metricas del ultimo mes vs anterior
-    if len(rows) >= 2:
-        last, prev = rows[-1], rows[-2]
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Costo ultimo mes", f"${last['Costo Total']:,.2f}",
-                  f"${last['Costo Total'] - prev['Costo Total']:+,.2f}")
-        c2.metric("H. Extra 50%", f"{last['H. Extra 50%']:.1f}h",
-                  f"{last['H. Extra 50%'] - prev['H. Extra 50%']:+.1f}h")
-        c3.metric("H. Extra 100%", f"{last['H. Extra 100%']:.1f}h",
-                  f"{last['H. Extra 100%'] - prev['H. Extra 100%']:+.1f}h")
-        c4.metric("Empleados", last['Empleados'])
-    elif rows:
-        last = rows[-1]
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Costo total", f"${last['Costo Total']:,.2f}")
-        c2.metric("H. Extra 50%", f"{last['H. Extra 50%']:.1f}h")
-        c3.metric("H. Extra 100%", f"{last['H. Extra 100%']:.1f}h")
-        c4.metric("Empleados", last['Empleados'])
+    if "_metricas" not in st.session_state:
+        with st.spinner("Calculando metricas de todos los reportes..."):
+            _metricas_tmp = {}
+            for rep in all_reportes:
+                rid = rep["id"]
+                data_r, cls_r = load_reporte(rid)
+                if not data_r or not cls_r:
+                    continue
+                extras_r = load_extras_config(rid) or {}
+                arrastre_r = load_arrastre(rid) or {}
+                matched_r, _, _ = match_empleados(data_r, emp_db)
+                empleados_mes = []
+                for ef, dy, ni in data_r:
+                    nm = emp_name(ef)
+                    dk = matched_r.get(nm)
+                    cfg = emp_db.get(dk, _default_emp()) if dk else _default_emp()
+                    if cfg.get("salario", 0) <= 0:
+                        continue
+                    hrs_r = calcular_horas_clasificadas(cls_r.get(nm, {}), cfg.get("horas_base", 8))
+                    cfg_c = dict(cfg)
+                    cfg_c["horas_comp_anterior"] = arrastre_r.get(nm, 0)
+                    n_r = calcular_nomina(hrs_r, cfg_c, {
+                        "decimo_13": extras_r.get("decimo_13", False),
+                        "decimo_14": extras_r.get("decimo_14", False),
+                    })
+                    empleados_mes.append({
+                        "nombre": nm,
+                        "transferido": n_r["total_transferido"],
+                        "h50": hrs_r["horas_50"],
+                        "h100": hrs_r["horas_100"],
+                        "dias": hrs_r["dias"],
+                    })
+                if empleados_mes:
+                    _metricas_tmp[rid] = {
+                        "label": rep["periodo"],
+                        "empleados": empleados_mes,
+                        "total": round(sum(e["transferido"] for e in empleados_mes), 2),
+                        "h50": round(sum(e["h50"] for e in empleados_mes), 2),
+                        "h100": round(sum(e["h100"] for e in empleados_mes), 2),
+                    }
+        st.session_state["_metricas"] = _metricas_tmp
+
+    M = st.session_state.get("_metricas", {})
+
+    if not M:
+        st.info("Configura los salarios en Empleados para ver las metricas.")
+        st.stop()
+
+    sorted_ids = sorted(M.keys())
+
+    # ── Resumen global ────────────────────────────────────────
+    totales = [M[r]["total"] for r in sorted_ids]
+    last_id = sorted_ids[-1]
+    prev_id = sorted_ids[-2] if len(sorted_ids) >= 2 else None
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric(
+        f"Total pagado ({len(sorted_ids)} mes{'es' if len(sorted_ids) > 1 else ''})",
+        f"${sum(totales):,.2f}",
+    )
+    c2.metric("Promedio mensual", f"${sum(totales)/len(totales):,.2f}")
+    c3.metric(
+        M[last_id]["label"],
+        f"${M[last_id]['total']:,.2f}",
+        f"${M[last_id]['total'] - M[prev_id]['total']:+,.2f}" if prev_id else None,
+    )
+    c4.metric("Empleados (ultimo mes)", len(M[last_id]["empleados"]))
 
     st.divider()
 
-    st.subheader("Costo mensual")
-    st.bar_chart(df.set_index("Mes")["Costo Total"], height=260)
+    # ── Nomina mensual ────────────────────────────────────────
+    st.subheader("Nomina mensual")
+    df_men = pd.DataFrame([{"Mes": M[r]["label"], "Total pagado": M[r]["total"]} for r in sorted_ids])
 
-    st.subheader("Horas extras")
-    st.bar_chart(df.set_index("Mes")[["H. Extra 50%", "H. Extra 100%"]], height=240)
+    nomina_chart = (
+        alt.Chart(df_men)
+        .mark_bar(color="#0f3460", cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+        .encode(
+            x=alt.X("Mes:N", sort=None, axis=alt.Axis(title="", labelAngle=-20)),
+            y=alt.Y("Total pagado:Q", axis=alt.Axis(title="Total transferido ($)", format="$,.0f")),
+            tooltip=[
+                alt.Tooltip("Mes:N", title="Periodo"),
+                alt.Tooltip("Total pagado:Q", title="Total ($)", format="$,.2f"),
+            ],
+        )
+        .properties(height=280)
+    )
+    st.altair_chart(nomina_chart, use_container_width=True)
 
+    # ── Detalle por empleado ──────────────────────────────────
     st.divider()
+    opciones_mes = {M[r]["label"]: r for r in sorted_ids}
+    mes_sel_label = st.selectbox("Ver detalle de empleados —", list(opciones_mes.keys()),
+                                 index=len(opciones_mes) - 1)
+    mes_sel_id = opciones_mes[mes_sel_label]
+
+    df_emp = pd.DataFrame(M[mes_sel_id]["empleados"]) \
+        .rename(columns={"nombre": "Empleado", "transferido": "Total ($)"}) \
+        .sort_values("Total ($)", ascending=True)
+
+    emp_chart = (
+        alt.Chart(df_emp)
+        .mark_bar(color="#0f3460", cornerRadiusTopRight=4, cornerRadiusBottomRight=4)
+        .encode(
+            y=alt.Y("Empleado:N", sort=None, axis=alt.Axis(title="")),
+            x=alt.X("Total ($):Q", axis=alt.Axis(title="Total transferido ($)", format="$,.0f")),
+            tooltip=[
+                alt.Tooltip("Empleado:N"),
+                alt.Tooltip("Total ($):Q", format="$,.2f", title="Total ($)"),
+                alt.Tooltip("dias:Q", title="Dias trabajados"),
+            ],
+        )
+        .properties(height=max(160, len(df_emp) * 42))
+    )
+    st.altair_chart(emp_chart, use_container_width=True)
+
+    # ── Horas extras ─────────────────────────────────────────
+    if any(M[r]["h50"] + M[r]["h100"] > 0 for r in sorted_ids):
+        st.divider()
+        st.subheader("Horas extras por mes")
+        df_hext = pd.DataFrame([
+            {"Mes": M[r]["label"], "Tipo": "50% (compensatorias)", "Horas": M[r]["h50"]}
+            for r in sorted_ids
+        ] + [
+            {"Mes": M[r]["label"], "Tipo": "100% (fin de semana)", "Horas": M[r]["h100"]}
+            for r in sorted_ids
+        ])
+        hext_chart = (
+            alt.Chart(df_hext)
+            .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+            .encode(
+                x=alt.X("Mes:N", sort=None, axis=alt.Axis(title="", labelAngle=-20)),
+                y=alt.Y("Horas:Q", axis=alt.Axis(title="Horas extras")),
+                color=alt.Color(
+                    "Tipo:N",
+                    scale=alt.Scale(domain=["50% (compensatorias)", "100% (fin de semana)"],
+                                    range=["#0891b2", "#dc2626"]),
+                    legend=alt.Legend(title=""),
+                ),
+                tooltip=[
+                    alt.Tooltip("Mes:N", title="Periodo"),
+                    alt.Tooltip("Tipo:N"),
+                    alt.Tooltip("Horas:Q", format=".2f"),
+                ],
+            )
+            .properties(height=240)
+        )
+        st.altair_chart(hext_chart, use_container_width=True)
+
+    # ── Tabla resumen ─────────────────────────────────────────
+    st.divider()
+    df_tabla = pd.DataFrame([
+        {
+            "Mes": M[r]["label"],
+            "Total pagado ($)": M[r]["total"],
+            "H. Extra 50%": M[r]["h50"],
+            "H. Extra 100%": M[r]["h100"],
+            "Empleados": len(M[r]["empleados"]),
+        }
+        for r in sorted_ids
+    ])
     st.dataframe(
-        df,
+        df_tabla,
         column_config={
-            "Costo Total": st.column_config.NumberColumn(format="$%.2f"),
+            "Total pagado ($)": st.column_config.NumberColumn(format="$%.2f"),
             "H. Extra 50%": st.column_config.NumberColumn(format="%.2f h"),
             "H. Extra 100%": st.column_config.NumberColumn(format="%.2f h"),
         },
