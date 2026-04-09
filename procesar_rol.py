@@ -590,6 +590,143 @@ def write_excel_nomina(nomina_data, periodo, dest):
     wb.save(dest)
 
 
+def write_pdf_nomina(item, periodo):
+    """PDF del rol de pagos individual. Retorna bytes."""
+    from fpdf import FPDF
+
+    name = item['name']
+    n = item['nomina']
+    hrs = n['hours']
+    W = 160  # ancho util (A4 210mm - margenes 25mm c/lado)
+
+    def _t(s):
+        return normalize(str(s))
+
+    pdf = FPDF(format='A4')
+    pdf.set_margins(25, 20, 25)
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=20)
+
+    def _hline():
+        pdf.set_draw_color(180, 180, 180)
+        pdf.set_line_width(0.3)
+        pdf.line(25, pdf.get_y(), 185, pdf.get_y())
+        pdf.ln(3)
+
+    def _section(title):
+        pdf.set_fill_color(14, 52, 96)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(W, 7, title, fill=True, new_x="LMARGIN", new_y="NEXT")
+        pdf.set_text_color(0, 0, 0)
+        pdf.ln(1)
+
+    def _row(label, val):
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(4, 6, "")
+        pdf.cell(W - 34, 6, _t(label))
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(30, 6, f"${val:,.2f}", align="R", new_x="LMARGIN", new_y="NEXT")
+
+    def _total(label, val):
+        pdf.set_fill_color(226, 239, 218)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(W - 30, 7, label, fill=True)
+        pdf.cell(30, 7, f"${val:,.2f}", align="R", fill=True, new_x="LMARGIN", new_y="NEXT")
+        pdf.set_fill_color(255, 255, 255)
+
+    # Encabezado
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(W, 9, "SOLPLAST", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(W, 7, "ROL DE PAGOS", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(3)
+    _hline()
+    pdf.ln(2)
+
+    for label, val in [("PERIODO:", periodo), ("EMPLEADO:", name)]:
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(55, 7, label)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(W - 55, 7, _t(val), new_x="LMARGIN", new_y="NEXT")
+
+    pdf.ln(3)
+    _hline()
+    pdf.ln(2)
+
+    # Ingresos
+    _section("INGRESOS")
+    _row("Primera Quincena", n['quincena'])
+    _row("Segunda Quincena", n['quincena'])
+    if n['pay_50']:
+        _row(f"Horas Extras 50% ({n['h_50_pagar']:.2f}h)", n['pay_50'])
+    if n['pay_100']:
+        _row(f"Horas Extras 100% ({hrs['horas_100']:.2f}h)", n['pay_100'])
+    if n['transporte']:
+        _row(f"Transporte/Comida ({hrs['dias']}d)", n['transporte'])
+    if n['decimo_13']:
+        _row("Decimo Tercer Sueldo", n['decimo_13'])
+    if n['decimo_14']:
+        _row("Decimo Cuarto Sueldo", n['decimo_14'])
+    if n['bonus']:
+        _row("Bono / Ajuste", n['bonus'])
+    pdf.ln(1)
+    _total("TOTAL INGRESOS",
+           n['total_ingresos'] + n['decimo_13'] + n['decimo_14'] + n['bonus'])
+
+    pdf.ln(4)
+
+    # Egresos
+    _section("EGRESOS")
+    if n['iess']:
+        _row(f"Aporte IESS ({IESS_EMPLEADO * 100:.2f}%)", n['iess'])
+    if n['prestamo_iess']:
+        _row("Prestamo IESS", n['prestamo_iess'])
+    if not n['iess'] and not n['prestamo_iess']:
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.set_text_color(120, 120, 120)
+        pdf.cell(W, 6, "  Sin egresos aplicables", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_text_color(0, 0, 0)
+    pdf.ln(1)
+    _total("TOTAL EGRESOS", n['total_egresos'])
+
+    pdf.ln(4)
+    _hline()
+    pdf.ln(1)
+
+    # Valor a recibir
+    pdf.set_fill_color(14, 52, 96)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(W - 40, 9, "VALOR A RECIBIR", fill=True)
+    pdf.cell(40, 9, f"${n['valor_recibir']:,.2f}", align="R", fill=True,
+             new_x="LMARGIN", new_y="NEXT")
+    pdf.set_text_color(0, 0, 0)
+
+    pdf.ln(6)
+
+    # Detalle de pagos
+    _section("DETALLE DE PAGOS")
+    _row("Transferencia del 15", n['transf_15'])
+    _row("Transferencia fin de mes", n['transf_fin'])
+    if n['fondos_reserva']:
+        _row("Fondos de Reserva", n['fondos_reserva'])
+    pdf.ln(1)
+    _total("TOTAL TRANSFERIDO", n['total_transferido'])
+
+    # Footer
+    pdf.ln(8)
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.set_text_color(140, 140, 140)
+    pdf.cell(
+        W, 5,
+        f"H.50%: Art.55 | H.100%: Art.55 | IESS {IESS_EMPLEADO * 100:.2f}% | 13ro: Art.111 | 14to: Art.113",
+        align="C", new_x="LMARGIN", new_y="NEXT",
+    )
+
+    return bytes(pdf.output())
+
+
 if __name__ == '__main__':
     import sys
     xls = sys.argv[1] if len(sys.argv) > 1 else 'NGTimereport.xls'

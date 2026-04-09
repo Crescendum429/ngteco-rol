@@ -186,3 +186,78 @@ def reporte_exists(reporte_id):
         except Exception:
             return False
     return False
+
+
+def delete_reporte(reporte_id):
+    if USE_SUPABASE:
+        _supabase().table("reportes").delete().eq("id", reporte_id).execute()
+        for suffix in ["arrastre", "extras", "nomina_resumen"]:
+            try:
+                _supabase().table("config").delete().eq("key", f"{suffix}_{reporte_id}").execute()
+            except Exception:
+                pass
+
+
+def save_extras_config(reporte_id, config):
+    if USE_SUPABASE:
+        _supabase().table("config").upsert({
+            "key": f"extras_{reporte_id}",
+            "value": config,
+        }).execute()
+
+
+def load_extras_config(reporte_id):
+    if USE_SUPABASE:
+        try:
+            res = _supabase().table("config").select("value").eq("key", f"extras_{reporte_id}").execute()
+            if res.data:
+                return res.data[0]["value"]
+        except Exception:
+            pass
+    return {}
+
+
+def get_extras_config_anterior(reporte_id):
+    try:
+        y, m = reporte_id.split("-")
+        y, m = int(y), int(m)
+        prev = f"{y-1}-12" if m == 1 else f"{y}-{m-1:02d}"
+        return load_extras_config(prev), prev
+    except Exception:
+        return {}, ""
+
+
+def save_nomina_resumen(reporte_id, resumen):
+    if USE_SUPABASE:
+        _supabase().table("config").upsert({
+            "key": f"nomina_resumen_{reporte_id}",
+            "value": resumen,
+        }).execute()
+
+
+def load_all_nomina_resumenes():
+    if USE_SUPABASE:
+        try:
+            res = (_supabase().table("config")
+                   .select("key, value")
+                   .like("key", "nomina_resumen_%")
+                   .execute())
+            result = {}
+            for row in (res.data or []):
+                rid = row["key"].replace("nomina_resumen_", "")
+                result[rid] = row["value"]
+            return result
+        except Exception:
+            pass
+    return {}
+
+
+def get_reporte_anterior(reporte_id):
+    try:
+        y, m = reporte_id.split("-")
+        y, m = int(y), int(m)
+        prev = f"{y-1}-12" if m == 1 else f"{y}-{m-1:02d}"
+        data, cls = load_reporte(prev)
+        return data, cls, prev
+    except Exception:
+        return None, None, ""

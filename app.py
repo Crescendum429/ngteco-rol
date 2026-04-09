@@ -14,48 +14,45 @@ from procesar_rol import (
     clasificar_todo,
     emp_name,
     match_empleados,
+    normalize,
     parse_date,
     parse_xls,
     to_time,
     write_excel,
     write_excel_nomina,
+    write_pdf_nomina,
 )
 from storage import (
     export_json, import_json, load_empleados, save_empleados,
     list_reportes, load_reporte, save_reporte, reporte_exists,
+    delete_reporte,
     is_changelog_dismissed, dismiss_changelog,
     load_arrastre, save_arrastre, get_arrastre_anterior,
+    save_extras_config, load_extras_config, get_extras_config_anterior,
+    save_nomina_resumen, load_all_nomina_resumenes,
+    get_reporte_anterior,
 )
 
-APP_VERSION = "3.2"
+APP_VERSION = "3.3"
 
 CHANGELOG = {
     "version": APP_VERSION,
-    "titulo": "Nuevo sistema de Roles",
+    "titulo": "Historial y mejoras de nomina",
     "items": [
-        ("Correccion de fechas",
-         "Las fechas del reloj estaban desfasadas un dia. "
-         "Ahora se corrigen automaticamente para que coincidan con el dia real de trabajo."),
-        ("Registro de empleados",
-         "Ya no es necesario ingresar el ID del reloj. "
-         "El sistema reconoce a los empleados por nombre al cargar el reporte. "
-         "Si detecta alguien nuevo, te pregunta si deseas agregarlo."),
-        ("Calculo de sueldos completo",
-         "El sistema ahora calcula quincenas, horas extras (50% y 100%), "
-         "aportes al IESS, prestamos, fondos de reserva, transporte "
-         "y genera un rol de pagos formal en Excel."),
-        ("Reportes guardados",
-         "Los reportes mensuales se guardan en la nube. "
-         "Puedes consultar meses anteriores sin necesidad de volver a subir el archivo."),
-        ("Edicion de horas",
-         "Puedes corregir las horas de cualquier empleado directamente en la tabla. "
-         "Los cambios se guardan automaticamente."),
-        ("Datos de empleados seguros",
-         "Los salarios y datos de empleados se almacenan de forma segura "
-         "y persisten entre sesiones. Ya no se pierden al cerrar la aplicacion."),
-        ("Modo oscuro",
-         "La interfaz ahora se adapta automaticamente si tu dispositivo "
-         "usa modo oscuro."),
+        ("PDF del rol de pagos",
+         "Cada empleado ahora tiene un boton para descargar su rol en PDF, "
+         "listo para imprimir o enviar."),
+        ("Panel de historial",
+         "Nueva seccion con graficos del costo mensual y horas extras acumuladas "
+         "mes a mes."),
+        ("Comparativa mensual",
+         "En la seccion Sueldos puedes ver como variaron los dias, horas y total "
+         "respecto al mes anterior."),
+        ("Configuracion persistente de nomina",
+         "Los toggles de decimos se guardan por periodo. "
+         "Si no hay configuracion para el mes actual, se carga la del mes anterior como sugerencia."),
+        ("Eliminar reportes",
+         "Ahora puedes eliminar reportes guardados que ya no necesites."),
     ],
 }
 
@@ -172,7 +169,7 @@ st.sidebar.divider()
 if "pagina" not in st.session_state:
     st.session_state.pagina = "Roles"
 
-for mod, icon in [("Roles", "📋"), ("Empleados", "👥")]:
+for mod, icon in [("Roles", "📋"), ("Empleados", "👥"), ("Historial", "📊")]:
     active = st.session_state.pagina == mod
     if st.sidebar.button(
         f"{icon}  {mod}", use_container_width=True,
@@ -387,6 +384,22 @@ if pagina == "Roles":
     else:
         sel_idx = opciones.index(sel) - 1
         sel_rid = reportes_ids[sel_idx]
+
+        if st.session_state.get(f"_confirm_del_{sel_rid}"):
+            st.warning(f"Eliminar **{sel}** de forma permanente?")
+            ca, cb = st.columns(2)
+            if ca.button("Si, eliminar", type="primary"):
+                delete_reporte(sel_rid)
+                st.session_state.pop(f"_confirm_del_{sel_rid}", None)
+                st.session_state.pop("_loaded_rid", None)
+                st.rerun()
+            if cb.button("Cancelar"):
+                st.session_state.pop(f"_confirm_del_{sel_rid}", None)
+                st.rerun()
+        elif sb.button("Eliminar", key=f"del_{sel_rid}"):
+            st.session_state[f"_confirm_del_{sel_rid}"] = True
+            st.rerun()
+
         if st.session_state.get("_loaded_rid") != sel_rid:
             data_loaded, cls_loaded = load_reporte(sel_rid)
             if data_loaded:
@@ -527,15 +540,52 @@ if pagina == "Roles":
     if sub == "Sueldos":
         rid, periodo_label = _detect_periodo(data)
 
+        # Cargar config de decimos (mes actual o anterior como sugerencia)
+        _cfg_key = f"_extcfg_{rid}"
+        if rid and not st.session_state.get(_cfg_key):
+            saved = load_extras_config(rid)
+            if not saved:
+                saved, _ = get_extras_config_anterior(rid)
+            if saved:
+                st.session_state[f"d13_{rid}"] = saved.get("decimo_13", False)
+                st.session_state[f"d14_{rid}"] = saved.get("decimo_14", False)
+            st.session_state[_cfg_key] = True
+
+        _d13_key = f"d13_{rid}" if rid else "d13_tmp"
+        _d14_key = f"d14_{rid}" if rid else "d14_tmp"
+
         dc1, dc2 = st.columns(2)
         decimo_13 = dc1.toggle(
             "Decimo Tercer Sueldo",
+            key=_d13_key,
             help="1 salario mensual. Hasta dic 24. (Art. 111-112)",
         )
         decimo_14 = dc2.toggle(
             f"Decimo Cuarto Sueldo (${SBU_2026:.0f})",
+            key=_d14_key,
             help=f"1 SBU (${SBU_2026:.0f}). Sierra: ago 15 / Costa: mar 15. (Art. 113)",
         )
+
+        # Cargar horas del mes anterior para comparativa (una vez por sesion)
+        prev_hrs_map = {}
+        if rid:
+            _prev_key = f"_prev_hrs_{rid}"
+            if _prev_key not in st.session_state:
+                with st.spinner("Cargando comparativa..."):
+                    prev_data_r, prev_cls_r, _ = get_reporte_anterior(rid)
+                if prev_data_r and prev_cls_r:
+                    _tmp = {}
+                    for ef, dy, ni in prev_data_r:
+                        nm = emp_name(ef)
+                        dk = matched.get(nm)
+                        cf = emp_db.get(dk, _default_emp()) if dk else _default_emp()
+                        _tmp[nm] = calcular_horas_clasificadas(
+                            prev_cls_r.get(nm, {}), cf.get("horas_base", 8)
+                        )
+                    st.session_state[_prev_key] = _tmp
+                else:
+                    st.session_state[_prev_key] = {}
+            prev_hrs_map = st.session_state[_prev_key]
 
         # Cargar arrastre del mes anterior
         arrastre_ant, prev_id = get_arrastre_anterior(rid) if rid else ({}, "")
@@ -580,11 +630,16 @@ if pagina == "Roles":
                 any_salary = True
 
                 # Horas
+                ph = prev_hrs_map.get(name)
                 m1, m2, m3, m4 = st.columns(4)
-                m1.metric("Dias", hrs["dias"])
-                m2.metric("Horas", f"{hrs['horas_total']:.1f}")
-                m3.metric("H. 50%", f"{hrs['horas_50']:.2f}")
-                m4.metric("H. 100%", f"{hrs['horas_100']:.2f}")
+                m1.metric("Dias", hrs["dias"],
+                          f"{hrs['dias'] - ph['dias']:+d}" if ph else None)
+                m2.metric("Horas", f"{hrs['horas_total']:.1f}",
+                          f"{hrs['horas_total'] - ph['horas_total']:+.1f}" if ph else None)
+                m3.metric("H. 50%", f"{hrs['horas_50']:.2f}",
+                          f"{hrs['horas_50'] - ph['horas_50']:+.2f}" if ph else None)
+                m4.metric("H. 100%", f"{hrs['horas_100']:.2f}",
+                          f"{hrs['horas_100'] - ph['horas_100']:+.2f}" if ph else None)
 
                 if hrs["dias_anomalia"]:
                     st.caption(f"⚠ {hrs['dias_anomalia']} dia(s) con datos incompletos")
@@ -603,6 +658,7 @@ if pagina == "Roles":
                 )
 
                 # Pasar horas al siguiente mes
+                pasar = False
                 horas_pasar = 0.0
                 if hrs['horas_50'] > 0:
                     pasar = ac.checkbox(
@@ -661,7 +717,18 @@ if pagina == "Roles":
                 r4.metric("Total Transferido", f"${n['total_transferido']:,.2f}",
                           f"F.Reserva: ${n['fondos_reserva']:,.2f}" if n['fondos_reserva'] else None)
 
-        # Guardar arrastre (usa el monto exacto que el usuario eligio)
+                # PDF individual
+                pdf_bytes = write_pdf_nomina({'name': name, 'nomina': n}, periodo_label or "Periodo")
+                pdf_name = normalize(name).replace(" ", "_") + f"_{rid or 'nomina'}.pdf"
+                st.download_button(
+                    "Descargar PDF",
+                    data=pdf_bytes,
+                    file_name=pdf_name,
+                    mime="application/pdf",
+                    key=f"pdf_{nid}",
+                )
+
+        # Guardar arrastre, config de decimos y resumen
         if any_salary and rid:
             arrastre_nuevo = {}
             for emp_full, days, nid in data:
@@ -671,6 +738,15 @@ if pagina == "Roles":
                     if h > 0:
                         arrastre_nuevo[name] = h
             save_arrastre(rid, arrastre_nuevo)
+            save_extras_config(rid, {"decimo_13": decimo_13, "decimo_14": decimo_14})
+            save_nomina_resumen(rid, {
+                "periodo_label": periodo_label or rid,
+                "total_ingresos": round(sum(i['nomina']['total_ingresos'] for i in nomina_list), 2),
+                "total_transferido": round(sum(i['nomina']['total_transferido'] for i in nomina_list), 2),
+                "total_h50": round(sum(i['nomina']['hours']['horas_50'] for i in nomina_list), 2),
+                "total_h100": round(sum(i['nomina']['hours']['horas_100'] for i in nomina_list), 2),
+                "empleados": len(nomina_list),
+            })
 
         if any_salary:
             st.divider()
@@ -689,3 +765,70 @@ if pagina == "Roles":
                 f"H. 50%: Art. 55 · H. 100%: Art. 55 · IESS: {IESS_EMPLEADO*100:.2f}% · "
                 f"13ro: Art. 111 · 14to: Art. 113 (SBU ${SBU_2026:.0f})"
             )
+
+
+# ── Pagina: Historial ─────────────────────────────────────────
+if pagina == "Historial":
+    st.header("Historial")
+
+    resumenes = load_all_nomina_resumenes()
+
+    if not resumenes:
+        st.info(
+            "No hay datos de historial aun. "
+            "Abre un reporte en Roles > Sueldos para generar el resumen del mes."
+        )
+        st.stop()
+
+    sorted_ids = sorted(resumenes.keys())
+    rows = []
+    for rid in sorted_ids:
+        r = resumenes[rid]
+        rows.append({
+            "Mes": r.get("periodo_label", rid),
+            "Costo Total": r.get("total_transferido", 0),
+            "H. Extra 50%": r.get("total_h50", 0),
+            "H. Extra 100%": r.get("total_h100", 0),
+            "Empleados": r.get("empleados", 0),
+        })
+
+    df = pd.DataFrame(rows)
+
+    # Metricas del ultimo mes vs anterior
+    if len(rows) >= 2:
+        last, prev = rows[-1], rows[-2]
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Costo ultimo mes", f"${last['Costo Total']:,.2f}",
+                  f"${last['Costo Total'] - prev['Costo Total']:+,.2f}")
+        c2.metric("H. Extra 50%", f"{last['H. Extra 50%']:.1f}h",
+                  f"{last['H. Extra 50%'] - prev['H. Extra 50%']:+.1f}h")
+        c3.metric("H. Extra 100%", f"{last['H. Extra 100%']:.1f}h",
+                  f"{last['H. Extra 100%'] - prev['H. Extra 100%']:+.1f}h")
+        c4.metric("Empleados", last['Empleados'])
+    elif rows:
+        last = rows[-1]
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Costo total", f"${last['Costo Total']:,.2f}")
+        c2.metric("H. Extra 50%", f"{last['H. Extra 50%']:.1f}h")
+        c3.metric("H. Extra 100%", f"{last['H. Extra 100%']:.1f}h")
+        c4.metric("Empleados", last['Empleados'])
+
+    st.divider()
+
+    st.subheader("Costo mensual")
+    st.bar_chart(df.set_index("Mes")["Costo Total"], height=260)
+
+    st.subheader("Horas extras")
+    st.bar_chart(df.set_index("Mes")[["H. Extra 50%", "H. Extra 100%"]], height=240)
+
+    st.divider()
+    st.dataframe(
+        df,
+        column_config={
+            "Costo Total": st.column_config.NumberColumn(format="$%.2f"),
+            "H. Extra 50%": st.column_config.NumberColumn(format="%.2f h"),
+            "H. Extra 100%": st.column_config.NumberColumn(format="%.2f h"),
+        },
+        hide_index=True,
+        use_container_width=True,
+    )
