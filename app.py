@@ -48,9 +48,9 @@ CHANGELOG = {
         ("Comparativa mensual",
          "En la seccion Sueldos puedes ver como variaron los dias, horas y total "
          "respecto al mes anterior."),
-        ("Configuracion persistente de nomina",
-         "Los toggles de decimos se guardan por periodo. "
-         "Si no hay configuracion para el mes actual, se carga la del mes anterior como sugerencia."),
+        ("Sugerencia automatica de decimos",
+         "El sistema activa automaticamente el toggle del decimo que corresponde al mes: "
+         "13ro en diciembre, 14to en agosto y marzo."),
         ("Eliminar reportes",
          "Ahora puedes eliminar reportes guardados que ya no necesites."),
     ],
