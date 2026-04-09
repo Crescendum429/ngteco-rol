@@ -28,7 +28,7 @@ from storage import (
     delete_reporte,
     is_changelog_dismissed, dismiss_changelog,
     load_arrastre, save_arrastre, get_arrastre_anterior,
-    save_extras_config, load_extras_config, get_extras_config_anterior,
+    save_extras_config, load_extras_config,
     save_nomina_resumen, load_all_nomina_resumenes,
     get_reporte_anterior,
 )
@@ -540,15 +540,20 @@ if pagina == "Roles":
     if sub == "Sueldos":
         rid, periodo_label = _detect_periodo(data)
 
-        # Cargar config de decimos (mes actual o anterior como sugerencia)
+        # Cargar config de decimos para este periodo
         _cfg_key = f"_extcfg_{rid}"
         if rid and not st.session_state.get(_cfg_key):
             saved = load_extras_config(rid)
-            if not saved:
-                saved, _ = get_extras_config_anterior(rid)
             if saved:
                 st.session_state[f"d13_{rid}"] = saved.get("decimo_13", False)
                 st.session_state[f"d14_{rid}"] = saved.get("decimo_14", False)
+            else:
+                try:
+                    m = int(rid.split("-")[1])
+                    st.session_state[f"d13_{rid}"] = (m == 12)
+                    st.session_state[f"d14_{rid}"] = (m in (3, 8))
+                except Exception:
+                    pass
             st.session_state[_cfg_key] = True
 
         _d13_key = f"d13_{rid}" if rid else "d13_tmp"
