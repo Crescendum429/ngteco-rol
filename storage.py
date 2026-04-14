@@ -302,6 +302,10 @@ def _cfg_list(prefix):
     return {}
 
 
+_OLD_CAJA_IDS = {"caja_vasos_std", "caja_vasos_grande", "caja_cuchara",
+                 "caja_jeringa", "caja_gotero"}
+
+
 def load_materiales():
     from costos import MATERIALES_DEFAULT
     return _cfg_get("gastos:materiales", {k: dict(v) for k, v in MATERIALES_DEFAULT.items()})
@@ -314,7 +318,23 @@ def save_materiales(data):
 def load_productos():
     from costos import PRODUCTOS_DEFAULT
     import copy
-    return _cfg_get("gastos:productos", copy.deepcopy(PRODUCTOS_DEFAULT))
+    data = _cfg_get("gastos:productos", copy.deepcopy(PRODUCTOS_DEFAULT))
+    # Migracion: reemplazar referencias a cajas viejas por 'caja' unica
+    cambiado = False
+    for pid, prod in data.items():
+        emp = prod.get("empaques") or {}
+        nuevos = {}
+        for eid, qty in emp.items():
+            if eid in _OLD_CAJA_IDS:
+                nuevos["caja"] = qty
+                cambiado = True
+            else:
+                nuevos[eid] = qty
+        if nuevos != emp:
+            data[pid]["empaques"] = nuevos
+    if cambiado:
+        _cfg_set("gastos:productos", data)
+    return data
 
 
 def save_productos(data):
@@ -323,7 +343,15 @@ def save_productos(data):
 
 def load_empaques():
     from costos import EMPAQUES_DEFAULT
-    return _cfg_get("gastos:empaques", {k: dict(v) for k, v in EMPAQUES_DEFAULT.items()})
+    data = _cfg_get("gastos:empaques", {k: dict(v) for k, v in EMPAQUES_DEFAULT.items()})
+    # Migracion: consolidar cajas viejas en una sola 'caja'
+    if any(old in data for old in _OLD_CAJA_IDS):
+        if "caja" not in data:
+            data["caja"] = {"nombre": "Caja", "costo": 1.00, "unidad": "caja"}
+        for old in list(_OLD_CAJA_IDS):
+            data.pop(old, None)
+        _cfg_set("gastos:empaques", data)
+    return data
 
 
 def save_empaques(data):
