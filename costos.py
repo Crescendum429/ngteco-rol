@@ -295,17 +295,20 @@ def calcular_costos(
 
 
 def sumar_produccion_mensual(registros_diarios):
-    """Suma cajas y unidades producidas en el mes a partir de registros diarios.
+    """Suma cantidades producidas (en cajas/fundas) en el mes por producto.
 
-    Retorna: dict {producto_id: unidades_totales}
-    Los registros tienen: produccion: {producto_id: cajas}
-    Necesita que el llamador multiplique por unidades_caja del producto.
+    Soporta formato legacy {pid: int} y nuevo {pid: {cant, uni}}.
+    Retorna: dict {producto_id: total_cantidad}
     """
-    cajas = {}
+    totales = {}
     for reg in registros_diarios.values():
-        for pid, n in (reg.get("produccion") or {}).items():
-            cajas[pid] = cajas.get(pid, 0) + float(n or 0)
-    return cajas
+        for pid, val in (reg.get("produccion") or {}).items():
+            if isinstance(val, dict):
+                n = float(val.get("cant", 0) or 0)
+            else:
+                n = float(val or 0)
+            totales[pid] = totales.get(pid, 0) + n
+    return totales
 
 
 def sumar_gastos_fijos(gastos):

@@ -1711,24 +1711,81 @@ if pagina == "Registro":
     st.divider()
 
     # 5. Produccion
-    st.subheader("5. Produccion del dia (cajas)")
-    st.caption("Cuantas cajas completas salieron hoy.")
+    st.subheader("5. Produccion del dia")
+    st.caption("Productos completos y subproductos (partes para armar jeringas/goteros).")
 
+    def _leer_prod_prev(prev_val, unidad_default):
+        if isinstance(prev_val, (int, float)):
+            return int(prev_val), unidad_default
+        if isinstance(prev_val, dict):
+            return int(prev_val.get("cant", 0) or 0), prev_val.get("uni", unidad_default)
+        return 0, unidad_default
+
+    st.markdown("**Productos completos**")
     produccion_reg = {}
-    p_cols = st.columns(3)
+    p_cols = st.columns(2)
     for i, pid in enumerate(prod_keys):
-        col = p_cols[i % 3]
-        u_caja = productos_r[pid].get("unidades_caja", 1)
-        v = registro.get("produccion", {}).get(pid, 0)
-        nv = col.number_input(
-            productos_r[pid].get("nombre", pid),
-            min_value=0, step=1,
-            value=int(v),
-            key=f"reg_prod_{fecha_str}_{pid}",
-            help=f"{u_caja} unidades por caja",
-        )
-        if nv > 0:
-            produccion_reg[pid] = nv
+        col = p_cols[i % 2]
+        with col:
+            u_caja = productos_r[pid].get("unidades_caja", 1)
+            prev_cant, prev_uni = _leer_prod_prev(
+                registro.get("produccion", {}).get(pid), "caja"
+            )
+            st.markdown(f"**{productos_r[pid].get('nombre', pid)}**")
+            ic, tc = st.columns([2, 3])
+            cant = ic.number_input(
+                "Cantidad",
+                min_value=0, step=1, value=prev_cant,
+                key=f"reg_prod_{fecha_str}_{pid}",
+                label_visibility="collapsed",
+                help=f"{u_caja} unidades por caja",
+            )
+            uni = tc.segmented_control(
+                "Unidad",
+                options=["caja", "funda"],
+                default=prev_uni if prev_uni in ("caja", "funda") else "caja",
+                key=f"reg_prod_uni_{fecha_str}_{pid}",
+                label_visibility="collapsed",
+            )
+            if cant > 0:
+                produccion_reg[pid] = {"cant": cant, "uni": uni or "caja"}
+
+    SUBPRODUCTOS = [
+        ("canula",   "Canula"),
+        ("piston",   "Piston"),
+        ("acordeon", "Acordeon"),
+        ("tapon",    "Tapon"),
+        ("capuchon", "Capuchon"),
+    ]
+
+    st.markdown("**Subproductos (partes)**")
+    st.caption("Piezas sueltas listas para ensamblar. Se cuentan en fundas o tachos.")
+
+    subproductos_reg = {}
+    s_cols = st.columns(2)
+    for i, (sid, sname) in enumerate(SUBPRODUCTOS):
+        col = s_cols[i % 2]
+        with col:
+            prev_cant, prev_uni = _leer_prod_prev(
+                registro.get("subproductos", {}).get(sid), "funda"
+            )
+            st.markdown(f"**{sname}**")
+            ic, tc = st.columns([2, 3])
+            cant = ic.number_input(
+                "Cantidad",
+                min_value=0, step=1, value=prev_cant,
+                key=f"reg_sub_{fecha_str}_{sid}",
+                label_visibility="collapsed",
+            )
+            uni = tc.segmented_control(
+                "Unidad",
+                options=["funda", "tacho"],
+                default=prev_uni if prev_uni in ("funda", "tacho") else "funda",
+                key=f"reg_sub_uni_{fecha_str}_{sid}",
+                label_visibility="collapsed",
+            )
+            if cant > 0:
+                subproductos_reg[sid] = {"cant": cant, "uni": uni or "funda"}
 
     coment_produccion = st.text_area(
         "Comentarios sobre la produccion (opcional)",
@@ -1760,6 +1817,7 @@ if pagina == "Registro":
             "molido": molido_reg,
             "coment_molido": coment_molido,
             "produccion": produccion_reg,
+            "subproductos": subproductos_reg,
             "coment_produccion": coment_produccion,
             "observaciones": obs,
         }
