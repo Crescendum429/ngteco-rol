@@ -1589,7 +1589,7 @@ if pagina == "Registro":
         )
 
     coment_material = st.text_area(
-        "Comentarios sobre el material (opcional)",
+        "Comentarios sobre el material virgen (opcional)",
         value=registro.get("coment_material", ""),
         key=f"reg_cmat_{fecha_str}", height=70,
         placeholder="Ej: PP clarificado con color amarillento, lote nuevo",
@@ -1597,8 +1597,35 @@ if pagina == "Registro":
 
     st.divider()
 
-    # 2. Desechos
-    st.subheader("2. Desechos no recuperables (kg)")
+    # 2. Molido usado como insumo
+    st.subheader("2. Material molido usado (kg)")
+    st.caption("Molido (reciclado) que se metio hoy a las maquinas como insumo adicional.")
+
+    molido_usado_reg = {}
+    mu_cols = st.columns(3)
+    for i, pid in enumerate(sorted(productos_r.keys(), key=lambda k: productos_r[k].get("nombre", k))):
+        col = mu_cols[i % 3]
+        v = registro.get("molido_usado", {}).get(pid, 0.0)
+        nv = col.number_input(
+            f"Molido de {productos_r[pid].get('nombre', pid)}",
+            min_value=0.0, step=0.5,
+            value=float(v),
+            key=f"reg_molu_{fecha_str}_{pid}", format="%.2f",
+        )
+        if nv > 0:
+            molido_usado_reg[pid] = nv
+
+    coment_molido_usado = st.text_area(
+        "Comentarios sobre el molido usado (opcional)",
+        value=registro.get("coment_molido_usado", ""),
+        key=f"reg_cmolu_{fecha_str}", height=70,
+        placeholder="Ej: mezcla 30% molido de vaso con virgen",
+    )
+
+    st.divider()
+
+    # 3. Desechos
+    st.subheader("3. Desechos no recuperables (kg)")
     st.caption("Material desechado por producto/maquina. Lo que NO se puede moler para reusar.")
 
     prod_keys = sorted(productos_r.keys(), key=lambda k: productos_r[k].get("nombre", k))
@@ -1645,9 +1672,9 @@ if pagina == "Registro":
 
     st.divider()
 
-    # 3. Molido
-    st.subheader("3. Molido del dia (kg)")
-    st.caption("Material molido hoy que regresa al proceso. NO se suma al costo.")
+    # 4. Molido generado
+    st.subheader("4. Molido generado hoy (kg)")
+    st.caption("Material que se molio hoy. Queda disponible para reusar en los proximos dias.")
 
     molido_reg = {}
     m_cols = st.columns(3)
@@ -1672,8 +1699,8 @@ if pagina == "Registro":
 
     st.divider()
 
-    # 4. Produccion
-    st.subheader("4. Produccion del dia (cajas)")
+    # 5. Produccion
+    st.subheader("5. Produccion del dia (cajas)")
     st.caption("Cuantas cajas completas salieron hoy.")
 
     produccion_reg = {}
@@ -1714,6 +1741,8 @@ if pagina == "Registro":
         datos = {
             "material_usado": {k: v for k, v in mat_usado_reg.items() if v > 0},
             "coment_material": coment_material,
+            "molido_usado": molido_usado_reg,
+            "coment_molido_usado": coment_molido_usado,
             "desechos_por_producto": desechos_reg,
             "desechos_otros": {k: v for k, v in otros_reg.items() if v > 0},
             "coment_desechos": coment_desechos,
