@@ -1599,21 +1599,32 @@ if pagina == "Registro":
 
     # 2. Molido usado como insumo
     st.subheader("2. Material molido usado (kg)")
-    st.caption("Molido (reciclado) que se metio hoy a las maquinas como insumo adicional.")
+    st.caption("Molido (reciclado) que se metio hoy a las maquinas como insumo adicional. "
+               "Se agrupa por denominacion porque los vasos comparten material entre si, "
+               "las canulas entre si, etc.")
+
+    DENOMINACIONES_MOLIDO = [
+        ("vaso",     "Molido de vaso"),
+        ("cuchara",  "Molido de cuchara"),
+        ("canula",   "Molido de canula"),
+        ("acordeon", "Molido de acordeon"),
+        ("tapon",    "Molido de tapon"),
+        ("piston",   "Molido de piston"),
+        ("gotero",   "Molido de gotero"),
+    ]
 
     molido_usado_reg = {}
     mu_cols = st.columns(3)
-    for i, pid in enumerate(sorted(productos_r.keys(), key=lambda k: productos_r[k].get("nombre", k))):
+    for i, (den_id, den_label) in enumerate(DENOMINACIONES_MOLIDO):
         col = mu_cols[i % 3]
-        v = registro.get("molido_usado", {}).get(pid, 0.0)
+        v = registro.get("molido_usado", {}).get(den_id, 0.0)
         nv = col.number_input(
-            f"Molido de {productos_r[pid].get('nombre', pid)}",
-            min_value=0.0, step=0.5,
+            den_label, min_value=0.0, step=0.5,
             value=float(v),
-            key=f"reg_molu_{fecha_str}_{pid}", format="%.2f",
+            key=f"reg_molu_{fecha_str}_{den_id}", format="%.2f",
         )
         if nv > 0:
-            molido_usado_reg[pid] = nv
+            molido_usado_reg[den_id] = nv
 
     coment_molido_usado = st.text_area(
         "Comentarios sobre el molido usado (opcional)",
