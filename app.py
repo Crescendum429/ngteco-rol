@@ -160,7 +160,7 @@ def _show_changelog():
         st.rerun()
 
 
-if not st.session_state.get("_changelog_shown"):
+if role == "admin" and not st.session_state.get("_changelog_shown"):
     if not is_changelog_dismissed(APP_VERSION):
         _show_changelog()
 
@@ -1588,6 +1588,13 @@ if pagina == "Registro":
             key=f"reg_mat_{fecha_str}_{mid}", format="%.2f",
         )
 
+    coment_material = st.text_area(
+        "Comentarios sobre el material (opcional)",
+        value=registro.get("coment_material", ""),
+        key=f"reg_cmat_{fecha_str}", height=70,
+        placeholder="Ej: PP clarificado con color amarillento, lote nuevo",
+    )
+
     st.divider()
 
     # 2. Desechos
@@ -1629,6 +1636,13 @@ if pagina == "Registro":
         key=f"reg_desotr_{fecha_str}", format="%.3f",
     )
 
+    coment_desechos = st.text_area(
+        "Comentarios sobre los desechos (opcional)",
+        value=registro.get("coment_desechos", ""),
+        key=f"reg_cdes_{fecha_str}", height=70,
+        placeholder="Ej: maquina 3 con mas desecho que lo normal, arranque lento",
+    )
+
     st.divider()
 
     # 3. Molido
@@ -1648,6 +1662,13 @@ if pagina == "Registro":
         )
         if nv > 0:
             molido_reg[pid] = nv
+
+    coment_molido = st.text_area(
+        "Comentarios sobre el molido (opcional)",
+        value=registro.get("coment_molido", ""),
+        key=f"reg_cmol_{fecha_str}", height=70,
+        placeholder="Ej: molido de vasos con restos de etiqueta",
+    )
 
     st.divider()
 
@@ -1671,13 +1692,20 @@ if pagina == "Registro":
         if nv > 0:
             produccion_reg[pid] = nv
 
+    coment_produccion = st.text_area(
+        "Comentarios sobre la produccion (opcional)",
+        value=registro.get("coment_produccion", ""),
+        key=f"reg_cprod_{fecha_str}", height=70,
+        placeholder="Ej: se paro 1h por cambio de molde en la maquina 2",
+    )
+
     st.divider()
 
     obs = st.text_area(
-        "Observaciones del dia (opcional)",
+        "Observaciones generales del dia (opcional)",
         value=registro.get("observaciones", ""),
         key=f"reg_obs_{fecha_str}", height=80,
-        placeholder="Ej: maquina 2 paro 1h por cambio de molde",
+        placeholder="Cualquier otra nota importante",
     )
 
     ba, bb = st.columns(2)
@@ -1685,10 +1713,14 @@ if pagina == "Registro":
                  key="reg_save"):
         datos = {
             "material_usado": {k: v for k, v in mat_usado_reg.items() if v > 0},
+            "coment_material": coment_material,
             "desechos_por_producto": desechos_reg,
             "desechos_otros": {k: v for k, v in otros_reg.items() if v > 0},
+            "coment_desechos": coment_desechos,
             "molido": molido_reg,
+            "coment_molido": coment_molido,
             "produccion": produccion_reg,
+            "coment_produccion": coment_produccion,
             "observaciones": obs,
         }
         save_registro_diario(fecha_str, datos)
