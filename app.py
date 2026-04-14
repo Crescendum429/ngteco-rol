@@ -1,7 +1,8 @@
+import copy
 import io
 import os
 import tempfile
-from datetime import time as dt_time
+from datetime import date, time as dt_time
 
 import altair as alt
 import pandas as pd
@@ -23,6 +24,13 @@ from procesar_rol import (
     write_excel_nomina,
     write_pdf_nomina,
 )
+from costos import (
+    MERMA_DEFAULT_PCT,
+    calcular_costos,
+    calcular_merma_por_material,
+    sumar_gastos_fijos,
+    sumar_produccion_mensual,
+)
 from storage import (
     export_json, import_json, load_empleados, save_empleados,
     list_reportes, load_reporte, save_reporte, reporte_exists,
@@ -32,28 +40,38 @@ from storage import (
     save_extras_config, load_extras_config,
     save_nomina_resumen, load_all_nomina_resumenes,
     get_reporte_anterior,
+    load_materiales, save_materiales,
+    load_productos, save_productos,
+    load_empaques, save_empaques,
+    load_gastos_fijos, save_gastos_fijos,
+    load_registro_diario, save_registro_diario, delete_registro_diario,
+    list_registros_diarios,
+    save_costos_snapshot, load_all_costos_snapshots,
 )
 
-APP_VERSION = "3.3"
+APP_VERSION = "3.4"
 
 CHANGELOG = {
     "version": APP_VERSION,
-    "titulo": "Historial y mejoras de nomina",
+    "titulo": "Modulo de Gastos y Costos de produccion",
     "items": [
-        ("PDF del rol de pagos",
-         "Cada empleado ahora tiene un boton para descargar su rol en PDF, "
-         "listo para imprimir o enviar."),
-        ("Panel de metricas",
-         "Nueva seccion con graficos del costo mensual, desglose por empleado "
-         "y horas extras acumuladas mes a mes."),
-        ("Comparativa mensual",
-         "En la seccion Sueldos puedes ver como variaron los dias, horas y total "
-         "respecto al mes anterior."),
-        ("Sugerencia automatica de decimos",
-         "El sistema activa automaticamente el toggle del decimo que corresponde al mes: "
-         "13ro en diciembre, 14to en agosto y marzo."),
-        ("Eliminar reportes",
-         "Ahora puedes eliminar reportes guardados que ya no necesites."),
+        ("Nuevo modulo Gastos",
+         "Configura materias primas, productos (con su composicion), empaques "
+         "y gastos fijos mensuales. Todo editable, con valores por defecto listos."),
+        ("Calculo de costo por producto",
+         "El sistema calcula el costo unitario real de cada producto: material, "
+         "empaque, nomina y gastos indirectos. La nomina y gastos se reparten por "
+         "factor de complejidad para que las jeringas no paguen igual que los vasos."),
+        ("Registro diario del operario",
+         "Una nueva pagina donde el operario ingresa al final del dia: material "
+         "usado, desechos, molido y cajas producidas. Con esto el sistema calcula "
+         "la merma real por material."),
+        ("Usuarios con roles",
+         "Se agrego un usuario operario con acceso exclusivo al registro diario. "
+         "El administrador sigue viendo todo el ERP."),
+        ("Grafico de evolucion de costos",
+         "Una vez calculado el costo de un mes, queda guardado como snapshot. "
+         "El grafico temporal muestra como van cambiando los costos por producto."),
     ],
 }
 
@@ -97,18 +115,30 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
-if APP_PASSWORD:
+APP_PASSWORD_OP = os.environ.get("APP_PASSWORD_OP", "")
+
+if APP_PASSWORD or APP_PASSWORD_OP:
     if not st.session_state.get("_auth"):
         st.markdown("<div style='text-align:center; padding-top:4rem;'>", unsafe_allow_html=True)
         st.title("SOLPLAST")
         st.markdown("</div>", unsafe_allow_html=True)
         pwd = st.text_input("Password", type="password")
-        if pwd and pwd == APP_PASSWORD:
-            st.session_state._auth = True
-            st.rerun()
-        elif pwd:
-            st.error("Password incorrecto")
+        if pwd:
+            if APP_PASSWORD and pwd == APP_PASSWORD:
+                st.session_state._auth = True
+                st.session_state._role = "admin"
+                st.rerun()
+            elif APP_PASSWORD_OP and pwd == APP_PASSWORD_OP:
+                st.session_state._auth = True
+                st.session_state._role = "operario"
+                st.rerun()
+            else:
+                st.error("Password incorrecto")
         st.stop()
+elif not st.session_state.get("_role"):
+    st.session_state._role = "admin"
+
+role = st.session_state.get("_role", "admin")
 
 if "emp_db" not in st.session_state:
     st.session_state.emp_db = load_empleados()
@@ -167,10 +197,23 @@ st.sidebar.markdown("## SOLPLAST")
 st.sidebar.caption("Sistema de gestion")
 st.sidebar.divider()
 
-if "pagina" not in st.session_state:
-    st.session_state.pagina = "Roles"
+if role == "admin":
+    MODULOS = [
+        ("Roles", "📋"),
+        ("Empleados", "👥"),
+        ("Metricas", "📊"),
+        ("Gastos", "📦"),
+        ("Registro", "📝"),
+    ]
+    DEFAULT_PAGE = "Roles"
+else:
+    MODULOS = [("Registro", "📝")]
+    DEFAULT_PAGE = "Registro"
 
-for mod, icon in [("Roles", "📋"), ("Empleados", "👥"), ("Metricas", "📊")]:
+if "pagina" not in st.session_state or st.session_state.pagina not in [m[0] for m in MODULOS]:
+    st.session_state.pagina = DEFAULT_PAGE
+
+for mod, icon in MODULOS:
     active = st.session_state.pagina == mod
     if st.sidebar.button(
         f"{icon}  {mod}", use_container_width=True,
@@ -180,7 +223,7 @@ for mod, icon in [("Roles", "📋"), ("Empleados", "👥"), ("Metricas", "📊")
         st.rerun()
 
 st.sidebar.divider()
-st.sidebar.caption(f"v{APP_VERSION}")
+st.sidebar.caption(f"v{APP_VERSION} · {role}")
 pagina = st.session_state.pagina
 
 
@@ -961,3 +1004,721 @@ if pagina == "Metricas":
         hide_index=True,
         use_container_width=True,
     )
+
+
+# ── Pagina: Gastos ────────────────────────────────────────────
+MESES_LARGO = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+               'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+
+def _ultimos_periodos(n=12):
+    hoy = date.today()
+    res = []
+    for offset in range(n):
+        m, y = hoy.month - offset, hoy.year
+        while m <= 0:
+            m += 12
+            y -= 1
+        res.append(f"{y}-{m:02d}")
+    return res
+
+
+def _periodo_label(pid):
+    try:
+        y, m = pid.split("-")
+        return f"{MESES_LARGO[int(m) - 1]} {y}"
+    except Exception:
+        return pid
+
+
+if pagina == "Gastos" and role == "admin":
+    st.header("Gastos")
+
+    SUB_OPTS = [
+        ("Materiales", "🧪"),
+        ("Productos", "📦"),
+        ("Empaques", "🎁"),
+        ("Gastos fijos", "💵"),
+        ("Costos", "📈"),
+    ]
+
+    nav_cols = st.columns(len(SUB_OPTS))
+    for i, (opt, ic) in enumerate(SUB_OPTS):
+        active = st.session_state.get("sub_gastos", "Materiales") == opt
+        if nav_cols[i].button(f"{ic} {opt}", use_container_width=True,
+                              type="primary" if active else "secondary",
+                              key=f"nav_gastos_{opt}"):
+            st.session_state.sub_gastos = opt
+            st.rerun()
+
+    sub_g = st.session_state.get("sub_gastos", "Materiales")
+    st.divider()
+
+    # ── Materiales ──────────────────────────────────────────
+    if sub_g == "Materiales":
+        st.subheader("Materias primas")
+        st.caption("Costo por kilogramo. Editable.")
+
+        mats = load_materiales()
+        mat_ids = list(mats.keys())
+
+        for mid in mat_ids:
+            m = mats[mid]
+            with st.container(border=True):
+                ca, cb, cc = st.columns([4, 3, 1])
+                nombre = ca.text_input(
+                    "Nombre", value=m.get("nombre", ""),
+                    key=f"mat_nombre_{mid}",
+                )
+                costo = cb.number_input(
+                    "Costo por kg ($)", min_value=0.0, step=0.05,
+                    value=float(m.get("costo_kg", 0)),
+                    key=f"mat_costo_{mid}", format="%.2f",
+                )
+                mats[mid]["nombre"] = nombre
+                mats[mid]["costo_kg"] = costo
+                cc.write("")
+                if cc.button("Borrar", key=f"mat_del_{mid}"):
+                    del mats[mid]
+                    save_materiales(mats)
+                    st.rerun()
+
+        if st.button("Guardar cambios", type="primary", key="mat_save_all"):
+            save_materiales(mats)
+            st.toast("Materiales guardados", icon="✅")
+
+        with st.expander("+ Agregar material nuevo"):
+            nm_id = st.text_input("ID (sin espacios, ej: abs)", key="new_mat_id")
+            nm_nombre = st.text_input("Nombre", key="new_mat_nombre")
+            nm_costo = st.number_input("Costo por kg ($)", min_value=0.0,
+                                       step=0.05, key="new_mat_costo", format="%.2f")
+            if st.button("Agregar material", key="new_mat_btn"):
+                if nm_id and nm_nombre:
+                    mats[nm_id] = {"nombre": nm_nombre, "costo_kg": float(nm_costo)}
+                    save_materiales(mats)
+                    st.rerun()
+                else:
+                    st.error("Completa ID y nombre")
+
+    # ── Productos ───────────────────────────────────────────
+    if sub_g == "Productos":
+        st.subheader("Productos")
+        st.caption("Composicion de cada producto: peso, material, empaques y factor de complejidad.")
+
+        mats = load_materiales()
+        productos = load_productos()
+        empaques = load_empaques()
+
+        if not mats:
+            st.warning("Primero define materiales.")
+            st.stop()
+
+        mat_ids_list = list(mats.keys())
+        mat_label = {mid: mats[mid].get("nombre", mid) for mid in mat_ids_list}
+
+        prod_keys = sorted(productos.keys(), key=lambda k: productos[k].get("nombre", k))
+
+        for pid in prod_keys:
+            p = productos[pid]
+            with st.expander(f"**{p.get('nombre', pid)}**"):
+                ca, cb, cc = st.columns([3, 2, 2])
+                p["nombre"] = ca.text_input("Nombre", value=p.get("nombre", ""),
+                                            key=f"p_nombre_{pid}")
+                p["unidades_caja"] = int(cb.number_input(
+                    "Unidades por caja", min_value=1, step=50,
+                    value=int(p.get("unidades_caja", 1) or 1),
+                    key=f"p_ucaja_{pid}",
+                ))
+                p["factor_complejidad"] = float(cc.number_input(
+                    "Factor complejidad", min_value=0.1, step=0.1,
+                    value=float(p.get("factor_complejidad", 1.0) or 1.0),
+                    key=f"p_fc_{pid}", format="%.2f",
+                    help="1.0 = base, 3.0 = jeringa compleja. Reparte nomina/gastos indirectos.",
+                ))
+
+                st.markdown("**Componentes**")
+                comps_actuales = list(p.get("componentes", []))
+                comps_finales = []
+
+                for ci, comp in enumerate(comps_actuales):
+                    with st.container(border=True):
+                        cx, cy, cz, cw = st.columns([3, 2, 3, 1])
+                        nom_c = cx.text_input(
+                            "Nombre", value=comp.get("nombre", ""),
+                            key=f"pc_{pid}_{ci}_nom",
+                        )
+                        peso_c = cy.number_input(
+                            "Peso (g)", min_value=0.0, step=0.01,
+                            value=float(comp.get("peso_g", 0) or 0),
+                            key=f"pc_{pid}_{ci}_peso", format="%.3f",
+                        )
+                        opciones_mat = mat_ids_list + ["mezcla"]
+                        mat_actual = comp.get("material", opciones_mat[0])
+                        idx_m = opciones_mat.index(mat_actual) if mat_actual in opciones_mat else 0
+                        mat_c = cz.selectbox(
+                            "Material", opciones_mat,
+                            index=idx_m,
+                            format_func=lambda x: mat_label.get(x, "Mezcla"),
+                            key=f"pc_{pid}_{ci}_mat",
+                        )
+
+                        eliminar = cw.button("✕", key=f"pc_{pid}_{ci}_del")
+
+                        proporcion_nueva = None
+                        if mat_c == "mezcla":
+                            prop_actual = comp.get("proporcion", {}) or {}
+                            st.caption("Proporcion de la mezcla")
+                            prop_cols = st.columns(max(len(mat_ids_list), 1))
+                            proporcion_nueva = {}
+                            total = 0.0
+                            for pi, mm in enumerate(mat_ids_list):
+                                val = prop_cols[pi].number_input(
+                                    mat_label[mm][:12],
+                                    min_value=0.0, max_value=1.0, step=0.0001,
+                                    value=float(prop_actual.get(mm, 0)),
+                                    key=f"pc_{pid}_{ci}_prop_{mm}",
+                                    format="%.4f",
+                                )
+                                if val > 0:
+                                    proporcion_nueva[mm] = val
+                                total += val
+                            if abs(total - 1.0) > 0.01:
+                                st.caption(f"⚠ Suma actual: {total:.4f} (deberia ser 1.0)")
+
+                        if eliminar:
+                            p["componentes"] = [
+                                c for j, c in enumerate(comps_actuales) if j != ci
+                            ]
+                            save_productos(productos)
+                            st.rerun()
+
+                        nuevo = {"nombre": nom_c, "peso_g": peso_c, "material": mat_c}
+                        if mat_c == "mezcla" and proporcion_nueva:
+                            nuevo["proporcion"] = proporcion_nueva
+                        comps_finales.append(nuevo)
+
+                ac, ad = st.columns(2)
+                if ac.button("+ Agregar componente", key=f"p_addcomp_{pid}"):
+                    comps_finales.append({
+                        "nombre": "Nuevo",
+                        "peso_g": 0.0,
+                        "material": mat_ids_list[0] if mat_ids_list else "mezcla",
+                    })
+                    p["componentes"] = comps_finales
+                    save_productos(productos)
+                    st.rerun()
+
+                st.markdown("**Empaques asignados**")
+                emp_actual = p.get("empaques", {}) or {}
+                empaques_finales = {}
+                for eid, e in empaques.items():
+                    label = f"{e.get('nombre', eid)} (${float(e.get('costo', 0)):.4f}/{e.get('unidad', 'caja')})"
+                    usa = st.checkbox(
+                        label, value=(eid in emp_actual),
+                        key=f"pe_{pid}_{eid}",
+                    )
+                    if usa:
+                        cant = st.number_input(
+                            f"Cantidad ({e.get('nombre', eid)})",
+                            min_value=0.0, step=0.5,
+                            value=float(emp_actual.get(eid, 1)) if isinstance(emp_actual.get(eid), (int, float)) else 1.0,
+                            key=f"pe_{pid}_{eid}_qty",
+                            label_visibility="collapsed",
+                        )
+                        empaques_finales[eid] = cant
+
+                save_col, del_col = st.columns([3, 1])
+                if save_col.button("Guardar producto", type="primary", key=f"p_save_{pid}"):
+                    productos[pid] = {
+                        "nombre": p["nombre"],
+                        "unidades_caja": p["unidades_caja"],
+                        "factor_complejidad": p["factor_complejidad"],
+                        "componentes": comps_finales,
+                        "empaques": empaques_finales,
+                    }
+                    save_productos(productos)
+                    st.toast("Producto guardado", icon="✅")
+                    st.rerun()
+
+                if del_col.button("Borrar", type="secondary", key=f"p_del_{pid}"):
+                    del productos[pid]
+                    save_productos(productos)
+                    st.rerun()
+
+        with st.expander("+ Nuevo producto"):
+            np_id = st.text_input("ID (sin espacios)", key="np_id")
+            np_nombre = st.text_input("Nombre", key="np_nombre")
+            np_ucaja = st.number_input("Unidades por caja", min_value=1,
+                                       value=1000, step=100, key="np_ucaja")
+            if st.button("Crear producto", type="primary", key="np_btn"):
+                if np_id and np_nombre:
+                    productos[np_id] = {
+                        "nombre": np_nombre,
+                        "unidades_caja": int(np_ucaja),
+                        "componentes": [],
+                        "empaques": {},
+                        "factor_complejidad": 1.0,
+                    }
+                    save_productos(productos)
+                    st.rerun()
+                else:
+                    st.error("Completa ID y nombre")
+
+    # ── Empaques ───────────────────────────────────────────
+    if sub_g == "Empaques":
+        st.subheader("Empaques")
+        st.caption("Costo de cada tipo de empaque. Unidad = 'caja' se prorratea entre las unidades, 'unidad' se suma directo.")
+
+        empaques = load_empaques()
+        for eid in list(empaques.keys()):
+            e = empaques[eid]
+            with st.container(border=True):
+                ca, cb, cc, cd = st.columns([4, 2, 2, 1])
+                e["nombre"] = ca.text_input("Nombre", value=e.get("nombre", ""),
+                                            key=f"e_nombre_{eid}")
+                e["costo"] = cb.number_input(
+                    "Costo ($)", min_value=0.0, step=0.001,
+                    value=float(e.get("costo", 0)),
+                    key=f"e_costo_{eid}", format="%.4f",
+                )
+                opts_unit = ["caja", "unidad"]
+                idx_u = 0 if e.get("unidad", "caja") == "caja" else 1
+                e["unidad"] = cc.selectbox(
+                    "Se aplica a", opts_unit, index=idx_u,
+                    key=f"e_unit_{eid}",
+                )
+                if cd.button("Borrar", key=f"e_del_{eid}"):
+                    del empaques[eid]
+                    save_empaques(empaques)
+                    st.rerun()
+
+        if st.button("Guardar cambios", type="primary", key="e_save_all"):
+            save_empaques(empaques)
+            st.toast("Empaques guardados", icon="✅")
+
+        with st.expander("+ Nuevo empaque"):
+            ne_id = st.text_input("ID", key="ne_id")
+            ne_nombre = st.text_input("Nombre", key="ne_nombre")
+            ne_costo = st.number_input("Costo ($)", min_value=0.0, step=0.001,
+                                       key="ne_costo", format="%.4f")
+            ne_unit = st.selectbox("Se aplica a", ["caja", "unidad"], key="ne_unit")
+            if st.button("Agregar", key="ne_btn"):
+                if ne_id and ne_nombre:
+                    empaques[ne_id] = {
+                        "nombre": ne_nombre,
+                        "costo": float(ne_costo),
+                        "unidad": ne_unit,
+                    }
+                    save_empaques(empaques)
+                    st.rerun()
+
+    # ── Gastos fijos ──────────────────────────────────────
+    if sub_g == "Gastos fijos":
+        st.subheader("Gastos fijos mensuales")
+        st.caption("Electricidad, agua, insumos indirectos. Se guardan por mes.")
+
+        periodos = _ultimos_periodos(12)
+        periodo = st.selectbox(
+            "Mes", periodos,
+            format_func=_periodo_label,
+            key="gf_periodo",
+        )
+
+        gastos = load_gastos_fijos(periodo)
+
+        col1, col2 = st.columns(2)
+        gastos_edit = {}
+        items = list(gastos.keys())
+        for i, gid in enumerate(items):
+            col = col1 if i % 2 == 0 else col2
+            gastos_edit[gid] = col.number_input(
+                gid.replace("_", " ").title(),
+                min_value=0.0, step=5.0,
+                value=float(gastos.get(gid, 0)),
+                key=f"gf_{periodo}_{gid}", format="%.2f",
+            )
+
+        st.metric("Total gastos fijos", f"${sum(gastos_edit.values()):,.2f}")
+
+        ba, bb = st.columns(2)
+        if ba.button("Guardar", type="primary", key="gf_save"):
+            save_gastos_fijos(periodo, gastos_edit)
+            st.toast("Gastos fijos guardados", icon="✅")
+
+        with bb.expander("+ Agregar gasto"):
+            new_gid = st.text_input("Nombre del gasto", key="new_gf_id")
+            new_gval = st.number_input("Monto mensual ($)", min_value=0.0,
+                                       step=5.0, key="new_gf_val", format="%.2f")
+            if st.button("Agregar gasto", key="new_gf_btn"):
+                if new_gid:
+                    k = new_gid.lower().replace(" ", "_")
+                    gastos_edit[k] = float(new_gval)
+                    save_gastos_fijos(periodo, gastos_edit)
+                    st.rerun()
+
+    # ── Costos calculados ────────────────────────────────
+    if sub_g == "Costos":
+        st.subheader("Costos de produccion")
+
+        periodos = _ultimos_periodos(12)
+        per_c = st.selectbox(
+            "Mes a calcular", periodos,
+            format_func=_periodo_label,
+            key="costos_periodo",
+        )
+
+        mats = load_materiales()
+        productos = load_productos()
+        empaques = load_empaques()
+        gastos_mes = load_gastos_fijos(per_c)
+        registros_mes = list_registros_diarios(per_c)
+
+        merma_pcts = calcular_merma_por_material(registros_mes, productos, mats) if registros_mes else {}
+
+        cajas_prod = sumar_produccion_mensual(registros_mes)
+        produccion_units = {}
+        for pid, cajas in cajas_prod.items():
+            u_caja = productos.get(pid, {}).get("unidades_caja", 1) or 1
+            produccion_units[pid] = cajas * u_caja
+
+        resumenes = load_all_nomina_resumenes()
+        nomina_total = 0.0
+        if per_c in resumenes:
+            nomina_total = float(resumenes[per_c].get("total_transferido", 0))
+
+        gastos_fijos_total = sumar_gastos_fijos(gastos_mes)
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Nomina del mes", f"${nomina_total:,.2f}",
+                  help="Calculada en Roles > Sueldos")
+        c2.metric("Gastos fijos", f"${gastos_fijos_total:,.2f}")
+        c3.metric("Registros del mes", len(registros_mes))
+        c4.metric("Unidades producidas", f"{int(sum(produccion_units.values())):,}")
+
+        if not merma_pcts:
+            st.info(f"Sin registros diarios este mes. Se usa merma default de {MERMA_DEFAULT_PCT}% para todos los materiales.")
+        else:
+            with st.expander("Merma calculada por material"):
+                merma_rows = [
+                    {"Material": mats.get(mid, {}).get("nombre", mid),
+                     "Merma calculada": f"{pct}%"}
+                    for mid, pct in merma_pcts.items()
+                ]
+                st.dataframe(pd.DataFrame(merma_rows), hide_index=True, use_container_width=True)
+
+        st.divider()
+
+        costos = calcular_costos(
+            productos, mats, empaques,
+            gastos_fijos_total=gastos_fijos_total,
+            nomina_total=nomina_total,
+            produccion_unidades=produccion_units,
+            merma_pcts=merma_pcts,
+        )
+
+        save_costos_snapshot(per_c, {
+            "periodo_label": _periodo_label(per_c),
+            "costos": costos,
+            "nomina_total": nomina_total,
+            "gastos_fijos_total": gastos_fijos_total,
+        })
+
+        df_costos = pd.DataFrame([
+            {
+                "Producto": c["nombre"],
+                "Material": c["material"],
+                "Empaque": c["empaque"],
+                "Nomina": c["nomina"],
+                "Gastos ind.": c["gastos_ind"],
+                "Costo unitario": c["total"],
+                "Costo por caja": c["por_caja"],
+                "Unidades mes": c["unidades"],
+            }
+            for c in costos.values()
+        ]).sort_values("Costo unitario", ascending=False)
+
+        st.dataframe(
+            df_costos,
+            column_config={
+                "Material": st.column_config.NumberColumn(format="$%.4f"),
+                "Empaque": st.column_config.NumberColumn(format="$%.4f"),
+                "Nomina": st.column_config.NumberColumn(format="$%.4f"),
+                "Gastos ind.": st.column_config.NumberColumn(format="$%.4f"),
+                "Costo unitario": st.column_config.NumberColumn(format="$%.4f"),
+                "Costo por caja": st.column_config.NumberColumn(format="$%.2f"),
+                "Unidades mes": st.column_config.NumberColumn(format="%d"),
+            },
+            hide_index=True,
+            use_container_width=True,
+        )
+
+        st.divider()
+
+        st.subheader("Desglose por producto")
+        breakdown_rows = []
+        for c in costos.values():
+            for comp_key, label in [("material", "Material"),
+                                     ("empaque", "Empaque"),
+                                     ("nomina", "Nomina"),
+                                     ("gastos_ind", "Gastos indirectos")]:
+                breakdown_rows.append({
+                    "Producto": c["nombre"],
+                    "Componente": label,
+                    "Costo": c[comp_key],
+                })
+
+        df_bd = pd.DataFrame(breakdown_rows)
+        bd_chart = (
+            alt.Chart(df_bd)
+            .mark_bar()
+            .encode(
+                y=alt.Y("Producto:N", sort="-x", axis=alt.Axis(title="")),
+                x=alt.X("Costo:Q",
+                        axis=alt.Axis(title="Costo unitario ($)", format="$,.3f"),
+                        stack="zero"),
+                color=alt.Color(
+                    "Componente:N",
+                    scale=alt.Scale(
+                        domain=["Material", "Empaque", "Nomina", "Gastos indirectos"],
+                        range=["#0f3460", "#2563eb", "#0891b2", "#6366f1"],
+                    ),
+                    legend=alt.Legend(title="", orient="top"),
+                ),
+                tooltip=[
+                    alt.Tooltip("Producto:N"),
+                    alt.Tooltip("Componente:N"),
+                    alt.Tooltip("Costo:Q", format="$.4f"),
+                ],
+            )
+            .properties(height=max(250, len(costos) * 32))
+        )
+        st.altair_chart(bd_chart, use_container_width=True)
+
+        # Evolucion temporal
+        st.divider()
+        st.subheader("Evolucion del costo unitario")
+
+        snapshots = load_all_costos_snapshots()
+        if len(snapshots) >= 2:
+            sorted_pers = sorted(snapshots.keys())
+            all_prods = set()
+            for snap in snapshots.values():
+                all_prods.update(snap.get("costos", {}).keys())
+
+            prod_nombres = {pid: productos.get(pid, {}).get("nombre", pid) for pid in all_prods}
+
+            seleccion = st.multiselect(
+                "Productos a comparar",
+                options=sorted(all_prods, key=lambda x: prod_nombres[x]),
+                default=sorted(all_prods, key=lambda x: prod_nombres[x])[:5],
+                format_func=lambda x: prod_nombres[x],
+                key="costos_evo_select",
+            )
+
+            if seleccion:
+                evo_rows = []
+                for per in sorted_pers:
+                    snap = snapshots[per]
+                    lab = snap.get("periodo_label", per)
+                    for pid in seleccion:
+                        c_snap = snap.get("costos", {}).get(pid)
+                        if c_snap:
+                            evo_rows.append({
+                                "Mes": lab,
+                                "Producto": prod_nombres[pid],
+                                "Costo unitario": c_snap.get("total", 0),
+                            })
+
+                if evo_rows:
+                    df_evo = pd.DataFrame(evo_rows)
+                    evo_chart = (
+                        alt.Chart(df_evo)
+                        .mark_line(point=True, strokeWidth=2.5)
+                        .encode(
+                            x=alt.X("Mes:N", sort=None,
+                                    axis=alt.Axis(title="", labelAngle=-20)),
+                            y=alt.Y("Costo unitario:Q",
+                                    axis=alt.Axis(title="Costo unitario ($)", format="$,.4f")),
+                            color=alt.Color("Producto:N",
+                                            legend=alt.Legend(orient="right", title="")),
+                            tooltip=[
+                                alt.Tooltip("Producto:N"),
+                                alt.Tooltip("Mes:N"),
+                                alt.Tooltip("Costo unitario:Q", format="$.4f"),
+                            ],
+                        )
+                        .properties(height=320)
+                    )
+                    st.altair_chart(evo_chart, use_container_width=True)
+        else:
+            st.caption("Calcula costos en al menos 2 meses distintos para ver la evolucion temporal.")
+
+
+# ── Pagina: Registro Diario ──────────────────────────────────
+if pagina == "Registro":
+    st.header("Registro diario de produccion")
+    st.caption("Datos del cierre de jornada. Se usan para calcular merma real y costos.")
+
+    fecha_sel = st.date_input("Fecha del registro", value=date.today(),
+                              format="DD/MM/YYYY", key="reg_fecha")
+    fecha_str = fecha_sel.strftime("%Y-%m-%d")
+
+    mats_r = load_materiales()
+    productos_r = load_productos()
+
+    registro = load_registro_diario(fecha_str)
+    if registro:
+        st.info(f"Ya existe un registro para {fecha_sel.strftime('%d/%m/%Y')}. Los valores se precargan para edicion.")
+
+    st.divider()
+
+    # 1. Material usado
+    st.subheader("1. Material virgen usado (kg)")
+    st.caption("Cuantos kilos de cada material entraron a las maquinas hoy.")
+
+    mat_usado_reg = {}
+    n_mats = max(len(mats_r), 1)
+    mat_cols = st.columns(min(n_mats, 3))
+    for i, (mid, m) in enumerate(mats_r.items()):
+        col = mat_cols[i % len(mat_cols)]
+        v = registro.get("material_usado", {}).get(mid, 0.0)
+        mat_usado_reg[mid] = col.number_input(
+            m.get("nombre", mid), min_value=0.0, step=0.5,
+            value=float(v),
+            key=f"reg_mat_{fecha_str}_{mid}", format="%.2f",
+        )
+
+    st.divider()
+
+    # 2. Desechos
+    st.subheader("2. Desechos no recuperables (kg)")
+    st.caption("Material desechado por producto/maquina. Lo que NO se puede moler para reusar.")
+
+    prod_keys = sorted(productos_r.keys(), key=lambda k: productos_r[k].get("nombre", k))
+    desechos_reg = {}
+    d_cols = st.columns(3)
+    for i, pid in enumerate(prod_keys):
+        col = d_cols[i % 3]
+        v = registro.get("desechos_por_producto", {}).get(pid, 0.0)
+        nv = col.number_input(
+            productos_r[pid].get("nombre", pid),
+            min_value=0.0, step=0.05,
+            value=float(v),
+            key=f"reg_des_{fecha_str}_{pid}", format="%.3f",
+        )
+        if nv > 0:
+            desechos_reg[pid] = nv
+
+    st.markdown("**Desechos de areas generales (opcional)**")
+    otros_reg = {}
+    oa, ob, oc = st.columns(3)
+    prev_o = registro.get("desechos_otros", {}) or {}
+    otros_reg["empacadora"] = oa.number_input(
+        "Empacadora", min_value=0.0, step=0.05,
+        value=float(prev_o.get("empacadora", 0)),
+        key=f"reg_desemp_{fecha_str}", format="%.3f",
+    )
+    otros_reg["mazarota"] = ob.number_input(
+        "Mazarota", min_value=0.0, step=0.05,
+        value=float(prev_o.get("mazarota", 0)),
+        key=f"reg_desmaz_{fecha_str}", format="%.3f",
+    )
+    otros_reg["otros"] = oc.number_input(
+        "Otros", min_value=0.0, step=0.05,
+        value=float(prev_o.get("otros", 0)),
+        key=f"reg_desotr_{fecha_str}", format="%.3f",
+    )
+
+    st.divider()
+
+    # 3. Molido
+    st.subheader("3. Molido del dia (kg)")
+    st.caption("Material molido hoy que regresa al proceso. NO se suma al costo.")
+
+    molido_reg = {}
+    m_cols = st.columns(3)
+    for i, pid in enumerate(prod_keys):
+        col = m_cols[i % 3]
+        v = registro.get("molido", {}).get(pid, 0.0)
+        nv = col.number_input(
+            productos_r[pid].get("nombre", pid),
+            min_value=0.0, step=0.5,
+            value=float(v),
+            key=f"reg_mol_{fecha_str}_{pid}", format="%.2f",
+        )
+        if nv > 0:
+            molido_reg[pid] = nv
+
+    st.divider()
+
+    # 4. Produccion
+    st.subheader("4. Produccion del dia (cajas)")
+    st.caption("Cuantas cajas completas salieron hoy.")
+
+    produccion_reg = {}
+    p_cols = st.columns(3)
+    for i, pid in enumerate(prod_keys):
+        col = p_cols[i % 3]
+        u_caja = productos_r[pid].get("unidades_caja", 1)
+        v = registro.get("produccion", {}).get(pid, 0)
+        nv = col.number_input(
+            productos_r[pid].get("nombre", pid),
+            min_value=0, step=1,
+            value=int(v),
+            key=f"reg_prod_{fecha_str}_{pid}",
+            help=f"{u_caja} unidades por caja",
+        )
+        if nv > 0:
+            produccion_reg[pid] = nv
+
+    st.divider()
+
+    obs = st.text_area(
+        "Observaciones del dia (opcional)",
+        value=registro.get("observaciones", ""),
+        key=f"reg_obs_{fecha_str}", height=80,
+        placeholder="Ej: maquina 2 paro 1h por cambio de molde",
+    )
+
+    ba, bb = st.columns(2)
+    if ba.button("Guardar registro", type="primary", use_container_width=True,
+                 key="reg_save"):
+        datos = {
+            "material_usado": {k: v for k, v in mat_usado_reg.items() if v > 0},
+            "desechos_por_producto": desechos_reg,
+            "desechos_otros": {k: v for k, v in otros_reg.items() if v > 0},
+            "molido": molido_reg,
+            "produccion": produccion_reg,
+            "observaciones": obs,
+        }
+        save_registro_diario(fecha_str, datos)
+        st.success(f"Registro guardado para {fecha_sel.strftime('%d/%m/%Y')}")
+        st.balloons()
+
+    if role == "admin" and registro:
+        if bb.button("Eliminar registro", type="secondary",
+                     use_container_width=True, key="reg_del"):
+            delete_registro_diario(fecha_str)
+            st.success("Registro eliminado")
+            st.rerun()
+
+    st.divider()
+    st.subheader("Ultimos registros")
+
+    todos_reg = list_registros_diarios()
+    if todos_reg:
+        recientes = sorted(todos_reg.keys(), reverse=True)[:10]
+        rows_recientes = []
+        for f in recientes:
+            r = todos_reg[f]
+            tm = sum(float(v or 0) for v in (r.get("material_usado") or {}).values())
+            tp = sum(float(v or 0) for v in (r.get("produccion") or {}).values())
+            rows_recientes.append({
+                "Fecha": f,
+                "Material usado (kg)": round(tm, 2),
+                "Cajas": int(tp),
+                "Obs.": (r.get("observaciones", "") or "")[:50],
+            })
+        st.dataframe(pd.DataFrame(rows_recientes), hide_index=True, use_container_width=True)
+    else:
+        st.caption("Sin registros aun.")

@@ -261,3 +261,116 @@ def get_reporte_anterior(reporte_id):
         return data, cls, prev
     except Exception:
         return None, None, ""
+
+
+# ── Modulo Gastos: configuraciones y registros ───────────────
+
+def _cfg_get(key, default=None):
+    if USE_SUPABASE:
+        try:
+            res = _supabase().table("config").select("value").eq("key", key).execute()
+            if res.data:
+                return res.data[0]["value"]
+        except Exception:
+            pass
+    return default if default is not None else {}
+
+
+def _cfg_set(key, value):
+    if USE_SUPABASE:
+        _supabase().table("config").upsert({"key": key, "value": value}).execute()
+
+
+def _cfg_delete(key):
+    if USE_SUPABASE:
+        try:
+            _supabase().table("config").delete().eq("key", key).execute()
+        except Exception:
+            pass
+
+
+def _cfg_list(prefix):
+    if USE_SUPABASE:
+        try:
+            res = (_supabase().table("config")
+                   .select("key, value")
+                   .like("key", f"{prefix}%")
+                   .execute())
+            return {row["key"]: row["value"] for row in (res.data or [])}
+        except Exception:
+            pass
+    return {}
+
+
+def load_materiales():
+    from costos import MATERIALES_DEFAULT
+    return _cfg_get("gastos:materiales", {k: dict(v) for k, v in MATERIALES_DEFAULT.items()})
+
+
+def save_materiales(data):
+    _cfg_set("gastos:materiales", data)
+
+
+def load_productos():
+    from costos import PRODUCTOS_DEFAULT
+    import copy
+    return _cfg_get("gastos:productos", copy.deepcopy(PRODUCTOS_DEFAULT))
+
+
+def save_productos(data):
+    _cfg_set("gastos:productos", data)
+
+
+def load_empaques():
+    from costos import EMPAQUES_DEFAULT
+    return _cfg_get("gastos:empaques", {k: dict(v) for k, v in EMPAQUES_DEFAULT.items()})
+
+
+def save_empaques(data):
+    _cfg_set("gastos:empaques", data)
+
+
+def load_gastos_fijos(periodo_id):
+    from costos import GASTOS_FIJOS_DEFAULT
+    return _cfg_get(f"gastos:fijos:{periodo_id}", dict(GASTOS_FIJOS_DEFAULT))
+
+
+def save_gastos_fijos(periodo_id, data):
+    _cfg_set(f"gastos:fijos:{periodo_id}", data)
+
+
+def load_registro_diario(fecha_str):
+    return _cfg_get(f"gastos:diario:{fecha_str}", {})
+
+
+def save_registro_diario(fecha_str, data):
+    _cfg_set(f"gastos:diario:{fecha_str}", data)
+
+
+def delete_registro_diario(fecha_str):
+    _cfg_delete(f"gastos:diario:{fecha_str}")
+
+
+def list_registros_diarios(year_month=None):
+    prefix = "gastos:diario:"
+    if year_month:
+        prefix = f"gastos:diario:{year_month}"
+    raw = _cfg_list(prefix)
+    result = {}
+    for key, val in raw.items():
+        fecha = key.replace("gastos:diario:", "")
+        result[fecha] = val
+    return result
+
+
+def save_costos_snapshot(periodo_id, snapshot):
+    _cfg_set(f"gastos:snapshot:{periodo_id}", snapshot)
+
+
+def load_costos_snapshot(periodo_id):
+    return _cfg_get(f"gastos:snapshot:{periodo_id}", {})
+
+
+def load_all_costos_snapshots():
+    raw = _cfg_list("gastos:snapshot:")
+    return {key.replace("gastos:snapshot:", ""): val for key, val in raw.items()}
