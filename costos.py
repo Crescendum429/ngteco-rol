@@ -138,6 +138,15 @@ GASTOS_FIJOS_DEFAULT = {
 
 MERMA_DEFAULT_PCT = 3.0
 
+# Mapeo de subproductos (partes) a su material principal
+SUBPRODUCTO_MATERIAL = {
+    "canula":   "pp_clarificado",
+    "piston":   "pe_alta",
+    "acordeon": "pe_baja",
+    "tapon":    "pe_baja",
+    "capuchon": "pvc",
+}
+
 
 # ── Calculos ──────────────────────────────────────────────────
 
@@ -223,6 +232,12 @@ def calcular_merma_por_material(registros_diarios, productos, materiales):
                     share_in_comp = g / peso_comp if peso_comp > 0 else 1.0
                     if mid in desecho:
                         desecho[mid] += kg_comp * share_in_comp
+
+        # Desechos de subproductos (partes sueltas)
+        for sid, kg in (reg.get("desechos_subproductos") or {}).items():
+            mat_id = SUBPRODUCTO_MATERIAL.get(sid)
+            if mat_id and mat_id in desecho:
+                desecho[mat_id] += float(kg or 0)
 
     result = {}
     for mid in materiales:

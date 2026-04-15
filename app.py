@@ -1654,6 +1654,28 @@ if pagina == "Registro":
         if nv > 0:
             desechos_reg[pid] = nv
 
+    SUBPRODUCTOS = [
+        ("canula",   "Canula"),
+        ("piston",   "Piston"),
+        ("acordeon", "Acordeon"),
+        ("tapon",    "Tapon"),
+        ("capuchon", "Capuchon"),
+    ]
+
+    st.markdown("**Desechos de subproductos (partes)**")
+    desechos_sub_reg = {}
+    sd_cols = st.columns(3)
+    for i, (sid, sname) in enumerate(SUBPRODUCTOS):
+        col = sd_cols[i % 3]
+        v = registro.get("desechos_subproductos", {}).get(sid, 0.0)
+        nv = col.number_input(
+            sname, min_value=0.0, step=0.05,
+            value=float(v),
+            key=f"reg_dsub_{fecha_str}_{sid}", format="%.3f",
+        )
+        if nv > 0:
+            desechos_sub_reg[sid] = nv
+
     st.markdown("**Desechos de areas generales (opcional)**")
     otros_reg = {}
     oa, ob, oc = st.columns(3)
@@ -1750,14 +1772,6 @@ if pagina == "Registro":
             if cant > 0:
                 produccion_reg[pid] = {"cant": cant, "uni": uni or "caja"}
 
-    SUBPRODUCTOS = [
-        ("canula",   "Canula"),
-        ("piston",   "Piston"),
-        ("acordeon", "Acordeon"),
-        ("tapon",    "Tapon"),
-        ("capuchon", "Capuchon"),
-    ]
-
     st.markdown("**Subproductos (partes)**")
     st.caption("Piezas sueltas listas para ensamblar. Se cuentan en fundas o tachos.")
 
@@ -1812,6 +1826,7 @@ if pagina == "Registro":
             "molido_usado": molido_usado_reg,
             "coment_molido_usado": coment_molido_usado,
             "desechos_por_producto": desechos_reg,
+            "desechos_subproductos": desechos_sub_reg,
             "desechos_otros": {k: v for k, v in otros_reg.items() if v > 0},
             "coment_desechos": coment_desechos,
             "molido": molido_reg,
