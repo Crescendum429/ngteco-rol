@@ -83,34 +83,51 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-    }
-    [data-testid="stSidebar"] * {
-        color: #e0e0e0 !important;
-    }
-    [data-testid="stSidebar"] .stButton button[kind="primary"] {
-        background-color: #0f3460;
-        border: 1px solid #1a508b;
-    }
-    [data-testid="stSidebar"] .stButton button[kind="secondary"] {
-        background-color: transparent;
-        border: 1px solid #333;
-    }
-    .block-container { padding-top: 2rem; }
-    [data-testid="stMetric"] {
-        border-radius: 8px;
-        padding: 12px 16px;
-        border-left: 3px solid #0f3460;
-    }
-    @media (prefers-color-scheme: light) {
-        [data-testid="stMetric"] { background: #f8f9fa; }
-        h1 { color: #1a1a2e; }
-        h2 { color: #16213e; }
-    }
-    @media (prefers-color-scheme: dark) {
-        [data-testid="stMetric"] { background: #1e1e2e; }
-    }
+.block-container { padding-top: 1.75rem; padding-bottom: 3rem; }
+
+[data-testid="stSidebar"] { background: #0f172a !important; }
+[data-testid="stSidebar"] * { color: #94a3b8 !important; }
+[data-testid="stSidebar"] .stButton > button {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 7px 14px !important;
+    width: 100% !important;
+    text-align: left !important;
+    color: #94a3b8 !important;
+    font-weight: 400 !important;
+    transition: background 0.12s !important;
+    margin-bottom: 1px !important;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+}
+[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+    background: #1e3a5f !important;
+    color: #93c5fd !important;
+    font-weight: 600 !important;
+}
+
+[data-testid="stMetric"] {
+    border-radius: 8px;
+    padding: 14px 16px;
+    border-left: 3px solid #2563eb;
+}
+[data-testid="stMetricValue"] { font-size: 1.35rem !important; }
+
+.mc-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.mc-title { font-size: 1rem; font-weight: 600; margin: 0 0 4px; }
+.mc-desc { font-size: 0.83rem; margin: 0; line-height: 1.45; }
+
+@media (prefers-color-scheme: dark) {
+    [data-testid="stMetric"] { background: #1e293b; }
+    .mc-desc { color: #94a3b8; }
+}
+@media (prefers-color-scheme: light) {
+    [data-testid="stMetric"] { background: #f8fafc; }
+    .mc-desc { color: #64748b; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -198,33 +215,112 @@ st.sidebar.caption("Sistema de gestion")
 st.sidebar.divider()
 
 if role == "admin":
-    MODULOS = [
-        ("Roles", "📋"),
-        ("Empleados", "👥"),
-        ("Metricas", "📊"),
-        ("Gastos", "📦"),
-        ("Registro", "📝"),
+    MODULOS = ["Inicio", "Registro", "Gastos", "Roles", "Metricas", "Empleados"]
+    DEFAULT_PAGE = "Inicio"
+    GRUPOS_SIDEBAR = [
+        (None, ["Inicio"]),
+        ("Produccion", ["Registro", "Gastos"]),
+        ("Personal", ["Roles", "Metricas"]),
+        ("Configuracion", ["Empleados"]),
     ]
-    DEFAULT_PAGE = "Roles"
 else:
-    MODULOS = [("Registro", "📝")]
+    MODULOS = ["Registro"]
     DEFAULT_PAGE = "Registro"
+    GRUPOS_SIDEBAR = [(None, ["Registro"])]
 
-if "pagina" not in st.session_state or st.session_state.pagina not in [m[0] for m in MODULOS]:
+if "pagina" not in st.session_state or st.session_state.pagina not in MODULOS:
     st.session_state.pagina = DEFAULT_PAGE
 
-for mod, icon in MODULOS:
-    active = st.session_state.pagina == mod
-    if st.sidebar.button(
-        f"{icon}  {mod}", use_container_width=True,
-        type="primary" if active else "secondary",
-    ):
-        st.session_state.pagina = mod
-        st.rerun()
+for grupo_label, grupo_items in GRUPOS_SIDEBAR:
+    if grupo_label:
+        st.sidebar.markdown(
+            f'<p style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;'
+            f'font-weight:700;padding:14px 4px 4px;margin:0;color:#475569!important;">'
+            f'{grupo_label}</p>',
+            unsafe_allow_html=True,
+        )
+    for mod in grupo_items:
+        active = st.session_state.pagina == mod
+        if st.sidebar.button(
+            mod, use_container_width=True, key=f"nav_{mod}",
+            type="primary" if active else "secondary",
+        ):
+            st.session_state.pagina = mod
+            st.rerun()
 
 st.sidebar.divider()
 st.sidebar.caption(f"v{APP_VERSION} · {role}")
 pagina = st.session_state.pagina
+
+
+# ── Pagina: Inicio ────────────────────────────────────────────
+if pagina == "Inicio":
+    st.markdown("## SOLPLAST")
+    st.caption("Selecciona un modulo para continuar.")
+    st.divider()
+
+    _IC_REGISTRO = (
+        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+        'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+        '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>'
+        '<rect x="9" y="3" width="6" height="4" rx="1"/>'
+        '<line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>'
+    )
+    _IC_GASTOS = (
+        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+        'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+        '<rect x="2" y="3" width="20" height="14" rx="2"/>'
+        '<line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>'
+    )
+    _IC_ROLES = (
+        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+        'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+        '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
+        '<polyline points="14 2 14 8 20 8"/>'
+        '<line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
+    )
+    _IC_METRICAS = (
+        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+        'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+        '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>'
+        '<line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>'
+    )
+    _IC_EMPLEADOS = (
+        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+        'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+        '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>'
+        '<circle cx="9" cy="7" r="4"/>'
+        '<path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+    )
+
+    _HOME_CARDS = [
+        ("Registro",  "Registro Diario",
+         "Cierre de jornada: material usado, desechos y produccion del dia.", _IC_REGISTRO),
+        ("Gastos",    "Gastos y Costos",
+         "Materiales, productos, empaques y costo unitario de produccion.", _IC_GASTOS),
+        ("Roles",     "Roles y Nomina",
+         "Procesamiento de horas NGTeco y calculo de sueldos.", _IC_ROLES),
+        ("Metricas",  "Metricas",
+         "Indicadores historicos de nomina, horas y produccion.", _IC_METRICAS),
+        ("Empleados", "Empleados",
+         "Configuracion de salarios, transporte y datos del personal.", _IC_EMPLEADOS),
+    ]
+
+    _hcols = st.columns(3)
+    for _hi, (_hkey, _htitle, _hdesc, _hicon) in enumerate(_HOME_CARDS):
+        with _hcols[_hi % 3]:
+            with st.container(border=True):
+                st.markdown(
+                    f'<div class="mc-header">'
+                    f'<div>{_hicon}</div>'
+                    f'<div><p class="mc-title">{_htitle}</p>'
+                    f'<p class="mc-desc">{_hdesc}</p></div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("Abrir", key=f"home_{_hkey}", use_container_width=True):
+                    st.session_state.pagina = _hkey
+                    st.rerun()
 
 
 # ── Pagina: Empleados ─────────────────────────────────────────
@@ -481,10 +577,11 @@ if pagina == "Roles":
 
     st.divider()
     ba, bb = st.columns(2)
-    for col, label, icon in [(ba, "Horas", "🕐"), (bb, "Sueldos", "💰")]:
+    for col, label in [(ba, "Horas"), (bb, "Sueldos")]:
         active = st.session_state.get("sub_rol", "Horas") == label
-        if col.button(f"{icon} {label}", use_container_width=True,
-                      type="primary" if active else "secondary"):
+        if col.button(label, use_container_width=True,
+                      type="primary" if active else "secondary",
+                      key=f"sub_rol_btn_{label}"):
             st.session_state.sub_rol = label
             st.rerun()
     sub = st.session_state.get("sub_rol", "Horas")
@@ -641,8 +738,8 @@ if pagina == "Roles":
         if arrastre_ant:
             with st.expander(f"Horas compensatorias del mes anterior ({prev_id})", expanded=True):
                 st.caption("Estas horas fueron marcadas para pasar a este mes. Puedes aceptarlas o modificarlas.")
-                for emp_name, h in arrastre_ant.items():
-                    st.write(f"**{emp_name}**: {h:.2f}h")
+                for _emp_nm, h in arrastre_ant.items():
+                    st.write(f"**{_emp_nm}**: {h:.2f}h")
 
         COLORS = ["#2563eb", "#7c3aed", "#0891b2", "#059669", "#d97706", "#dc2626", "#6366f1", "#0d9488"]
 
@@ -909,7 +1006,7 @@ if pagina == "Metricas":
 
     nomina_chart = (
         alt.Chart(df_men)
-        .mark_bar(color="#0f3460", cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+        .mark_bar(color="#2563eb", cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
         .encode(
             x=alt.X("Mes:N", sort=None, axis=alt.Axis(title="", labelAngle=-20)),
             y=alt.Y("Total pagado:Q", axis=alt.Axis(title="Total transferido ($)", format="$,.0f")),
@@ -918,7 +1015,10 @@ if pagina == "Metricas":
                 alt.Tooltip("Total pagado:Q", title="Total ($)", format="$,.2f"),
             ],
         )
-        .properties(height=280)
+        .properties(height=260)
+        .configure_view(fill="transparent", strokeWidth=0)
+        .configure_axis(grid=False, labelColor="#64748b", titleColor="#64748b",
+                        domainColor="#e2e8f0", tickColor="#e2e8f0")
     )
     st.altair_chart(nomina_chart, use_container_width=True)
 
@@ -935,7 +1035,7 @@ if pagina == "Metricas":
 
     emp_chart = (
         alt.Chart(df_emp)
-        .mark_bar(color="#0f3460", cornerRadiusTopRight=4, cornerRadiusBottomRight=4)
+        .mark_bar(color="#2563eb", cornerRadiusTopRight=3, cornerRadiusBottomRight=3)
         .encode(
             y=alt.Y("Empleado:N", sort=None, axis=alt.Axis(title="")),
             x=alt.X("Total ($):Q", axis=alt.Axis(title="Total transferido ($)", format="$,.0f")),
@@ -945,7 +1045,10 @@ if pagina == "Metricas":
                 alt.Tooltip("dias:Q", title="Dias trabajados"),
             ],
         )
-        .properties(height=max(160, len(df_emp) * 42))
+        .properties(height=max(160, len(df_emp) * 40))
+        .configure_view(fill="transparent", strokeWidth=0)
+        .configure_axis(grid=False, labelColor="#64748b", titleColor="#64748b",
+                        domainColor="#e2e8f0", tickColor="#e2e8f0")
     )
     st.altair_chart(emp_chart, use_container_width=True)
 
@@ -962,15 +1065,15 @@ if pagina == "Metricas":
         ])
         hext_chart = (
             alt.Chart(df_hext)
-            .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+            .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
             .encode(
                 x=alt.X("Mes:N", sort=None, axis=alt.Axis(title="", labelAngle=-20)),
                 y=alt.Y("Horas:Q", axis=alt.Axis(title="Horas extras")),
                 color=alt.Color(
                     "Tipo:N",
                     scale=alt.Scale(domain=["50% (compensatorias)", "100% (fin de semana)"],
-                                    range=["#0891b2", "#dc2626"]),
-                    legend=alt.Legend(title=""),
+                                    range=["#2563eb", "#64748b"]),
+                    legend=alt.Legend(title="", orient="top"),
                 ),
                 tooltip=[
                     alt.Tooltip("Mes:N", title="Periodo"),
@@ -978,7 +1081,11 @@ if pagina == "Metricas":
                     alt.Tooltip("Horas:Q", format=".2f"),
                 ],
             )
-            .properties(height=240)
+            .properties(height=220)
+            .configure_view(fill="transparent", strokeWidth=0)
+            .configure_axis(grid=False, labelColor="#64748b", titleColor="#64748b",
+                            domainColor="#e2e8f0", tickColor="#e2e8f0")
+            .configure_legend(labelColor="#64748b", titleColor="#64748b")
         )
         st.altair_chart(hext_chart, use_container_width=True)
 
@@ -1034,18 +1141,12 @@ def _periodo_label(pid):
 if pagina == "Gastos" and role == "admin":
     st.header("Gastos")
 
-    SUB_OPTS = [
-        ("Materiales", "🧪"),
-        ("Productos", "📦"),
-        ("Empaques", "🎁"),
-        ("Gastos fijos", "💵"),
-        ("Costos", "📈"),
-    ]
+    SUB_OPTS = ["Materiales", "Productos", "Empaques", "Gastos fijos", "Costos"]
 
     nav_cols = st.columns(len(SUB_OPTS))
-    for i, (opt, ic) in enumerate(SUB_OPTS):
+    for i, opt in enumerate(SUB_OPTS):
         active = st.session_state.get("sub_gastos", "Materiales") == opt
-        if nav_cols[i].button(f"{ic} {opt}", use_container_width=True,
+        if nav_cols[i].button(opt, use_container_width=True,
                               type="primary" if active else "secondary",
                               key=f"nav_gastos_{opt}"):
             st.session_state.sub_gastos = opt
@@ -1480,7 +1581,7 @@ if pagina == "Gastos" and role == "admin":
                     "Componente:N",
                     scale=alt.Scale(
                         domain=["Material", "Empaque", "Nomina", "Gastos indirectos"],
-                        range=["#0f3460", "#2563eb", "#0891b2", "#6366f1"],
+                        range=["#1e3a5f", "#2563eb", "#60a5fa", "#93c5fd"],
                     ),
                     legend=alt.Legend(title="", orient="top"),
                 ),
@@ -1490,7 +1591,11 @@ if pagina == "Gastos" and role == "admin":
                     alt.Tooltip("Costo:Q", format="$.4f"),
                 ],
             )
-            .properties(height=max(250, len(costos) * 32))
+            .properties(height=max(240, len(costos) * 30))
+            .configure_view(fill="transparent", strokeWidth=0)
+            .configure_axis(grid=False, labelColor="#64748b", titleColor="#64748b",
+                            domainColor="#e2e8f0", tickColor="#e2e8f0")
+            .configure_legend(labelColor="#64748b", titleColor="#64748b")
         )
         st.altair_chart(bd_chart, use_container_width=True)
 
@@ -1533,7 +1638,7 @@ if pagina == "Gastos" and role == "admin":
                     df_evo = pd.DataFrame(evo_rows)
                     evo_chart = (
                         alt.Chart(df_evo)
-                        .mark_line(point=True, strokeWidth=2.5)
+                        .mark_line(point=alt.OverlayMarkDef(size=60), strokeWidth=2)
                         .encode(
                             x=alt.X("Mes:N", sort=None,
                                     axis=alt.Axis(title="", labelAngle=-20)),
@@ -1547,7 +1652,11 @@ if pagina == "Gastos" and role == "admin":
                                 alt.Tooltip("Costo unitario:Q", format="$.4f"),
                             ],
                         )
-                        .properties(height=320)
+                        .properties(height=300)
+                        .configure_view(fill="transparent", strokeWidth=0)
+                        .configure_axis(grid=False, labelColor="#64748b", titleColor="#64748b",
+                                        domainColor="#e2e8f0", tickColor="#e2e8f0")
+                        .configure_legend(labelColor="#64748b", titleColor="#64748b")
                     )
                     st.altair_chart(evo_chart, use_container_width=True)
         else:
@@ -1556,7 +1665,7 @@ if pagina == "Gastos" and role == "admin":
 
 # ── Pagina: Registro Diario ──────────────────────────────────
 if pagina == "Registro":
-    st.header("Registro diario de produccion")
+    st.header("Registro diario")
     st.caption("Datos del cierre de jornada. Se usan para calcular merma real y costos.")
 
     fecha_sel = st.date_input("Fecha del registro", value=date.today(),
