@@ -87,12 +87,12 @@ st.markdown("""
 .block-container { padding-top: 1.5rem; padding-bottom: 3rem; }
 
 /* ── Sidebar ── */
-[data-testid="stSidebar"] { background: #0f172a !important; }
+[data-testid="stSidebar"] { background: #0c0a1e !important; }
 [data-testid="stSidebar"] * { color: #94a3b8 !important; }
 [data-testid="stSidebar"] .stButton > button {
     background: transparent !important;
     border: none !important;
-    border-radius: 6px !important;
+    border-radius: 7px !important;
     padding: 7px 14px !important;
     width: 100% !important;
     text-align: left !important;
@@ -102,12 +102,12 @@ st.markdown("""
     margin-bottom: 1px !important;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: #1e293b !important;
+    background: #1e1b4b !important;
     color: #e2e8f0 !important;
 }
 [data-testid="stSidebar"] .stButton > button[kind="primary"] {
-    background: #1e3a5f !important;
-    color: #93c5fd !important;
+    background: #2d2b6e !important;
+    color: #c4b5fd !important;
     font-weight: 600 !important;
 }
 
@@ -115,33 +115,45 @@ st.markdown("""
 [data-testid="stMetric"] {
     border-radius: 10px;
     padding: 14px 18px;
-    border-left: 3px solid #2563eb;
+    border-left: 3px solid #4f46e5;
 }
 [data-testid="stMetricValue"] { font-size: 1.35rem !important; }
 
 /* ── Home hero ── */
 .hero {
-    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #0c4a6e 100%);
+    background: linear-gradient(135deg, #0c0a1e 0%, #1e1b4b 55%, #312e81 100%);
     border-radius: 16px;
-    padding: 52px 40px 44px;
+    padding: 56px 40px 48px;
     text-align: center;
     margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
 }
-.hero-logo { height: 72px; object-fit: contain; margin-bottom: 18px; display: block; margin-left: auto; margin-right: auto; }
-.hero-title { color: white; font-size: 2.4rem; font-weight: 800; letter-spacing: -0.04em; margin: 0 0 8px; line-height: 1; }
-.hero-sub { color: #93c5fd; font-size: 0.95rem; margin: 0; }
-.hero-badge { display: inline-block; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 4px 14px; font-size: 0.78rem; color: #bfdbfe; margin-top: 14px; letter-spacing: 0.03em; }
+.hero::before {
+    content: "";
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 70%);
+    border-radius: 50%;
+}
+.hero::after {
+    content: "";
+    position: absolute;
+    bottom: -40px; left: -40px;
+    width: 160px; height: 160px;
+    background: radial-gradient(circle, rgba(245,158,11,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+}
+.hero-logo { max-height: 90px; max-width: 280px; object-fit: contain; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto; position: relative; z-index: 1; }
+.hero-title { color: white; font-size: 2.6rem; font-weight: 800; letter-spacing: -0.05em; margin: 0 0 8px; line-height: 1; position: relative; z-index: 1; }
+.hero-sub { color: #c4b5fd; font-size: 0.95rem; margin: 0; position: relative; z-index: 1; }
+.hero-badge { display: inline-block; background: rgba(165,180,252,0.12); border: 1px solid rgba(165,180,252,0.25); border-radius: 20px; padding: 4px 14px; font-size: 0.78rem; color: #a5b4fc; margin-top: 16px; letter-spacing: 0.05em; position: relative; z-index: 1; }
 
 /* ── Module cards ── */
 .mc-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
 .mc-title { font-size: 1rem; font-weight: 600; margin: 0 0 4px; }
 .mc-desc { font-size: 0.83rem; margin: 0; line-height: 1.45; }
-
-/* ── Section step badge ── */
-.step-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.step-num { background: #2563eb; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
-.step-title { font-weight: 600; font-size: 1rem; margin: 0; }
-.step-cap { font-size: 0.82rem; color: #64748b; margin: 0 0 12px; }
 
 /* ── Page header ── */
 .page-hdr { display: flex; align-items: center; gap: 14px; margin-bottom: 1.2rem; padding-bottom: 1rem; border-bottom: 1px solid #e2e8f0; }
@@ -149,22 +161,24 @@ st.markdown("""
 .page-hdr-title { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
 .page-hdr-sub { margin: 2px 0 0; font-size: 0.85rem; color: #64748b; }
 
-/* ── Kpi strip ── */
-.kpi-strip { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-.kpi { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 20px; flex: 1; min-width: 120px; }
-.kpi-val { font-size: 1.5rem; font-weight: 700; color: #0f172a; line-height: 1; }
-.kpi-lbl { font-size: 0.78rem; color: #64748b; margin-top: 4px; }
+/* ── Section step badge ── */
+.step-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.step-num { background: #4f46e5; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
+.step-title { font-weight: 600; font-size: 1rem; margin: 0; }
+.step-cap { font-size: 0.82rem; color: #64748b; margin: 0 0 12px; }
+
+/* ── Back nav ── */
+.back-area { margin-bottom: 4px; }
 
 @media (prefers-color-scheme: dark) {
-    [data-testid="stMetric"] { background: #1e293b; }
+    [data-testid="stMetric"] { background: #1e1b4b; }
     .mc-desc { color: #94a3b8; }
-    .kpi { background: #1e293b; border-color: #334155; }
-    .kpi-val { color: #f1f5f9; }
     .page-hdr { border-bottom-color: #334155; }
     .step-cap { color: #94a3b8; }
+    .page-hdr-sub { color: #94a3b8; }
 }
 @media (prefers-color-scheme: light) {
-    [data-testid="stMetric"] { background: #f8fafc; }
+    [data-testid="stMetric"] { background: #f5f3ff; }
     .mc-desc { color: #64748b; }
 }
 </style>
@@ -259,13 +273,13 @@ def _time_to_mins(t):
     return None
 
 
-def _back_btn():
-    if st.button("← Inicio", key=f"back_{st.session_state.get('pagina','')}", type="secondary"):
-        st.session_state.pagina = "Inicio"
-        st.rerun()
-
-
 def _page_header(icon_svg, title, subtitle=""):
+    if st.session_state.get("_role", "admin") == "admin":
+        _bk, _ = st.columns([2, 8])
+        with _bk:
+            if st.button("← Inicio", key=f"back_{st.session_state.get('pagina','_')}"):
+                st.session_state.pagina = "Inicio"
+                st.rerun()
     st.markdown(
         f'<div class="page-hdr">'
         f'<div class="page-hdr-icon">{icon_svg}</div>'
@@ -339,33 +353,33 @@ pagina = st.session_state.pagina
 # SVG icons (shared entre home y page headers)
 _SVG = {
     "registro": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>'
         '<rect x="9" y="3" width="6" height="4" rx="1"/>'
         '<line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>'
     ),
     "gastos": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<rect x="2" y="3" width="20" height="14" rx="2"/>'
         '<line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>'
     ),
     "roles": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
         '<polyline points="14 2 14 8 20 8"/>'
         '<line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
     ),
     "metricas": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>'
         '<line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>'
     ),
     "empleados": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>'
         '<circle cx="9" cy="7" r="4"/>'
@@ -385,9 +399,9 @@ if pagina == "Inicio":
     st.markdown(
         f'<div class="hero">'
         f'{_logo_html}'
-        f'<div class="hero-title">SOLPLAST</div>'
-        f'<div class="hero-sub">Sistema de gestion de produccion</div>'
-        f'<div class="hero-badge">Quito, Ecuador</div>'
+        f'{"" if _logo_html else "<div class=\"hero-title\">SOLPLAST</div>"}'
+        f'<div class="hero-sub">Soluciones Plasticas del Ecuador &nbsp;·&nbsp; Sistema de gestion</div>'
+        f'<div class="hero-badge">v{APP_VERSION}</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -453,7 +467,6 @@ if pagina == "Inicio":
 
 # ── Pagina: Empleados ─────────────────────────────────────────
 if pagina == "Empleados":
-    _back_btn()
     _page_header(_SVG["empleados"], "Empleados", "Salarios, transporte y configuracion del personal")
     emp_db = st.session_state.emp_db
 
@@ -582,7 +595,6 @@ if pagina == "Empleados":
 
 # ── Pagina: Roles ─────────────────────────────────────────────
 if pagina == "Roles":
-    _back_btn()
     _page_header(_SVG["roles"], "Roles y Nomina", "Procesamiento de horas y calculo de sueldos")
 
     MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -1045,7 +1057,6 @@ if pagina == "Roles":
 
 # ── Pagina: Metricas ──────────────────────────────────────────
 if pagina == "Metricas":
-    _back_btn()
     _page_header(_SVG["metricas"], "Metricas", "Indicadores historicos de nomina y produccion")
 
     all_reportes = list_reportes()
@@ -1134,21 +1145,27 @@ if pagina == "Metricas":
     # ── Nomina mensual ────────────────────────────────────────
     st.subheader("Nomina mensual")
     df_men = pd.DataFrame([{"Mes": M[r]["label"], "Total pagado": M[r]["total"]} for r in sorted_ids])
-
+    _men_base = alt.Chart(df_men)
+    _men_bars = _men_base.mark_bar(
+        color="#4f46e5", cornerRadiusTopLeft=4, cornerRadiusTopRight=4,
+    ).encode(
+        x=alt.X("Mes:N", sort=None, axis=alt.Axis(title="", labelAngle=-25, labelLimit=90)),
+        y=alt.Y("Total pagado:Q", axis=alt.Axis(title="", format="$,.0f", tickCount=5)),
+        tooltip=[
+            alt.Tooltip("Mes:N", title="Periodo"),
+            alt.Tooltip("Total pagado:Q", title="Total ($)", format="$,.2f"),
+        ],
+    )
+    _men_labels = _men_base.mark_text(dy=-9, fontSize=11, fontWeight="bold", color="#312e81").encode(
+        x=alt.X("Mes:N", sort=None),
+        y=alt.Y("Total pagado:Q"),
+        text=alt.Text("Total pagado:Q", format="$,.0f"),
+    )
     nomina_chart = (
-        alt.Chart(df_men)
-        .mark_bar(color="#2563eb", cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
-        .encode(
-            x=alt.X("Mes:N", sort=None, axis=alt.Axis(title="", labelAngle=-20)),
-            y=alt.Y("Total pagado:Q", axis=alt.Axis(title="Total transferido ($)", format="$,.0f")),
-            tooltip=[
-                alt.Tooltip("Mes:N", title="Periodo"),
-                alt.Tooltip("Total pagado:Q", title="Total ($)", format="$,.2f"),
-            ],
-        )
-        .properties(height=260)
+        (_men_bars + _men_labels)
+        .properties(height=280)
         .configure_view(fill="transparent", strokeWidth=0)
-        .configure_axis(grid=False, labelColor="#64748b", titleColor="#64748b",
+        .configure_axis(grid=False, labelColor="#94a3b8", titleColor="#64748b",
                         domainColor="#e2e8f0", tickColor="#e2e8f0")
     )
     st.altair_chart(nomina_chart, use_container_width=True)
@@ -1163,22 +1180,34 @@ if pagina == "Metricas":
     df_emp = pd.DataFrame(M[mes_sel_id]["empleados"]) \
         .rename(columns={"nombre": "Empleado", "transferido": "Total ($)"}) \
         .sort_values("Total ($)", ascending=True)
-
+    _emp_base = alt.Chart(df_emp)
+    _emp_bars = _emp_base.mark_bar(
+        cornerRadiusTopRight=4, cornerRadiusBottomRight=4,
+    ).encode(
+        y=alt.Y("Empleado:N", sort=None, axis=alt.Axis(title="", labelLimit=160)),
+        x=alt.X("Total ($):Q", axis=alt.Axis(title="Total transferido ($)", format="$,.0f", tickCount=5)),
+        color=alt.Color(
+            "Total ($):Q",
+            scale=alt.Scale(scheme="purpleblue"),
+            legend=None,
+        ),
+        tooltip=[
+            alt.Tooltip("Empleado:N"),
+            alt.Tooltip("Total ($):Q", format="$,.2f", title="Total ($)"),
+            alt.Tooltip("dias:Q", title="Dias trabajados"),
+        ],
+    )
+    _emp_labels = _emp_base.mark_text(align="left", dx=6, fontSize=11, fontWeight="bold").encode(
+        y=alt.Y("Empleado:N", sort=None),
+        x=alt.X("Total ($):Q"),
+        text=alt.Text("Total ($):Q", format="$,.0f"),
+        color=alt.value("#334155"),
+    )
     emp_chart = (
-        alt.Chart(df_emp)
-        .mark_bar(color="#2563eb", cornerRadiusTopRight=3, cornerRadiusBottomRight=3)
-        .encode(
-            y=alt.Y("Empleado:N", sort=None, axis=alt.Axis(title="")),
-            x=alt.X("Total ($):Q", axis=alt.Axis(title="Total transferido ($)", format="$,.0f")),
-            tooltip=[
-                alt.Tooltip("Empleado:N"),
-                alt.Tooltip("Total ($):Q", format="$,.2f", title="Total ($)"),
-                alt.Tooltip("dias:Q", title="Dias trabajados"),
-            ],
-        )
-        .properties(height=max(160, len(df_emp) * 40))
+        (_emp_bars + _emp_labels)
+        .properties(height=max(180, len(df_emp) * 44))
         .configure_view(fill="transparent", strokeWidth=0)
-        .configure_axis(grid=False, labelColor="#64748b", titleColor="#64748b",
+        .configure_axis(grid=False, labelColor="#94a3b8", titleColor="#64748b",
                         domainColor="#e2e8f0", tickColor="#e2e8f0")
     )
     st.altair_chart(emp_chart, use_container_width=True)
@@ -1203,7 +1232,7 @@ if pagina == "Metricas":
                 color=alt.Color(
                     "Tipo:N",
                     scale=alt.Scale(domain=["50% (compensatorias)", "100% (fin de semana)"],
-                                    range=["#2563eb", "#64748b"]),
+                                    range=["#4f46e5", "#f59e0b"]),
                     legend=alt.Legend(title="", orient="top"),
                 ),
                 tooltip=[
@@ -1270,7 +1299,6 @@ def _periodo_label(pid):
 
 
 if pagina == "Gastos" and role == "admin":
-    _back_btn()
     _page_header(_SVG["gastos"], "Gastos y Costos", "Materiales, productos, empaques y costos de produccion")
 
     SUB_OPTS = ["Materiales", "Productos", "Empaques", "Gastos fijos", "Costos"]
@@ -1713,7 +1741,7 @@ if pagina == "Gastos" and role == "admin":
                     "Componente:N",
                     scale=alt.Scale(
                         domain=["Material", "Empaque", "Nomina", "Gastos indirectos"],
-                        range=["#1e3a5f", "#2563eb", "#60a5fa", "#93c5fd"],
+                        range=["#312e81", "#4f46e5", "#f59e0b", "#10b981"],
                     ),
                     legend=alt.Legend(title="", orient="top"),
                 ),
@@ -1797,7 +1825,6 @@ if pagina == "Gastos" and role == "admin":
 
 # ── Pagina: Registro Diario ──────────────────────────────────
 if pagina == "Registro":
-    _back_btn()
     _page_header(_SVG["registro"], "Registro diario", "Cierre de jornada — datos de merma, produccion y material")
 
     rca, rcb = st.columns([3, 1])
