@@ -236,13 +236,25 @@ APP_PASSWORD_OP = os.environ.get("APP_PASSWORD_OP", "")
 
 if APP_PASSWORD or APP_PASSWORD_OP:
     if not st.session_state.get("_auth"):
-        st.markdown('<div class="login-wrap">', unsafe_allow_html=True)
-        _lc1, _lc2, _lc3 = st.columns([1, 1.4, 1])
-        with _lc2:
+        st.markdown("""
+        <style>
+        [data-testid="stAppViewContainer"] > .main {
+            background: linear-gradient(160deg, #071a12 0%, #0a2218 50%, #0d2b22 100%) !important;
+        }
+        [data-testid="stHeader"] { background: transparent !important; }
+        [data-testid="stSidebar"] { display: none !important; }
+        </style>
+        <div style="height: 22vh"></div>
+        """, unsafe_allow_html=True)
+        _, _lc, _ = st.columns([1.6, 2, 1.6])
+        with _lc:
             st.markdown(
-                '<div class="login-card">'
-                '<div class="login-brand">SOL<span>PLAST</span></div>'
-                '<div class="login-tagline">Sistema de Gestion</div>'
+                '<div style="text-align:center;margin-bottom:32px;">'
+                '<div style="font-size:3rem;font-weight:900;letter-spacing:-0.07em;'
+                'color:#ecfdf5;line-height:1;margin-bottom:8px;">'
+                'SOL<span style="color:#34d399">PLAST</span></div>'
+                '<div style="font-size:0.72rem;color:#6ee7b7;letter-spacing:0.16em;'
+                'text-transform:uppercase;">Sistema de Gestion</div>'
                 '</div>',
                 unsafe_allow_html=True,
             )
@@ -259,7 +271,6 @@ if APP_PASSWORD or APP_PASSWORD_OP:
                     st.rerun()
                 else:
                     st.error("Contrasena incorrecta")
-        st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 elif not st.session_state.get("_role"):
     st.session_state._role = "admin"
@@ -320,11 +331,9 @@ def _time_to_mins(t):
 
 def _page_header(icon_svg, title, subtitle=""):
     if st.session_state.get("_role", "admin") == "admin":
-        _bk, _ = st.columns([2, 8])
-        with _bk:
-            if st.button("← Inicio", key=f"back_{st.session_state.get('pagina','_')}"):
-                st.session_state.pagina = "Inicio"
-                st.rerun()
+        if st.button("← Inicio", key=f"back_{st.session_state.get('pagina','_')}"):
+            st.session_state.pagina = "Inicio"
+            st.rerun()
     st.markdown(
         f'<div class="page-hdr">'
         f'<div class="page-hdr-icon">{icon_svg}</div>'
@@ -1179,27 +1188,35 @@ if pagina == "Metricas":
     # ── Nomina mensual ────────────────────────────────────────
     st.subheader("Nomina mensual")
     df_men = pd.DataFrame([{"Mes": M[r]["label"], "Total pagado": M[r]["total"]} for r in sorted_ids])
+    _men_enc_x = alt.X("Mes:N", sort=None, axis=alt.Axis(title="", labelAngle=-20, labelLimit=110))
+    _men_enc_y = alt.Y("Total pagado:Q",
+                       axis=alt.Axis(title="", format="$,.0f", tickCount=4),
+                       scale=alt.Scale(zero=False, padding=40))
+    _men_tt = [alt.Tooltip("Mes:N", title="Periodo"),
+               alt.Tooltip("Total pagado:Q", title="Total ($)", format="$,.2f")]
     _men_base = alt.Chart(df_men)
-    _men_bars = _men_base.mark_bar(
-        color="#059669", cornerRadiusTopLeft=4, cornerRadiusTopRight=4,
+    _men_area = _men_base.mark_area(
+        opacity=0.18, color="#059669", interpolate="monotone",
+    ).encode(x=_men_enc_x, y=_men_enc_y)
+    _men_line = _men_base.mark_line(
+        color="#059669", strokeWidth=2.5, interpolate="monotone",
+    ).encode(x=_men_enc_x, y=_men_enc_y, tooltip=_men_tt)
+    _men_pts = _men_base.mark_circle(
+        color="#059669", size=90, stroke="white", strokeWidth=2,
+    ).encode(x=_men_enc_x, y=_men_enc_y, tooltip=_men_tt)
+    _men_labels = _men_base.mark_text(
+        dy=-16, fontSize=11, fontWeight="bold", color="#059669",
     ).encode(
-        x=alt.X("Mes:N", sort=None, axis=alt.Axis(title="", labelAngle=-25, labelLimit=90)),
-        y=alt.Y("Total pagado:Q", axis=alt.Axis(title="", format="$,.0f", tickCount=5)),
-        tooltip=[
-            alt.Tooltip("Mes:N", title="Periodo"),
-            alt.Tooltip("Total pagado:Q", title="Total ($)", format="$,.2f"),
-        ],
-    )
-    _men_labels = _men_base.mark_text(dy=-9, fontSize=11, fontWeight="bold", color="#064e3b").encode(
-        x=alt.X("Mes:N", sort=None),
-        y=alt.Y("Total pagado:Q"),
+        x=_men_enc_x,
+        y=_men_enc_y,
         text=alt.Text("Total pagado:Q", format="$,.0f"),
     )
     nomina_chart = (
-        (_men_bars + _men_labels)
+        (_men_area + _men_line + _men_pts + _men_labels)
         .properties(height=280)
         .configure_view(fill="transparent", strokeWidth=0)
-        .configure_axis(grid=False, labelColor="#94a3b8", titleColor="#64748b",
+        .configure_axis(grid=True, gridColor="rgba(0,0,0,0.06)", gridDash=[3, 3],
+                        labelColor="#94a3b8", titleColor="#64748b",
                         domainColor="#e2e8f0", tickColor="#e2e8f0")
     )
     st.altair_chart(nomina_chart, use_container_width=True)
@@ -1257,29 +1274,41 @@ if pagina == "Metricas":
             {"Mes": M[r]["label"], "Tipo": "100% (fin de semana)", "Horas": M[r]["h100"]}
             for r in sorted_ids
         ])
+        _hext_color = alt.Color(
+            "Tipo:N",
+            scale=alt.Scale(domain=["50% (compensatorias)", "100% (fin de semana)"],
+                            range=["#059669", "#d97706"]),
+            legend=alt.Legend(title="", orient="top", labelFontSize=12),
+        )
+        _hext_base = alt.Chart(df_hext)
+        _hext_bars = _hext_base.mark_bar(
+            cornerRadiusTopLeft=4, cornerRadiusTopRight=4,
+        ).encode(
+            x=alt.X("Mes:N", sort=None, axis=alt.Axis(title="", labelAngle=-20, labelLimit=110)),
+            xOffset=alt.XOffset("Tipo:N"),
+            y=alt.Y("Horas:Q", axis=alt.Axis(title="Horas", tickCount=5)),
+            color=_hext_color,
+            tooltip=[
+                alt.Tooltip("Mes:N", title="Periodo"),
+                alt.Tooltip("Tipo:N"),
+                alt.Tooltip("Horas:Q", format=".1f"),
+            ],
+        )
+        _hext_labels = _hext_base.mark_text(dy=-7, fontSize=10, fontWeight="bold").encode(
+            x=alt.X("Mes:N", sort=None),
+            xOffset=alt.XOffset("Tipo:N"),
+            y=alt.Y("Horas:Q"),
+            text=alt.Text("Horas:Q", format=".0f"),
+            color=alt.value("#374151"),
+        )
         hext_chart = (
-            alt.Chart(df_hext)
-            .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
-            .encode(
-                x=alt.X("Mes:N", sort=None, axis=alt.Axis(title="", labelAngle=-20)),
-                y=alt.Y("Horas:Q", axis=alt.Axis(title="Horas extras")),
-                color=alt.Color(
-                    "Tipo:N",
-                    scale=alt.Scale(domain=["50% (compensatorias)", "100% (fin de semana)"],
-                                    range=["#059669", "#d97706"]),
-                    legend=alt.Legend(title="", orient="top"),
-                ),
-                tooltip=[
-                    alt.Tooltip("Mes:N", title="Periodo"),
-                    alt.Tooltip("Tipo:N"),
-                    alt.Tooltip("Horas:Q", format=".2f"),
-                ],
-            )
-            .properties(height=220)
+            (_hext_bars + _hext_labels)
+            .properties(height=260)
             .configure_view(fill="transparent", strokeWidth=0)
-            .configure_axis(grid=False, labelColor="#64748b", titleColor="#64748b",
+            .configure_axis(grid=True, gridColor="rgba(0,0,0,0.06)", gridDash=[3, 3],
+                            labelColor="#64748b", titleColor="#64748b",
                             domainColor="#e2e8f0", tickColor="#e2e8f0")
-            .configure_legend(labelColor="#64748b", titleColor="#64748b")
+            .configure_legend(labelColor="#374151", titleColor="#64748b")
         )
         st.altair_chart(hext_chart, use_container_width=True)
 
