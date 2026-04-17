@@ -396,10 +396,12 @@ if pagina == "Inicio":
             _lb64 = base64.b64encode(_lf.read()).decode()
         _logo_html = f'<img src="data:image/png;base64,{_lb64}" class="hero-logo">'
 
+    _hero_no_logo = '<div class="hero-title">SOLPLAST</div>'
+    _hero_title_html = "" if _logo_html else _hero_no_logo
     st.markdown(
         f'<div class="hero">'
         f'{_logo_html}'
-        f'{"" if _logo_html else "<div class=\"hero-title\">SOLPLAST</div>"}'
+        f'{_hero_title_html}'
         f'<div class="hero-sub">Soluciones Plasticas del Ecuador &nbsp;·&nbsp; Sistema de gestion</div>'
         f'<div class="hero-badge">v{APP_VERSION}</div>'
         f'</div>',
