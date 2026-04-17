@@ -1,4 +1,3 @@
-import base64
 import copy
 import io
 import os
@@ -86,8 +85,56 @@ st.markdown("""
 <style>
 .block-container { padding-top: 1.5rem; padding-bottom: 3rem; }
 
+/* ── Login ── */
+.login-wrap {
+    min-height: 88vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.login-card {
+    background: linear-gradient(160deg, #0a1f18 0%, #0d2b22 60%, #0f3527 100%);
+    border: 1px solid rgba(16,185,129,0.18);
+    border-radius: 20px;
+    padding: 52px 48px 44px;
+    text-align: center;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.45), 0 0 0 1px rgba(16,185,129,0.08);
+    position: relative;
+    overflow: hidden;
+}
+.login-card::before {
+    content: "";
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+}
+.login-brand {
+    font-size: 2.4rem;
+    font-weight: 900;
+    letter-spacing: -0.06em;
+    color: #ecfdf5;
+    margin: 0 0 6px;
+    line-height: 1;
+    position: relative;
+    z-index: 1;
+}
+.login-brand span { color: #34d399; }
+.login-tagline {
+    font-size: 0.8rem;
+    color: #6ee7b7;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0 0 32px;
+    position: relative;
+    z-index: 1;
+}
+
 /* ── Sidebar ── */
-[data-testid="stSidebar"] { background: #0c0a1e !important; }
+[data-testid="stSidebar"] { background: #0a1f18 !important; }
 [data-testid="stSidebar"] * { color: #94a3b8 !important; }
 [data-testid="stSidebar"] .stButton > button {
     background: transparent !important;
@@ -102,12 +149,12 @@ st.markdown("""
     margin-bottom: 1px !important;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: #1e1b4b !important;
+    background: #0f3527 !important;
     color: #e2e8f0 !important;
 }
 [data-testid="stSidebar"] .stButton > button[kind="primary"] {
-    background: #2d2b6e !important;
-    color: #c4b5fd !important;
+    background: #134e3a !important;
+    color: #6ee7b7 !important;
     font-weight: 600 !important;
 }
 
@@ -115,13 +162,13 @@ st.markdown("""
 [data-testid="stMetric"] {
     border-radius: 10px;
     padding: 14px 18px;
-    border-left: 3px solid #4f46e5;
+    border-left: 3px solid #059669;
 }
 [data-testid="stMetricValue"] { font-size: 1.35rem !important; }
 
 /* ── Home hero ── */
 .hero {
-    background: linear-gradient(135deg, #0c0a1e 0%, #1e1b4b 55%, #312e81 100%);
+    background: linear-gradient(135deg, #0a1f18 0%, #065f46 55%, #047857 100%);
     border-radius: 16px;
     padding: 56px 40px 48px;
     text-align: center;
@@ -134,7 +181,7 @@ st.markdown("""
     position: absolute;
     top: -60px; right: -60px;
     width: 240px; height: 240px;
-    background: radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(16,185,129,0.22) 0%, transparent 70%);
     border-radius: 50%;
 }
 .hero::after {
@@ -142,13 +189,13 @@ st.markdown("""
     position: absolute;
     bottom: -40px; left: -40px;
     width: 160px; height: 160px;
-    background: radial-gradient(circle, rgba(245,158,11,0.15) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(217,119,6,0.18) 0%, transparent 70%);
     border-radius: 50%;
 }
-.hero-logo { max-height: 90px; max-width: 280px; object-fit: contain; margin-bottom: 20px; display: block; margin-left: auto; margin-right: auto; position: relative; z-index: 1; }
-.hero-title { color: white; font-size: 2.6rem; font-weight: 800; letter-spacing: -0.05em; margin: 0 0 8px; line-height: 1; position: relative; z-index: 1; }
-.hero-sub { color: #c4b5fd; font-size: 0.95rem; margin: 0; position: relative; z-index: 1; }
-.hero-badge { display: inline-block; background: rgba(165,180,252,0.12); border: 1px solid rgba(165,180,252,0.25); border-radius: 20px; padding: 4px 14px; font-size: 0.78rem; color: #a5b4fc; margin-top: 16px; letter-spacing: 0.05em; position: relative; z-index: 1; }
+.hero-title { color: white; font-size: 3rem; font-weight: 900; letter-spacing: -0.06em; margin: 0 0 8px; line-height: 1; position: relative; z-index: 1; }
+.hero-title span { color: #6ee7b7; }
+.hero-sub { color: #a7f3d0; font-size: 0.95rem; margin: 0; position: relative; z-index: 1; }
+.hero-badge { display: inline-block; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.28); border-radius: 20px; padding: 4px 14px; font-size: 0.78rem; color: #6ee7b7; margin-top: 16px; letter-spacing: 0.05em; position: relative; z-index: 1; }
 
 /* ── Module cards ── */
 .mc-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
@@ -163,7 +210,7 @@ st.markdown("""
 
 /* ── Section step badge ── */
 .step-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.step-num { background: #4f46e5; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
+.step-num { background: #059669; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
 .step-title { font-weight: 600; font-size: 1rem; margin: 0; }
 .step-cap { font-size: 0.82rem; color: #64748b; margin: 0 0 12px; }
 
@@ -171,14 +218,14 @@ st.markdown("""
 .back-area { margin-bottom: 4px; }
 
 @media (prefers-color-scheme: dark) {
-    [data-testid="stMetric"] { background: #1e1b4b; }
+    [data-testid="stMetric"] { background: #0f3527; }
     .mc-desc { color: #94a3b8; }
     .page-hdr { border-bottom-color: #334155; }
     .step-cap { color: #94a3b8; }
     .page-hdr-sub { color: #94a3b8; }
 }
 @media (prefers-color-scheme: light) {
-    [data-testid="stMetric"] { background: #f5f3ff; }
+    [data-testid="stMetric"] { background: #ecfdf5; }
     .mc-desc { color: #64748b; }
 }
 </style>
@@ -189,19 +236,16 @@ APP_PASSWORD_OP = os.environ.get("APP_PASSWORD_OP", "")
 
 if APP_PASSWORD or APP_PASSWORD_OP:
     if not st.session_state.get("_auth"):
-        _lc1, _lc2, _lc3 = st.columns([1, 2, 1])
+        st.markdown('<div class="login-wrap">', unsafe_allow_html=True)
+        _lc1, _lc2, _lc3 = st.columns([1, 1.4, 1])
         with _lc2:
-            st.markdown("<div style='height:3rem'></div>", unsafe_allow_html=True)
-            if os.path.exists("logo.png"):
-                st.image("logo.png", width=180)
-            else:
-                st.markdown(
-                    '<div style="font-size:2rem;font-weight:900;letter-spacing:-0.04em;'
-                    'color:#2563eb;margin-bottom:4px;">SOLPLAST</div>',
-                    unsafe_allow_html=True,
-                )
-            st.markdown("**Sistema de gestion de produccion**")
-            st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+            st.markdown(
+                '<div class="login-card">'
+                '<div class="login-brand">SOL<span>PLAST</span></div>'
+                '<div class="login-tagline">Sistema de Gestion</div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
             pwd = st.text_input("Contrasena", type="password", label_visibility="collapsed",
                                 placeholder="Contrasena")
             if pwd:
@@ -215,6 +259,7 @@ if APP_PASSWORD or APP_PASSWORD_OP:
                     st.rerun()
                 else:
                     st.error("Contrasena incorrecta")
+        st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 elif not st.session_state.get("_role"):
     st.session_state._role = "admin"
@@ -300,14 +345,11 @@ def _step(n, title, caption=""):
 
 
 # ── Sidebar ───────────────────────────────────────────────────
-if os.path.exists("logo.png"):
-    st.sidebar.image("logo.png", width=130)
-else:
-    st.sidebar.markdown(
-        '<p style="font-size:1.1rem;font-weight:800;letter-spacing:-0.03em;'
-        'color:#e2e8f0!important;margin:0 0 2px;">SOLPLAST</p>',
-        unsafe_allow_html=True,
-    )
+st.sidebar.markdown(
+    '<p style="font-size:1.15rem;font-weight:900;letter-spacing:-0.04em;'
+    'color:#ecfdf5!important;margin:0 0 2px;">SOL<span style=\'color:#34d399!important\'>PLAST</span></p>',
+    unsafe_allow_html=True,
+)
 st.sidebar.caption("Sistema de gestion")
 st.sidebar.divider()
 
@@ -353,33 +395,33 @@ pagina = st.session_state.pagina
 # SVG icons (shared entre home y page headers)
 _SVG = {
     "registro": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>'
         '<rect x="9" y="3" width="6" height="4" rx="1"/>'
         '<line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>'
     ),
     "gastos": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<rect x="2" y="3" width="20" height="14" rx="2"/>'
         '<line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>'
     ),
     "roles": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
         '<polyline points="14 2 14 8 20 8"/>'
         '<line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
     ),
     "metricas": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>'
         '<line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>'
     ),
     "empleados": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>'
         '<circle cx="9" cy="7" r="4"/>'
@@ -389,19 +431,9 @@ _SVG = {
 
 # ── Pagina: Inicio ────────────────────────────────────────────
 if pagina == "Inicio":
-    # Hero banner
-    _logo_html = ""
-    if os.path.exists("logo.png"):
-        with open("logo.png", "rb") as _lf:
-            _lb64 = base64.b64encode(_lf.read()).decode()
-        _logo_html = f'<img src="data:image/png;base64,{_lb64}" class="hero-logo">'
-
-    _hero_no_logo = '<div class="hero-title">SOLPLAST</div>'
-    _hero_title_html = "" if _logo_html else _hero_no_logo
     st.markdown(
         f'<div class="hero">'
-        f'{_logo_html}'
-        f'{_hero_title_html}'
+        f'<div class="hero-title">SOL<span>PLAST</span></div>'
         f'<div class="hero-sub">Soluciones Plasticas del Ecuador &nbsp;·&nbsp; Sistema de gestion</div>'
         f'<div class="hero-badge">v{APP_VERSION}</div>'
         f'</div>',
@@ -1149,7 +1181,7 @@ if pagina == "Metricas":
     df_men = pd.DataFrame([{"Mes": M[r]["label"], "Total pagado": M[r]["total"]} for r in sorted_ids])
     _men_base = alt.Chart(df_men)
     _men_bars = _men_base.mark_bar(
-        color="#4f46e5", cornerRadiusTopLeft=4, cornerRadiusTopRight=4,
+        color="#059669", cornerRadiusTopLeft=4, cornerRadiusTopRight=4,
     ).encode(
         x=alt.X("Mes:N", sort=None, axis=alt.Axis(title="", labelAngle=-25, labelLimit=90)),
         y=alt.Y("Total pagado:Q", axis=alt.Axis(title="", format="$,.0f", tickCount=5)),
@@ -1158,7 +1190,7 @@ if pagina == "Metricas":
             alt.Tooltip("Total pagado:Q", title="Total ($)", format="$,.2f"),
         ],
     )
-    _men_labels = _men_base.mark_text(dy=-9, fontSize=11, fontWeight="bold", color="#312e81").encode(
+    _men_labels = _men_base.mark_text(dy=-9, fontSize=11, fontWeight="bold", color="#064e3b").encode(
         x=alt.X("Mes:N", sort=None),
         y=alt.Y("Total pagado:Q"),
         text=alt.Text("Total pagado:Q", format="$,.0f"),
@@ -1190,7 +1222,7 @@ if pagina == "Metricas":
         x=alt.X("Total ($):Q", axis=alt.Axis(title="Total transferido ($)", format="$,.0f", tickCount=5)),
         color=alt.Color(
             "Total ($):Q",
-            scale=alt.Scale(scheme="purpleblue"),
+            scale=alt.Scale(scheme="greens"),
             legend=None,
         ),
         tooltip=[
@@ -1234,7 +1266,7 @@ if pagina == "Metricas":
                 color=alt.Color(
                     "Tipo:N",
                     scale=alt.Scale(domain=["50% (compensatorias)", "100% (fin de semana)"],
-                                    range=["#4f46e5", "#f59e0b"]),
+                                    range=["#059669", "#d97706"]),
                     legend=alt.Legend(title="", orient="top"),
                 ),
                 tooltip=[
@@ -1743,7 +1775,7 @@ if pagina == "Gastos" and role == "admin":
                     "Componente:N",
                     scale=alt.Scale(
                         domain=["Material", "Empaque", "Nomina", "Gastos indirectos"],
-                        range=["#312e81", "#4f46e5", "#f59e0b", "#10b981"],
+                        range=["#047857", "#059669", "#d97706", "#dc2626"],
                     ),
                     legend=alt.Legend(title="", orient="top"),
                 ),
