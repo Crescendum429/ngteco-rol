@@ -1,3 +1,4 @@
+import base64
 import copy
 import io
 import os
@@ -83,8 +84,9 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-.block-container { padding-top: 1.75rem; padding-bottom: 3rem; }
+.block-container { padding-top: 1.5rem; padding-bottom: 3rem; }
 
+/* ── Sidebar ── */
 [data-testid="stSidebar"] { background: #0f172a !important; }
 [data-testid="stSidebar"] * { color: #94a3b8 !important; }
 [data-testid="stSidebar"] .stButton > button {
@@ -109,20 +111,57 @@ st.markdown("""
     font-weight: 600 !important;
 }
 
+/* ── Metrics ── */
 [data-testid="stMetric"] {
-    border-radius: 8px;
-    padding: 14px 16px;
+    border-radius: 10px;
+    padding: 14px 18px;
     border-left: 3px solid #2563eb;
 }
 [data-testid="stMetricValue"] { font-size: 1.35rem !important; }
 
+/* ── Home hero ── */
+.hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #0c4a6e 100%);
+    border-radius: 16px;
+    padding: 52px 40px 44px;
+    text-align: center;
+    margin-bottom: 28px;
+}
+.hero-logo { height: 72px; object-fit: contain; margin-bottom: 18px; display: block; margin-left: auto; margin-right: auto; }
+.hero-title { color: white; font-size: 2.4rem; font-weight: 800; letter-spacing: -0.04em; margin: 0 0 8px; line-height: 1; }
+.hero-sub { color: #93c5fd; font-size: 0.95rem; margin: 0; }
+.hero-badge { display: inline-block; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 4px 14px; font-size: 0.78rem; color: #bfdbfe; margin-top: 14px; letter-spacing: 0.03em; }
+
+/* ── Module cards ── */
 .mc-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
 .mc-title { font-size: 1rem; font-weight: 600; margin: 0 0 4px; }
 .mc-desc { font-size: 0.83rem; margin: 0; line-height: 1.45; }
 
+/* ── Section step badge ── */
+.step-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.step-num { background: #2563eb; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
+.step-title { font-weight: 600; font-size: 1rem; margin: 0; }
+.step-cap { font-size: 0.82rem; color: #64748b; margin: 0 0 12px; }
+
+/* ── Page header ── */
+.page-hdr { display: flex; align-items: center; gap: 14px; margin-bottom: 1.2rem; padding-bottom: 1rem; border-bottom: 1px solid #e2e8f0; }
+.page-hdr-icon { flex-shrink: 0; }
+.page-hdr-title { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+.page-hdr-sub { margin: 2px 0 0; font-size: 0.85rem; color: #64748b; }
+
+/* ── Kpi strip ── */
+.kpi-strip { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.kpi { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 20px; flex: 1; min-width: 120px; }
+.kpi-val { font-size: 1.5rem; font-weight: 700; color: #0f172a; line-height: 1; }
+.kpi-lbl { font-size: 0.78rem; color: #64748b; margin-top: 4px; }
+
 @media (prefers-color-scheme: dark) {
     [data-testid="stMetric"] { background: #1e293b; }
     .mc-desc { color: #94a3b8; }
+    .kpi { background: #1e293b; border-color: #334155; }
+    .kpi-val { color: #f1f5f9; }
+    .page-hdr { border-bottom-color: #334155; }
+    .step-cap { color: #94a3b8; }
 }
 @media (prefers-color-scheme: light) {
     [data-testid="stMetric"] { background: #f8fafc; }
@@ -136,21 +175,32 @@ APP_PASSWORD_OP = os.environ.get("APP_PASSWORD_OP", "")
 
 if APP_PASSWORD or APP_PASSWORD_OP:
     if not st.session_state.get("_auth"):
-        st.markdown("<div style='text-align:center; padding-top:4rem;'>", unsafe_allow_html=True)
-        st.title("SOLPLAST")
-        st.markdown("</div>", unsafe_allow_html=True)
-        pwd = st.text_input("Password", type="password")
-        if pwd:
-            if APP_PASSWORD and pwd == APP_PASSWORD:
-                st.session_state._auth = True
-                st.session_state._role = "admin"
-                st.rerun()
-            elif APP_PASSWORD_OP and pwd == APP_PASSWORD_OP:
-                st.session_state._auth = True
-                st.session_state._role = "operario"
-                st.rerun()
+        _lc1, _lc2, _lc3 = st.columns([1, 2, 1])
+        with _lc2:
+            st.markdown("<div style='height:3rem'></div>", unsafe_allow_html=True)
+            if os.path.exists("logo.png"):
+                st.image("logo.png", width=180)
             else:
-                st.error("Password incorrecto")
+                st.markdown(
+                    '<div style="font-size:2rem;font-weight:900;letter-spacing:-0.04em;'
+                    'color:#2563eb;margin-bottom:4px;">SOLPLAST</div>',
+                    unsafe_allow_html=True,
+                )
+            st.markdown("**Sistema de gestion de produccion**")
+            st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
+            pwd = st.text_input("Contrasena", type="password", label_visibility="collapsed",
+                                placeholder="Contrasena")
+            if pwd:
+                if APP_PASSWORD and pwd == APP_PASSWORD:
+                    st.session_state._auth = True
+                    st.session_state._role = "admin"
+                    st.rerun()
+                elif APP_PASSWORD_OP and pwd == APP_PASSWORD_OP:
+                    st.session_state._auth = True
+                    st.session_state._role = "operario"
+                    st.rerun()
+                else:
+                    st.error("Contrasena incorrecta")
         st.stop()
 elif not st.session_state.get("_role"):
     st.session_state._role = "admin"
@@ -209,8 +259,41 @@ def _time_to_mins(t):
     return None
 
 
+def _back_btn():
+    if st.button("← Inicio", key=f"back_{st.session_state.get('pagina','')}", type="secondary"):
+        st.session_state.pagina = "Inicio"
+        st.rerun()
+
+
+def _page_header(icon_svg, title, subtitle=""):
+    st.markdown(
+        f'<div class="page-hdr">'
+        f'<div class="page-hdr-icon">{icon_svg}</div>'
+        f'<div><p class="page-hdr-title">{title}</p>'
+        + (f'<p class="page-hdr-sub">{subtitle}</p>' if subtitle else "")
+        + "</div></div>",
+        unsafe_allow_html=True,
+    )
+
+
+def _step(n, title, caption=""):
+    st.markdown(
+        f'<div class="step-row"><div class="step-num">{n}</div>'
+        f'<p class="step-title">{title}</p></div>'
+        + (f'<p class="step-cap">{caption}</p>' if caption else ""),
+        unsafe_allow_html=True,
+    )
+
+
 # ── Sidebar ───────────────────────────────────────────────────
-st.sidebar.markdown("## SOLPLAST")
+if os.path.exists("logo.png"):
+    st.sidebar.image("logo.png", width=130)
+else:
+    st.sidebar.markdown(
+        '<p style="font-size:1.1rem;font-weight:800;letter-spacing:-0.03em;'
+        'color:#e2e8f0!important;margin:0 0 2px;">SOLPLAST</p>',
+        unsafe_allow_html=True,
+    )
 st.sidebar.caption("Sistema de gestion")
 st.sidebar.divider()
 
@@ -253,66 +336,111 @@ st.sidebar.caption(f"v{APP_VERSION} · {role}")
 pagina = st.session_state.pagina
 
 
-# ── Pagina: Inicio ────────────────────────────────────────────
-if pagina == "Inicio":
-    st.markdown("## SOLPLAST")
-    st.caption("Selecciona un modulo para continuar.")
-    st.divider()
-
-    _IC_REGISTRO = (
-        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+# SVG icons (shared entre home y page headers)
+_SVG = {
+    "registro": (
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>'
         '<rect x="9" y="3" width="6" height="4" rx="1"/>'
         '<line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>'
-    )
-    _IC_GASTOS = (
-        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+    ),
+    "gastos": (
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<rect x="2" y="3" width="20" height="14" rx="2"/>'
         '<line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>'
-    )
-    _IC_ROLES = (
-        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+    ),
+    "roles": (
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
         '<polyline points="14 2 14 8 20 8"/>'
         '<line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
-    )
-    _IC_METRICAS = (
-        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+    ),
+    "metricas": (
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>'
         '<line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>'
-    )
-    _IC_EMPLEADOS = (
-        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
+    ),
+    "empleados": (
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>'
         '<circle cx="9" cy="7" r="4"/>'
         '<path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+    ),
+}
+
+# ── Pagina: Inicio ────────────────────────────────────────────
+if pagina == "Inicio":
+    # Hero banner
+    _logo_html = ""
+    if os.path.exists("logo.png"):
+        with open("logo.png", "rb") as _lf:
+            _lb64 = base64.b64encode(_lf.read()).decode()
+        _logo_html = f'<img src="data:image/png;base64,{_lb64}" class="hero-logo">'
+
+    st.markdown(
+        f'<div class="hero">'
+        f'{_logo_html}'
+        f'<div class="hero-title">SOLPLAST</div>'
+        f'<div class="hero-sub">Sistema de gestion de produccion</div>'
+        f'<div class="hero-badge">Quito, Ecuador</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Quick stats
+    try:
+        _n_emp = len(st.session_state.emp_db)
+        _reps = list_reportes()
+        _resumenes = load_all_nomina_resumenes()
+        _last_nom, _last_lab = 0.0, ""
+        if _resumenes:
+            _lk = max(_resumenes.keys())
+            _last_nom = float(_resumenes[_lk].get("total_transferido", 0))
+            _last_lab = _resumenes[_lk].get("periodo_label", _lk)
+        _today_regs = list_registros_diarios(date.today().strftime("%Y-%m"))
+        _hc1, _hc2, _hc3, _hc4 = st.columns(4)
+        _hc1.metric("Empleados", _n_emp)
+        _hc2.metric("Reportes cargados", len(_reps))
+        _hc3.metric(
+            f"Nomina ({_last_lab})" if _last_lab else "Ultima nomina",
+            f"${_last_nom:,.0f}" if _last_nom else "—",
+        )
+        _hc4.metric("Registros este mes", len(_today_regs))
+    except Exception:
+        pass
+
+    st.divider()
+    st.markdown(
+        '<p style="font-size:0.8rem;font-weight:600;letter-spacing:0.08em;'
+        'text-transform:uppercase;color:#94a3b8;margin-bottom:16px;">Modulos</p>',
+        unsafe_allow_html=True,
     )
 
     _HOME_CARDS = [
         ("Registro",  "Registro Diario",
-         "Cierre de jornada: material usado, desechos y produccion del dia.", _IC_REGISTRO),
+         "Cierre de jornada: material, desechos y produccion del dia.", "registro"),
         ("Gastos",    "Gastos y Costos",
-         "Materiales, productos, empaques y costo unitario de produccion.", _IC_GASTOS),
+         "Materiales, productos, empaques y costo unitario de produccion.", "gastos"),
         ("Roles",     "Roles y Nomina",
-         "Procesamiento de horas NGTeco y calculo de sueldos.", _IC_ROLES),
+         "Procesamiento de horas NGTeco y calculo de sueldos.", "roles"),
         ("Metricas",  "Metricas",
-         "Indicadores historicos de nomina, horas y produccion.", _IC_METRICAS),
+         "Indicadores historicos de nomina, horas y produccion.", "metricas"),
         ("Empleados", "Empleados",
-         "Configuracion de salarios, transporte y datos del personal.", _IC_EMPLEADOS),
+         "Configuracion de salarios, transporte y datos del personal.", "empleados"),
     ]
 
     _hcols = st.columns(3)
-    for _hi, (_hkey, _htitle, _hdesc, _hicon) in enumerate(_HOME_CARDS):
+    for _hi, (_hkey, _htitle, _hdesc, _hsvgkey) in enumerate(_HOME_CARDS):
         with _hcols[_hi % 3]:
             with st.container(border=True):
                 st.markdown(
                     f'<div class="mc-header">'
-                    f'<div>{_hicon}</div>'
+                    f'<div>{_SVG[_hsvgkey]}</div>'
                     f'<div><p class="mc-title">{_htitle}</p>'
                     f'<p class="mc-desc">{_hdesc}</p></div>'
                     f'</div>',
@@ -325,7 +453,8 @@ if pagina == "Inicio":
 
 # ── Pagina: Empleados ─────────────────────────────────────────
 if pagina == "Empleados":
-    st.header("Empleados")
+    _back_btn()
+    _page_header(_SVG["empleados"], "Empleados", "Salarios, transporte y configuracion del personal")
     emp_db = st.session_state.emp_db
 
     # Alertas de matching
@@ -453,7 +582,8 @@ if pagina == "Empleados":
 
 # ── Pagina: Roles ─────────────────────────────────────────────
 if pagina == "Roles":
-    st.header("Roles")
+    _back_btn()
+    _page_header(_SVG["roles"], "Roles y Nomina", "Procesamiento de horas y calculo de sueldos")
 
     MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
              'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -915,7 +1045,8 @@ if pagina == "Roles":
 
 # ── Pagina: Metricas ──────────────────────────────────────────
 if pagina == "Metricas":
-    st.header("Metricas")
+    _back_btn()
+    _page_header(_SVG["metricas"], "Metricas", "Indicadores historicos de nomina y produccion")
 
     all_reportes = list_reportes()
 
@@ -1139,7 +1270,8 @@ def _periodo_label(pid):
 
 
 if pagina == "Gastos" and role == "admin":
-    st.header("Gastos")
+    _back_btn()
+    _page_header(_SVG["gastos"], "Gastos y Costos", "Materiales, productos, empaques y costos de produccion")
 
     SUB_OPTS = ["Materiales", "Productos", "Empaques", "Gastos fijos", "Costos"]
 
@@ -1665,11 +1797,12 @@ if pagina == "Gastos" and role == "admin":
 
 # ── Pagina: Registro Diario ──────────────────────────────────
 if pagina == "Registro":
-    st.header("Registro diario")
-    st.caption("Datos del cierre de jornada. Se usan para calcular merma real y costos.")
+    _back_btn()
+    _page_header(_SVG["registro"], "Registro diario", "Cierre de jornada — datos de merma, produccion y material")
 
-    fecha_sel = st.date_input("Fecha del registro", value=date.today(),
-                              format="DD/MM/YYYY", key="reg_fecha")
+    rca, rcb = st.columns([3, 1])
+    fecha_sel = rca.date_input("Fecha", value=date.today(),
+                               format="DD/MM/YYYY", key="reg_fecha")
     fecha_str = fecha_sel.strftime("%Y-%m-%d")
 
     mats_r = load_materiales()
@@ -1677,13 +1810,12 @@ if pagina == "Registro":
 
     registro = load_registro_diario(fecha_str)
     if registro:
-        st.info(f"Ya existe un registro para {fecha_sel.strftime('%d/%m/%Y')}. Los valores se precargan para edicion.")
+        rca.info(f"Registro existente para {fecha_sel.strftime('%d/%m/%Y')} — editando.")
 
     st.divider()
 
     # 1. Material usado
-    st.subheader("1. Material virgen usado (kg)")
-    st.caption("Cuantos kilos de cada material entraron a las maquinas hoy.")
+    _step(1, "Material virgen usado (kg)", "Kilos de cada materia prima que entraron a las maquinas hoy.")
 
     mat_usado_reg = {}
     n_mats = max(len(mats_r), 1)
@@ -1707,10 +1839,7 @@ if pagina == "Registro":
     st.divider()
 
     # 2. Molido usado como insumo
-    st.subheader("2. Material molido usado (kg)")
-    st.caption("Molido (reciclado) que se metio hoy a las maquinas como insumo adicional. "
-               "Se agrupa por denominacion porque los vasos comparten material entre si, "
-               "las canulas entre si, etc.")
+    _step(2, "Material molido usado (kg)", "Molido reciclado ingresado a las maquinas hoy, agrupado por denominacion.")
 
     DENOMINACIONES_MOLIDO = [
         ("vaso",     "Molido de vaso"),
@@ -1745,8 +1874,7 @@ if pagina == "Registro":
     st.divider()
 
     # 3. Desechos
-    st.subheader("3. Desechos no recuperables (kg)")
-    st.caption("Material desechado por producto/maquina. Lo que NO se puede moler para reusar.")
+    _step(3, "Desechos no recuperables (kg)", "Material que no se puede moler ni reusar.")
 
     prod_keys = sorted(productos_r.keys(), key=lambda k: productos_r[k].get("nombre", k))
     desechos_reg = {}
@@ -1815,8 +1943,7 @@ if pagina == "Registro":
     st.divider()
 
     # 4. Molido generado
-    st.subheader("4. Molido generado hoy (kg)")
-    st.caption("Material que se molio hoy. Queda disponible para reusar en los proximos dias.")
+    _step(4, "Molido generado hoy (kg)", "Material procesado en la molida. Disponible para reusar proximos dias.")
 
     molido_reg = {}
     m_cols = st.columns(3)
@@ -1842,8 +1969,7 @@ if pagina == "Registro":
     st.divider()
 
     # 5. Produccion
-    st.subheader("5. Produccion del dia")
-    st.caption("Productos completos y subproductos (partes para armar jeringas/goteros).")
+    _step(5, "Produccion del dia", "Productos terminados y subproductos (partes para jeringas y goteros).")
 
     def _leer_prod_prev(prev_val, unidad_default):
         if isinstance(prev_val, (int, float)):
