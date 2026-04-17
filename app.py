@@ -85,56 +85,8 @@ st.markdown("""
 <style>
 .block-container { padding-top: 1.5rem; padding-bottom: 3rem; }
 
-/* ── Login ── */
-.login-wrap {
-    min-height: 88vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.login-card {
-    background: linear-gradient(160deg, #0a1f18 0%, #0d2b22 60%, #0f3527 100%);
-    border: 1px solid rgba(16,185,129,0.18);
-    border-radius: 20px;
-    padding: 52px 48px 44px;
-    text-align: center;
-    max-width: 360px;
-    width: 100%;
-    box-shadow: 0 24px 60px rgba(0,0,0,0.45), 0 0 0 1px rgba(16,185,129,0.08);
-    position: relative;
-    overflow: hidden;
-}
-.login-card::before {
-    content: "";
-    position: absolute;
-    top: -80px; right: -80px;
-    width: 220px; height: 220px;
-    background: radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%);
-    border-radius: 50%;
-}
-.login-brand {
-    font-size: 2.4rem;
-    font-weight: 900;
-    letter-spacing: -0.06em;
-    color: #ecfdf5;
-    margin: 0 0 6px;
-    line-height: 1;
-    position: relative;
-    z-index: 1;
-}
-.login-brand span { color: #34d399; }
-.login-tagline {
-    font-size: 0.8rem;
-    color: #6ee7b7;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin: 0 0 32px;
-    position: relative;
-    z-index: 1;
-}
-
 /* ── Sidebar ── */
-[data-testid="stSidebar"] { background: #0a1f18 !important; }
+[data-testid="stSidebar"] { background: #0e0d14 !important; }
 [data-testid="stSidebar"] * { color: #94a3b8 !important; }
 [data-testid="stSidebar"] .stButton > button {
     background: transparent !important;
@@ -145,30 +97,37 @@ st.markdown("""
     text-align: left !important;
     color: #94a3b8 !important;
     font-weight: 400 !important;
-    transition: background 0.12s !important;
+    transition: background 0.15s !important;
     margin-bottom: 1px !important;
+    white-space: nowrap !important;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: #0f3527 !important;
+    background: #1e1c2e !important;
     color: #e2e8f0 !important;
 }
 [data-testid="stSidebar"] .stButton > button[kind="primary"] {
-    background: #134e3a !important;
-    color: #6ee7b7 !important;
+    background: #2e1f60 !important;
+    color: #c4b5fd !important;
     font-weight: 600 !important;
+}
+
+/* ── Botón volver – nunca recortar texto ── */
+[data-testid="stMain"] .stButton > button {
+    white-space: nowrap !important;
+    overflow: visible !important;
 }
 
 /* ── Metrics ── */
 [data-testid="stMetric"] {
     border-radius: 10px;
     padding: 14px 18px;
-    border-left: 3px solid #059669;
+    border-left: 3px solid #8b5cf6;
 }
 [data-testid="stMetricValue"] { font-size: 1.35rem !important; }
 
 /* ── Home hero ── */
 .hero {
-    background: linear-gradient(135deg, #0a1f18 0%, #065f46 55%, #047857 100%);
+    background: linear-gradient(135deg, #0e0d14 0%, #1e1535 55%, #2d1f5e 100%);
     border-radius: 16px;
     padding: 56px 40px 48px;
     text-align: center;
@@ -180,22 +139,22 @@ st.markdown("""
     content: "";
     position: absolute;
     top: -60px; right: -60px;
-    width: 240px; height: 240px;
-    background: radial-gradient(circle, rgba(16,185,129,0.22) 0%, transparent 70%);
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, rgba(139,92,246,0.28) 0%, transparent 68%);
     border-radius: 50%;
 }
 .hero::after {
     content: "";
     position: absolute;
-    bottom: -40px; left: -40px;
-    width: 160px; height: 160px;
-    background: radial-gradient(circle, rgba(217,119,6,0.18) 0%, transparent 70%);
+    bottom: -50px; left: -50px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(245,158,11,0.18) 0%, transparent 68%);
     border-radius: 50%;
 }
-.hero-title { color: white; font-size: 3rem; font-weight: 900; letter-spacing: -0.06em; margin: 0 0 8px; line-height: 1; position: relative; z-index: 1; }
-.hero-title span { color: #6ee7b7; }
-.hero-sub { color: #a7f3d0; font-size: 0.95rem; margin: 0; position: relative; z-index: 1; }
-.hero-badge { display: inline-block; background: rgba(52,211,153,0.12); border: 1px solid rgba(52,211,153,0.28); border-radius: 20px; padding: 4px 14px; font-size: 0.78rem; color: #6ee7b7; margin-top: 16px; letter-spacing: 0.05em; position: relative; z-index: 1; }
+.hero-title { color: #f1f0f9; font-size: 3rem; font-weight: 900; letter-spacing: -0.06em; margin: 0 0 8px; line-height: 1; position: relative; z-index: 1; }
+.hero-title span { color: #c4b5fd; }
+.hero-sub { color: #a78bfa; font-size: 0.95rem; margin: 0; position: relative; z-index: 1; }
+.hero-badge { display: inline-block; background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.3); border-radius: 20px; padding: 4px 14px; font-size: 0.78rem; color: #c4b5fd; margin-top: 16px; letter-spacing: 0.05em; position: relative; z-index: 1; }
 
 /* ── Module cards ── */
 .mc-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
@@ -210,22 +169,19 @@ st.markdown("""
 
 /* ── Section step badge ── */
 .step-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.step-num { background: #059669; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
+.step-num { background: #8b5cf6; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
 .step-title { font-weight: 600; font-size: 1rem; margin: 0; }
 .step-cap { font-size: 0.82rem; color: #64748b; margin: 0 0 12px; }
 
-/* ── Back nav ── */
-.back-area { margin-bottom: 4px; }
-
 @media (prefers-color-scheme: dark) {
-    [data-testid="stMetric"] { background: #0f3527; }
+    [data-testid="stMetric"] { background: #1e1535; }
     .mc-desc { color: #94a3b8; }
     .page-hdr { border-bottom-color: #334155; }
     .step-cap { color: #94a3b8; }
     .page-hdr-sub { color: #94a3b8; }
 }
 @media (prefers-color-scheme: light) {
-    [data-testid="stMetric"] { background: #ecfdf5; }
+    [data-testid="stMetric"] { background: #f5f3ff; }
     .mc-desc { color: #64748b; }
 }
 </style>
@@ -239,7 +195,7 @@ if APP_PASSWORD or APP_PASSWORD_OP:
         st.markdown("""
         <style>
         [data-testid="stAppViewContainer"] > .main {
-            background: linear-gradient(160deg, #071a12 0%, #0a2218 50%, #0d2b22 100%) !important;
+            background: linear-gradient(160deg, #0a0812 0%, #120e24 50%, #1a1335 100%) !important;
         }
         [data-testid="stHeader"] { background: transparent !important; }
         [data-testid="stSidebar"] { display: none !important; }
@@ -251,9 +207,9 @@ if APP_PASSWORD or APP_PASSWORD_OP:
             st.markdown(
                 '<div style="text-align:center;margin-bottom:32px;">'
                 '<div style="font-size:3rem;font-weight:900;letter-spacing:-0.07em;'
-                'color:#ecfdf5;line-height:1;margin-bottom:8px;">'
-                'SOL<span style="color:#34d399">PLAST</span></div>'
-                '<div style="font-size:0.72rem;color:#6ee7b7;letter-spacing:0.16em;'
+                'color:#f1f0f9;line-height:1;margin-bottom:8px;">'
+                'SOL<span style="color:#a78bfa">PLAST</span></div>'
+                '<div style="font-size:0.72rem;color:#7c6daa;letter-spacing:0.16em;'
                 'text-transform:uppercase;">Sistema de Gestion</div>'
                 '</div>',
                 unsafe_allow_html=True,
@@ -356,7 +312,7 @@ def _step(n, title, caption=""):
 # ── Sidebar ───────────────────────────────────────────────────
 st.sidebar.markdown(
     '<p style="font-size:1.15rem;font-weight:900;letter-spacing:-0.04em;'
-    'color:#ecfdf5!important;margin:0 0 2px;">SOL<span style=\'color:#34d399!important\'>PLAST</span></p>',
+    'color:#f1f0f9!important;margin:0 0 2px;">SOL<span style=\'color:#a78bfa!important\'>PLAST</span></p>',
     unsafe_allow_html=True,
 )
 st.sidebar.caption("Sistema de gestion")
@@ -404,33 +360,33 @@ pagina = st.session_state.pagina
 # SVG icons (shared entre home y page headers)
 _SVG = {
     "registro": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>'
         '<rect x="9" y="3" width="6" height="4" rx="1"/>'
         '<line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>'
     ),
     "gastos": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<rect x="2" y="3" width="20" height="14" rx="2"/>'
         '<line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>'
     ),
     "roles": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
         '<polyline points="14 2 14 8 20 8"/>'
         '<line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
     ),
     "metricas": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>'
         '<line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>'
     ),
     "empleados": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>'
         '<circle cx="9" cy="7" r="4"/>'
@@ -1196,16 +1152,16 @@ if pagina == "Metricas":
                alt.Tooltip("Total pagado:Q", title="Total ($)", format="$,.2f")]
     _men_base = alt.Chart(df_men)
     _men_area = _men_base.mark_area(
-        opacity=0.18, color="#059669", interpolate="monotone",
+        opacity=0.15, color="#8b5cf6", interpolate="monotone",
     ).encode(x=_men_enc_x, y=_men_enc_y)
     _men_line = _men_base.mark_line(
-        color="#059669", strokeWidth=2.5, interpolate="monotone",
+        color="#8b5cf6", strokeWidth=2.5, interpolate="monotone",
     ).encode(x=_men_enc_x, y=_men_enc_y, tooltip=_men_tt)
     _men_pts = _men_base.mark_circle(
-        color="#059669", size=90, stroke="white", strokeWidth=2,
+        color="#8b5cf6", size=90, stroke="white", strokeWidth=2,
     ).encode(x=_men_enc_x, y=_men_enc_y, tooltip=_men_tt)
     _men_labels = _men_base.mark_text(
-        dy=-16, fontSize=11, fontWeight="bold", color="#059669",
+        dy=-16, fontSize=11, fontWeight="bold", color="#7c3aed",
     ).encode(
         x=_men_enc_x,
         y=_men_enc_y,
@@ -1239,7 +1195,7 @@ if pagina == "Metricas":
         x=alt.X("Total ($):Q", axis=alt.Axis(title="Total transferido ($)", format="$,.0f", tickCount=5)),
         color=alt.Color(
             "Total ($):Q",
-            scale=alt.Scale(scheme="greens"),
+            scale=alt.Scale(scheme="purples"),
             legend=None,
         ),
         tooltip=[
@@ -1277,7 +1233,7 @@ if pagina == "Metricas":
         _hext_color = alt.Color(
             "Tipo:N",
             scale=alt.Scale(domain=["50% (compensatorias)", "100% (fin de semana)"],
-                            range=["#059669", "#d97706"]),
+                            range=["#8b5cf6", "#f59e0b"]),
             legend=alt.Legend(title="", orient="top", labelFontSize=12),
         )
         _hext_base = alt.Chart(df_hext)
@@ -1804,7 +1760,7 @@ if pagina == "Gastos" and role == "admin":
                     "Componente:N",
                     scale=alt.Scale(
                         domain=["Material", "Empaque", "Nomina", "Gastos indirectos"],
-                        range=["#047857", "#059669", "#d97706", "#dc2626"],
+                        range=["#4c1d95", "#8b5cf6", "#f59e0b", "#10b981"],
                     ),
                     legend=alt.Legend(title="", orient="top"),
                 ),
