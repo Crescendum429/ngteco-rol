@@ -49,7 +49,7 @@ from storage import (
     save_costos_snapshot, load_all_costos_snapshots,
 )
 
-APP_VERSION = "3.4"
+APP_VERSION = "4.0"
 
 CHANGELOG = {
     "version": APP_VERSION,
@@ -83,107 +83,212 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;1,9..144,400;1,9..144,500&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap');
+
+:root {
+  --sans: 'Manrope', system-ui, sans-serif;
+  --serif: 'Fraunces', Georgia, serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --bg: #0d0d12;
+  --bg-raised: #15151c;
+  --bg-hover: #1e1e28;
+  --surface: #181821;
+  --surface-hi: #1f1f2b;
+  --line: #272734;
+  --line-hi: #343445;
+  --text: #edecef;
+  --text-dim: #b5b3bc;
+  --text-mute: #7b7986;
+  --accent: oklch(72% 0.16 295);
+  --accent-hi: oklch(80% 0.14 295);
+  --accent-soft: color-mix(in oklab, oklch(72% 0.16 295) 18%, transparent);
+  --good: oklch(75% 0.15 155);
+  --good-soft: color-mix(in oklab, oklch(75% 0.15 155) 16%, transparent);
+  --warn: oklch(78% 0.16 80);
+  --warn-soft: color-mix(in oklab, oklch(78% 0.16 80) 18%, transparent);
+  --bad: oklch(70% 0.20 20);
+  --bad-soft: color-mix(in oklab, oklch(70% 0.20 20) 16%, transparent);
+  --shadow-sm: 0 1px 0 0 color-mix(in oklab, white 4%, transparent);
+  --shadow-md: 0 12px 30px -16px rgba(0,0,0,0.6), 0 2px 6px -2px rgba(0,0,0,0.4);
+}
+
+/* ── Base ── */
+html, body, [data-testid="stAppViewContainer"] {
+  font-family: var(--sans) !important;
+  -webkit-font-smoothing: antialiased;
+}
 .block-container { padding-top: 1.5rem; padding-bottom: 3rem; }
 
 /* ── Sidebar ── */
-[data-testid="stSidebar"] { background: #0e0d14 !important; }
-[data-testid="stSidebar"] * { color: #94a3b8 !important; }
+[data-testid="stSidebar"] {
+  background: var(--surface) !important;
+  border-right: 1px solid var(--line) !important;
+}
+[data-testid="stSidebar"] * { color: var(--text-dim) !important; font-family: var(--sans) !important; }
 [data-testid="stSidebar"] .stButton > button {
-    background: transparent !important;
-    border: none !important;
-    border-radius: 7px !important;
-    padding: 7px 14px !important;
-    width: 100% !important;
-    text-align: left !important;
-    color: #94a3b8 !important;
-    font-weight: 400 !important;
-    transition: background 0.15s !important;
-    margin-bottom: 1px !important;
-    white-space: nowrap !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 9px 10px !important;
+  width: 100% !important;
+  text-align: left !important;
+  color: var(--text-dim) !important;
+  font-size: 13.5px !important;
+  font-weight: 400 !important;
+  transition: background 120ms !important;
+  margin: 1px 0 !important;
+  white-space: nowrap !important;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: #1e1c2e !important;
-    color: #e2e8f0 !important;
+  background: var(--bg-hover) !important;
+  color: var(--text) !important;
 }
 [data-testid="stSidebar"] .stButton > button[kind="primary"] {
-    background: #2e1f60 !important;
-    color: #c4b5fd !important;
-    font-weight: 600 !important;
+  background: var(--accent-soft) !important;
+  color: var(--accent-hi) !important;
+  font-weight: 600 !important;
 }
 
-/* ── Botón volver – nunca recortar texto ── */
+/* ── Botón volver: nunca recortar ── */
 [data-testid="stMain"] .stButton > button {
-    white-space: nowrap !important;
-    overflow: visible !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  font-family: var(--sans) !important;
+}
+
+/* ── Inputs ── */
+[data-testid="stTextInput"] input, [data-testid="stTextInput"] input:focus {
+  background: var(--bg-raised) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--text) !important;
+  border-radius: var(--radius-sm) !important;
+  font-family: var(--sans) !important;
 }
 
 /* ── Metrics ── */
 [data-testid="stMetric"] {
-    border-radius: 10px;
-    padding: 14px 18px;
-    border-left: 3px solid #8b5cf6;
+  background: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: 16px !important;
+  box-shadow: var(--shadow-sm) !important;
 }
-[data-testid="stMetricValue"] { font-size: 1.35rem !important; }
+[data-testid="stMetricLabel"] {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  color: var(--text-mute) !important;
+  font-family: var(--sans) !important;
+}
+[data-testid="stMetricValue"] {
+  font-family: var(--serif) !important;
+  font-size: 2rem !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text) !important;
+}
+[data-testid="stMetricDelta"] { font-size: 11.5px !important; }
 
 /* ── Home hero ── */
 .hero {
-    background: linear-gradient(135deg, #0e0d14 0%, #1e1535 55%, #2d1f5e 100%);
-    border-radius: 16px;
-    padding: 56px 40px 48px;
-    text-align: center;
-    margin-bottom: 28px;
-    position: relative;
-    overflow: hidden;
+  background:
+    radial-gradient(circle at 15% 35%, var(--accent-soft) 0%, transparent 55%),
+    radial-gradient(circle at 85% 65%, color-mix(in oklab, oklch(75% 0.13 230) 14%, transparent) 0%, transparent 55%),
+    var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 52px 40px 44px;
+  margin-bottom: 28px;
+  position: relative;
+  overflow: hidden;
 }
-.hero::before {
-    content: "";
-    position: absolute;
-    top: -60px; right: -60px;
-    width: 260px; height: 260px;
-    background: radial-gradient(circle, rgba(139,92,246,0.28) 0%, transparent 68%);
-    border-radius: 50%;
-}
-.hero::after {
-    content: "";
-    position: absolute;
-    bottom: -50px; left: -50px;
-    width: 200px; height: 200px;
-    background: radial-gradient(circle, rgba(245,158,11,0.18) 0%, transparent 68%);
-    border-radius: 50%;
-}
-.hero-title { color: #f1f0f9; font-size: 3rem; font-weight: 900; letter-spacing: -0.06em; margin: 0 0 8px; line-height: 1; position: relative; z-index: 1; }
-.hero-title span { color: #c4b5fd; }
-.hero-sub { color: #a78bfa; font-size: 0.95rem; margin: 0; position: relative; z-index: 1; }
-.hero-badge { display: inline-block; background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.3); border-radius: 20px; padding: 4px 14px; font-size: 0.78rem; color: #c4b5fd; margin-top: 16px; letter-spacing: 0.05em; position: relative; z-index: 1; }
+.hero-eyebrow { font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-mute); margin-bottom: 12px; }
+.hero-title { font-family: var(--serif); font-size: clamp(36px, 5vw, 52px); letter-spacing: -0.025em; line-height: 1; margin: 0 0 14px; color: var(--text); }
+.hero-title em { font-style: italic; color: var(--accent-hi); }
+.hero-sub { color: var(--text-dim); font-size: 15px; max-width: 480px; line-height: 1.55; margin: 0 0 20px; }
+.hero-badge { display: inline-block; background: var(--accent-soft); border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent); border-radius: 20px; padding: 4px 14px; font-size: 11px; color: var(--accent-hi); letter-spacing: 0.05em; font-weight: 500; }
 
 /* ── Module cards ── */
-.mc-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
-.mc-title { font-size: 1rem; font-weight: 600; margin: 0 0 4px; }
-.mc-desc { font-size: 0.83rem; margin: 0; line-height: 1.45; }
+.module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+.module-card {
+  text-align: left; background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-lg); padding: 18px;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: transform 160ms, border-color 160ms, background 160ms;
+  color: var(--text); box-shadow: var(--shadow-sm);
+}
+.module-card:hover { transform: translateY(-2px); border-color: var(--accent); background: var(--surface-hi); }
+.mc-meta { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-mute); }
+.mc-title { font-family: var(--serif); font-size: 26px; letter-spacing: -0.02em; line-height: 1.1; }
+.mc-desc { font-size: 13px; color: var(--text-dim); flex: 1; }
+.mc-open { display: flex; align-items: center; gap: 6px; color: var(--accent-hi); font-size: 12px; font-weight: 500; margin-top: 4px; }
 
 /* ── Page header ── */
-.page-hdr { display: flex; align-items: center; gap: 14px; margin-bottom: 1.2rem; padding-bottom: 1rem; border-bottom: 1px solid #e2e8f0; }
-.page-hdr-icon { flex-shrink: 0; }
-.page-hdr-title { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
-.page-hdr-sub { margin: 2px 0 0; font-size: 0.85rem; color: #64748b; }
+.page-hdr { display: flex; align-items: center; gap: 14px; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.page-hdr-icon { flex-shrink: 0; opacity: 0.85; }
+.page-hdr-title { margin: 0; font-family: var(--serif); font-size: 2rem; font-weight: 400; letter-spacing: -0.02em; color: var(--text); }
+.page-hdr-sub { margin: 2px 0 0; font-size: 13.5px; color: var(--text-mute); }
 
 /* ── Section step badge ── */
 .step-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.step-num { background: #8b5cf6; color: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
-.step-title { font-weight: 600; font-size: 1rem; margin: 0; }
-.step-cap { font-size: 0.82rem; color: #64748b; margin: 0 0 12px; }
+.step-num { background: var(--accent); color: #0d0d12; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; font-family: var(--mono); }
+.step-title { font-weight: 600; font-size: 1rem; margin: 0; color: var(--text); }
+.step-cap { font-size: 12.5px; color: var(--text-mute); margin: 0 0 12px; }
 
-@media (prefers-color-scheme: dark) {
-    [data-testid="stMetric"] { background: #1e1535; }
-    .mc-desc { color: #94a3b8; }
-    .page-hdr { border-bottom-color: #334155; }
-    .step-cap { color: #94a3b8; }
-    .page-hdr-sub { color: #94a3b8; }
+/* ── Brand (sidebar) ── */
+.brand-mark { font-family: var(--serif); font-size: 24px; letter-spacing: -0.02em; line-height: 1; color: var(--text) !important; }
+.brand-mark em { font-style: italic; color: var(--accent-hi) !important; }
+.brand-sub { font-size: 10.5px; color: var(--text-mute) !important; letter-spacing: 0.14em; text-transform: uppercase; margin-top: 4px; }
+
+/* ── Chip/badge ── */
+.chip { display: inline-flex; align-items: center; padding: 3px 8px; font-size: 10.5px; font-weight: 500; border-radius: 20px; background: var(--bg-hover); color: var(--text-dim); border: 1px solid var(--line); }
+.chip-accent { background: var(--accent-soft); color: var(--accent-hi); border-color: transparent; }
+.chip-good  { background: var(--good-soft); color: var(--good); border-color: transparent; }
+.chip-warn  { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.chip-bad   { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+
+/* ── Login ── */
+.login-page {
+  min-height: 88vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 20% 30%, var(--accent-soft) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, color-mix(in oklab, oklch(75% 0.13 230) 14%, transparent) 0%, transparent 50%),
+    var(--bg);
 }
-@media (prefers-color-scheme: light) {
-    [data-testid="stMetric"] { background: #f5f3ff; }
-    .mc-desc { color: #64748b; }
+.login-card {
+  width: 100%; max-width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl, 22px);
+  padding: 36px 32px;
+  box-shadow: var(--shadow-md);
 }
+.login-brand {
+  font-family: var(--serif);
+  font-size: 44px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--text);
+  text-align: center;
+}
+.login-brand em { font-style: italic; color: var(--accent-hi); }
+.login-tagline { text-align: center; font-size: 10.5px; color: var(--text-mute); letter-spacing: 0.16em; text-transform: uppercase; margin: 8px 0 28px; }
+
+/* ── Divider ── */
+[data-testid="stDivider"] hr { border-color: var(--line) !important; }
+
+/* ── Expanders ── */
+[data-testid="stExpander"] { border: 1px solid var(--line) !important; border-radius: var(--radius-md) !important; }
+
+/* ── Tabs ── */
+[data-testid="stTabs"] [role="tab"] { font-family: var(--sans) !important; font-size: 13.5px !important; font-weight: 500 !important; }
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] { color: var(--text) !important; border-bottom-color: var(--accent) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -192,30 +297,25 @@ APP_PASSWORD_OP = os.environ.get("APP_PASSWORD_OP", "")
 
 if APP_PASSWORD or APP_PASSWORD_OP:
     if not st.session_state.get("_auth"):
-        st.markdown("""
-        <style>
-        [data-testid="stAppViewContainer"] > .main {
-            background: linear-gradient(160deg, #0a0812 0%, #120e24 50%, #1a1335 100%) !important;
-        }
-        [data-testid="stHeader"] { background: transparent !important; }
-        [data-testid="stSidebar"] { display: none !important; }
-        </style>
-        <div style="height: 22vh"></div>
-        """, unsafe_allow_html=True)
-        _, _lc, _ = st.columns([1.6, 2, 1.6])
+        st.markdown(
+            '<style>'
+            '[data-testid="stSidebar"]{display:none!important;}'
+            '[data-testid="stHeader"]{background:transparent!important;}'
+            '</style>'
+            '<div class="login-page">',
+            unsafe_allow_html=True,
+        )
+        _, _lc, _ = st.columns([1, 1.3, 1])
         with _lc:
             st.markdown(
-                '<div style="text-align:center;margin-bottom:32px;">'
-                '<div style="font-size:3rem;font-weight:900;letter-spacing:-0.07em;'
-                'color:#f1f0f9;line-height:1;margin-bottom:8px;">'
-                'SOL<span style="color:#a78bfa">PLAST</span></div>'
-                '<div style="font-size:0.72rem;color:#7c6daa;letter-spacing:0.16em;'
-                'text-transform:uppercase;">Sistema de Gestion</div>'
+                '<div class="login-card">'
+                '<div class="login-brand">sol<em>plast</em></div>'
+                '<div class="login-tagline">Sistema de gestion &middot; ERP</div>'
                 '</div>',
                 unsafe_allow_html=True,
             )
             pwd = st.text_input("Contrasena", type="password", label_visibility="collapsed",
-                                placeholder="Contrasena")
+                                placeholder="••••••••")
             if pwd:
                 if APP_PASSWORD and pwd == APP_PASSWORD:
                     st.session_state._auth = True
@@ -227,6 +327,12 @@ if APP_PASSWORD or APP_PASSWORD_OP:
                     st.rerun()
                 else:
                     st.error("Contrasena incorrecta")
+            st.markdown(
+                '<div style="margin-top:20px;text-align:center;font-size:11px;color:var(--text-mute);">'
+                'Soluciones Plasticas del Ecuador · v' + APP_VERSION + '</div>',
+                unsafe_allow_html=True,
+            )
+        st.markdown('</div>', unsafe_allow_html=True)
         st.stop()
 elif not st.session_state.get("_role"):
     st.session_state._role = "admin"
@@ -311,12 +417,12 @@ def _step(n, title, caption=""):
 
 # ── Sidebar ───────────────────────────────────────────────────
 st.sidebar.markdown(
-    '<p style="font-size:1.15rem;font-weight:900;letter-spacing:-0.04em;'
-    'color:#f1f0f9!important;margin:0 0 2px;">SOL<span style=\'color:#a78bfa!important\'>PLAST</span></p>',
+    '<div style="padding:4px 10px 16px;border-bottom:1px solid var(--line);margin-bottom:16px;">'
+    '<div class="brand-mark">sol<em>plast</em></div>'
+    '<div class="brand-sub">Sistema de gestion</div>'
+    '</div>',
     unsafe_allow_html=True,
 )
-st.sidebar.caption("Sistema de gestion")
-st.sidebar.divider()
 
 if role == "admin":
     MODULOS = ["Inicio", "Registro", "Gastos", "Roles", "Metricas", "Empleados"]
@@ -338,9 +444,9 @@ if "pagina" not in st.session_state or st.session_state.pagina not in MODULOS:
 for grupo_label, grupo_items in GRUPOS_SIDEBAR:
     if grupo_label:
         st.sidebar.markdown(
-            f'<p style="font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;'
-            f'font-weight:700;padding:14px 4px 4px;margin:0;color:#475569!important;">'
-            f'{grupo_label}</p>',
+            f'<div style="font-size:10px;font-weight:600;letter-spacing:0.14em;'
+            f'text-transform:uppercase;color:var(--text-mute)!important;'
+            f'padding:14px 10px 6px;">{grupo_label}</div>',
             unsafe_allow_html=True,
         )
     for mod in grupo_items:
@@ -360,33 +466,33 @@ pagina = st.session_state.pagina
 # SVG icons (shared entre home y page headers)
 _SVG = {
     "registro": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hi)" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>'
         '<rect x="9" y="3" width="6" height="4" rx="1"/>'
         '<line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>'
     ),
     "gastos": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hi)" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<rect x="2" y="3" width="20" height="14" rx="2"/>'
         '<line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>'
     ),
     "roles": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hi)" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
         '<polyline points="14 2 14 8 20 8"/>'
         '<line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>'
     ),
     "metricas": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hi)" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>'
         '<line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>'
     ),
     "empleados": (
-        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" '
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hi)" '
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>'
         '<circle cx="9" cy="7" r="4"/>'
@@ -396,11 +502,13 @@ _SVG = {
 
 # ── Pagina: Inicio ────────────────────────────────────────────
 if pagina == "Inicio":
+    _today_str = date.today().strftime("%-d de %B de %Y")
     st.markdown(
         f'<div class="hero">'
-        f'<div class="hero-title">SOL<span>PLAST</span></div>'
-        f'<div class="hero-sub">Soluciones Plasticas del Ecuador &nbsp;·&nbsp; Sistema de gestion</div>'
-        f'<div class="hero-badge">v{APP_VERSION}</div>'
+        f'<div class="hero-eyebrow">{_today_str}</div>'
+        f'<h1 class="hero-title">sol<em>plast</em></h1>'
+        f'<p class="hero-sub">Soluciones Plasticas del Ecuador &nbsp;&middot;&nbsp; Sistema de gestion</p>'
+        f'<span class="hero-badge">v{APP_VERSION}</span>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -427,41 +535,41 @@ if pagina == "Inicio":
     except Exception:
         pass
 
-    st.divider()
     st.markdown(
-        '<p style="font-size:0.8rem;font-weight:600;letter-spacing:0.08em;'
-        'text-transform:uppercase;color:#94a3b8;margin-bottom:16px;">Modulos</p>',
+        '<p class="mc-meta" style="margin:24px 0 0;">Modulos</p>',
         unsafe_allow_html=True,
     )
 
     _HOME_CARDS = [
-        ("Registro",  "Registro Diario",
-         "Cierre de jornada: material, desechos y produccion del dia.", "registro"),
-        ("Gastos",    "Gastos y Costos",
-         "Materiales, productos, empaques y costo unitario de produccion.", "gastos"),
-        ("Roles",     "Roles y Nomina",
-         "Procesamiento de horas NGTeco y calculo de sueldos.", "roles"),
-        ("Metricas",  "Metricas",
-         "Indicadores historicos de nomina, horas y produccion.", "metricas"),
-        ("Empleados", "Empleados",
-         "Configuracion de salarios, transporte y datos del personal.", "empleados"),
+        ("Registro",  "Registro Diario",  "Operario",     "Cierre de jornada: material, desechos y produccion del dia.", "registro"),
+        ("Gastos",    "Gastos y Costos",   "Configuracion","Materiales, productos, empaques y costo unitario.", "gastos"),
+        ("Roles",     "Roles y Nomina",    "3 pasos",      "Procesamiento de horas NGTeco y calculo de sueldos.", "roles"),
+        ("Metricas",  "Metricas",          "Analisis",     "Indicadores historicos de nomina, horas y produccion.", "metricas"),
+        ("Empleados", "Empleados",         "8 activos",    "Configuracion de salarios, transporte y datos del personal.", "empleados"),
     ]
 
-    _hcols = st.columns(3)
-    for _hi, (_hkey, _htitle, _hdesc, _hsvgkey) in enumerate(_HOME_CARDS):
-        with _hcols[_hi % 3]:
-            with st.container(border=True):
-                st.markdown(
-                    f'<div class="mc-header">'
-                    f'<div>{_SVG[_hsvgkey]}</div>'
-                    f'<div><p class="mc-title">{_htitle}</p>'
-                    f'<p class="mc-desc">{_hdesc}</p></div>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-                if st.button("Abrir", key=f"home_{_hkey}", use_container_width=True):
-                    st.session_state.pagina = _hkey
-                    st.rerun()
+    _cards_html = '<div class="module-grid">'
+    for _hkey, _htitle, _hmeta, _hdesc, _hsvgkey in _HOME_CARDS:
+        _cards_html += (
+            f'<div class="module-card" onclick="void(0)">'
+            f'<div class="mc-meta">{_hmeta}</div>'
+            f'<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">'
+            f'<div class="mc-title">{_htitle}</div>'
+            f'<div style="flex-shrink:0;opacity:0.7">{_SVG[_hsvgkey]}</div>'
+            f'</div>'
+            f'<div class="mc-desc">{_hdesc}</div>'
+            f'</div>'
+        )
+    _cards_html += '</div>'
+    st.markdown(_cards_html, unsafe_allow_html=True)
+
+    st.markdown('<div style="height:14px"></div>', unsafe_allow_html=True)
+    _hcols = st.columns(5)
+    for _hi, (_hkey, _htitle, _hmeta, _hdesc, _hsvgkey) in enumerate(_HOME_CARDS):
+        with _hcols[_hi]:
+            if st.button(f"Abrir {_htitle.split()[0]}", key=f"home_{_hkey}", use_container_width=True):
+                st.session_state.pagina = _hkey
+                st.rerun()
 
 
 # ── Pagina: Empleados ─────────────────────────────────────────
@@ -882,7 +990,7 @@ if pagina == "Roles":
                 for _emp_nm, h in arrastre_ant.items():
                     st.write(f"**{_emp_nm}**: {h:.2f}h")
 
-        COLORS = ["#2563eb", "#7c3aed", "#0891b2", "#059669", "#d97706", "#dc2626", "#6366f1", "#0d9488"]
+        COLORS = ["#a78bfa", "#fbbf24", "#34d399", "#f87171", "#60a5fa", "#c084fc", "#38bdf8", "#4ade80"]
 
         nomina_list = []
         any_salary = False
@@ -1152,16 +1260,16 @@ if pagina == "Metricas":
                alt.Tooltip("Total pagado:Q", title="Total ($)", format="$,.2f")]
     _men_base = alt.Chart(df_men)
     _men_area = _men_base.mark_area(
-        opacity=0.15, color="#8b5cf6", interpolate="monotone",
+        opacity=0.12, color="#a78bfa", interpolate="monotone",
     ).encode(x=_men_enc_x, y=_men_enc_y)
     _men_line = _men_base.mark_line(
-        color="#8b5cf6", strokeWidth=2.5, interpolate="monotone",
+        color="#a78bfa", strokeWidth=2.5, interpolate="monotone",
     ).encode(x=_men_enc_x, y=_men_enc_y, tooltip=_men_tt)
     _men_pts = _men_base.mark_circle(
-        color="#8b5cf6", size=90, stroke="white", strokeWidth=2,
+        color="#a78bfa", size=90, stroke="#0d0d12", strokeWidth=2,
     ).encode(x=_men_enc_x, y=_men_enc_y, tooltip=_men_tt)
     _men_labels = _men_base.mark_text(
-        dy=-16, fontSize=11, fontWeight="bold", color="#7c3aed",
+        dy=-16, fontSize=11, fontWeight="bold", color="#c4b5fd",
     ).encode(
         x=_men_enc_x,
         y=_men_enc_y,
@@ -1171,9 +1279,9 @@ if pagina == "Metricas":
         (_men_area + _men_line + _men_pts + _men_labels)
         .properties(height=280)
         .configure_view(fill="transparent", strokeWidth=0)
-        .configure_axis(grid=True, gridColor="rgba(0,0,0,0.06)", gridDash=[3, 3],
-                        labelColor="#94a3b8", titleColor="#64748b",
-                        domainColor="#e2e8f0", tickColor="#e2e8f0")
+        .configure_axis(grid=True, gridColor="rgba(255,255,255,0.05)", gridDash=[3, 3],
+                        labelColor="#7b7986", titleColor="#7b7986",
+                        domainColor="#272734", tickColor="#272734")
     )
     st.altair_chart(nomina_chart, use_container_width=True)
 
@@ -1208,14 +1316,14 @@ if pagina == "Metricas":
         y=alt.Y("Empleado:N", sort=None),
         x=alt.X("Total ($):Q"),
         text=alt.Text("Total ($):Q", format="$,.0f"),
-        color=alt.value("#334155"),
+        color=alt.value("#b5b3bc"),
     )
     emp_chart = (
         (_emp_bars + _emp_labels)
         .properties(height=max(180, len(df_emp) * 44))
         .configure_view(fill="transparent", strokeWidth=0)
-        .configure_axis(grid=False, labelColor="#94a3b8", titleColor="#64748b",
-                        domainColor="#e2e8f0", tickColor="#e2e8f0")
+        .configure_axis(grid=False, labelColor="#7b7986", titleColor="#7b7986",
+                        domainColor="#272734", tickColor="#272734")
     )
     st.altair_chart(emp_chart, use_container_width=True)
 
@@ -1233,7 +1341,7 @@ if pagina == "Metricas":
         _hext_color = alt.Color(
             "Tipo:N",
             scale=alt.Scale(domain=["50% (compensatorias)", "100% (fin de semana)"],
-                            range=["#8b5cf6", "#f59e0b"]),
+                            range=["#a78bfa", "#fbbf24"]),
             legend=alt.Legend(title="", orient="top", labelFontSize=12),
         )
         _hext_base = alt.Chart(df_hext)
@@ -1255,16 +1363,16 @@ if pagina == "Metricas":
             xOffset=alt.XOffset("Tipo:N"),
             y=alt.Y("Horas:Q"),
             text=alt.Text("Horas:Q", format=".0f"),
-            color=alt.value("#374151"),
+            color=alt.value("#b5b3bc"),
         )
         hext_chart = (
             (_hext_bars + _hext_labels)
             .properties(height=260)
             .configure_view(fill="transparent", strokeWidth=0)
-            .configure_axis(grid=True, gridColor="rgba(0,0,0,0.06)", gridDash=[3, 3],
-                            labelColor="#64748b", titleColor="#64748b",
-                            domainColor="#e2e8f0", tickColor="#e2e8f0")
-            .configure_legend(labelColor="#374151", titleColor="#64748b")
+            .configure_axis(grid=True, gridColor="rgba(255,255,255,0.05)", gridDash=[3, 3],
+                            labelColor="#7b7986", titleColor="#7b7986",
+                            domainColor="#272734", tickColor="#272734")
+            .configure_legend(labelColor="#b5b3bc", titleColor="#7b7986")
         )
         st.altair_chart(hext_chart, use_container_width=True)
 
@@ -1760,7 +1868,7 @@ if pagina == "Gastos" and role == "admin":
                     "Componente:N",
                     scale=alt.Scale(
                         domain=["Material", "Empaque", "Nomina", "Gastos indirectos"],
-                        range=["#4c1d95", "#8b5cf6", "#f59e0b", "#10b981"],
+                        range=["#6d28d9", "#a78bfa", "#fbbf24", "#34d399"],
                     ),
                     legend=alt.Legend(title="", orient="top"),
                 ),
@@ -1772,9 +1880,9 @@ if pagina == "Gastos" and role == "admin":
             )
             .properties(height=max(240, len(costos) * 30))
             .configure_view(fill="transparent", strokeWidth=0)
-            .configure_axis(grid=False, labelColor="#64748b", titleColor="#64748b",
-                            domainColor="#e2e8f0", tickColor="#e2e8f0")
-            .configure_legend(labelColor="#64748b", titleColor="#64748b")
+            .configure_axis(grid=False, labelColor="#7b7986", titleColor="#7b7986",
+                            domainColor="#272734", tickColor="#272734")
+            .configure_legend(labelColor="#b5b3bc", titleColor="#7b7986")
         )
         st.altair_chart(bd_chart, use_container_width=True)
 
@@ -1833,9 +1941,9 @@ if pagina == "Gastos" and role == "admin":
                         )
                         .properties(height=300)
                         .configure_view(fill="transparent", strokeWidth=0)
-                        .configure_axis(grid=False, labelColor="#64748b", titleColor="#64748b",
-                                        domainColor="#e2e8f0", tickColor="#e2e8f0")
-                        .configure_legend(labelColor="#64748b", titleColor="#64748b")
+                        .configure_axis(grid=False, labelColor="#7b7986", titleColor="#7b7986",
+                                        domainColor="#272734", tickColor="#272734")
+                        .configure_legend(labelColor="#b5b3bc", titleColor="#7b7986")
                     )
                     st.altair_chart(evo_chart, use_container_width=True)
         else:
