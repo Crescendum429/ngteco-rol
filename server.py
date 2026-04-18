@@ -182,8 +182,9 @@ def _build_data_jsx():
     if resumenes:
         last_id = max(resumenes.keys())
         last_r = resumenes[last_id]
-        for emp_d in last_r.get("empleados", []):
-            nomina_ultimo.append(emp_d)
+        emp_field = last_r.get("empleados", [])
+        if isinstance(emp_field, list):
+            nomina_ultimo = emp_field
 
     return f"""
 // Datos reales inyectados por el servidor — v{APP_VERSION}
