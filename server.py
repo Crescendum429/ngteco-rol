@@ -1,0 +1,672 @@
+import io
+import json
+import os
+import tempfile
+from datetime import date, datetime
+from functools import wraps
+
+from flask import Flask, jsonify, request, send_file, session
+
+from costos import calcular_costos, sumar_gastos_fijos
+from procesar_rol import (
+    calcular_horas_clasificadas,
+    calcular_nomina,
+    clasificar_todo,
+    emp_name,
+    match_empleados,
+    normalize,
+    parse_xls,
+    write_excel_nomina,
+)
+from storage import (
+    delete_registro_diario,
+    export_json,
+    get_arrastre_anterior,
+    import_json,
+    list_registros_diarios,
+    list_reportes,
+    load_all_costos_snapshots,
+    load_all_nomina_resumenes,
+    load_arrastre,
+    load_empaques,
+    load_empleados,
+    load_gastos_fijos,
+    load_materiales,
+    load_productos,
+    load_registro_diario,
+    load_reporte,
+    save_arrastre,
+    save_costos_snapshot,
+    save_empaques,
+    save_empleados,
+    save_gastos_fijos,
+    save_materiales,
+    save_nomina_resumen,
+    save_productos,
+    save_registro_diario,
+    save_reporte,
+)
+
+APP_VERSION = "4.0"
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "solplast-dev-secret-2026")
+
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+APP_PASSWORD_OP = os.environ.get("APP_PASSWORD_OP", "")
+
+HTML_PATH = os.path.join(os.path.dirname(__file__), "Solplast-ERP.html")
+
+_EMP_COLORS = [
+    "oklch(72% 0.14 295)", "oklch(72% 0.14 30)",  "oklch(72% 0.14 200)",
+    "oklch(72% 0.14 140)", "oklch(72% 0.14 70)",  "oklch(72% 0.14 330)",
+    "oklch(72% 0.14 260)", "oklch(72% 0.14 100)",
+]
+
+
+def _emp_to_js(key, emp, idx=0):
+    nombre = emp.get("nombre", key)
+    words = nombre.split()
+    iniciales = "".join(w[0].upper() for w in words[:2]) if len(words) >= 2 else nombre[:2].upper()
+    return {
+        "id": key,
+        "nombre": nombre,
+        "cargo": emp.get("cargo", ""),
+        "iniciales": iniciales,
+        "color": _EMP_COLORS[idx % len(_EMP_COLORS)],
+        "salario": float(emp.get("salario", 0)),
+        "transporte": float(emp.get("transporte_dia", 0)),
+        "horas_base": int(emp.get("horas_base", 8)),
+        "region": emp.get("region", "Sierra/Amazonia"),
+        "fondos_reserva": bool(emp.get("fondos_reserva", False)),
+        "prestamo_iess": float(emp.get("prestamo_iess", 0)),
+        "descuento_iess": bool(emp.get("descuento_iess", True)),
+        "ocultar": bool(emp.get("ocultar", False)),
+    }
+
+
+def _mat_to_js(key, mat):
+    return {
+        "id": key,
+        "nombre": mat.get("nombre", key),
+        "costo_kg": float(mat.get("costo_kg", 0)),
+        "merma": float(mat.get("merma_pct", 3.0)),
+        "color": "oklch(70% 0.12 220)",
+    }
+
+
+def _prod_to_js(key, prod):
+    return {
+        "id": key,
+        "kind": prod.get("kind", "vaso"),
+        "nombre": prod.get("nombre", key),
+        "unidades_caja": int(prod.get("unidades_caja", 1000)),
+        "peso_g": float(prod.get("peso_g", 0)),
+        "material": prod.get("material_desc", ""),
+        "factor": float(prod.get("factor_complejidad", 1.0)),
+        "costo_unit": float(prod.get("costo_unit", 0)),
+        "costo_caja": float(prod.get("costo_caja", 0)),
+    }
+
+
+def _build_data_jsx():
+    emp_db = load_empleados()
+    empleados_js = [_emp_to_js(k, v, i) for i, (k, v) in enumerate(emp_db.items()) if not v.get("ocultar")]
+
+    mats = load_materiales()
+    materiales_js = [_mat_to_js(k, v) for k, v in mats.items()]
+
+    prods = load_productos()
+    productos_js = [_prod_to_js(k, v) for k, v in prods.items()]
+
+    empaques_raw = load_empaques()
+    empaques_js = [
+        {
+            "id": k,
+            "nombre": v.get("nombre", k),
+            "costo": float(v.get("costo", 0)),
+            "unidad": v.get("unidad", "unidad"),
+        }
+        for k, v in empaques_raw.items()
+    ]
+
+    resumenes = load_all_nomina_resumenes()
+    nomina_historica = []
+    for rid in sorted(resumenes.keys()):
+        r = resumenes[rid]
+        try:
+            y, m = rid.split("-")
+            mes_names = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+            label = f"{mes_names[int(m)-1]} {y}"
+        except Exception:
+            label = rid
+        nomina_historica.append({
+            "id": rid,
+            "label": label,
+            "total": float(r.get("total_transferido", 0)),
+            "h50": float(r.get("h50_total", 0)),
+            "h100": float(r.get("h100_total", 0)),
+            "empleados": int(r.get("n_empleados", len(emp_db))),
+        })
+
+    hoy = date.today()
+    mes_actual = hoy.strftime("%Y-%m")
+    registros_diarios = list_registros_diarios(mes_actual)
+    # list_registros_diarios returns a dict {fecha: val}
+    fechas_recientes = sorted(registros_diarios.keys())[-5:]
+    registros = []
+    for fecha in fechas_recientes:
+        try:
+            reg = load_registro_diario(fecha)
+            if reg:
+                registros.append({
+                    "fecha": reg.get("fecha", fecha),
+                    "material": float(reg.get("total_material_kg", 0)),
+                    "cajas": int(reg.get("total_cajas", 0)),
+                    "obs": reg.get("observaciones", ""),
+                })
+        except Exception:
+            pass
+
+    gastos_raw = load_gastos_fijos(mes_actual)
+    gastos_fijos_js = {
+        "electricidad": float(gastos_raw.get("electricidad", 550)),
+        "agua": float(gastos_raw.get("agua", 45)),
+        "tinta": float(gastos_raw.get("tinta", 60)),
+        "tinner": float(gastos_raw.get("tinner", 30)),
+        "solvente": float(gastos_raw.get("solvente", 45)),
+        "transporte": float(gastos_raw.get("transporte", 150)),
+        "mantenimiento": float(gastos_raw.get("mantenimiento", 80)),
+    }
+
+    nomina_ultimo = []
+    if resumenes:
+        last_id = max(resumenes.keys())
+        last_r = resumenes[last_id]
+        for emp_d in last_r.get("empleados", []):
+            nomina_ultimo.append(emp_d)
+
+    return f"""
+// Datos reales inyectados por el servidor — v{APP_VERSION}
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const SBU_2026 = 470;
+
+const EMPLEADOS_MOCK = {json.dumps(empleados_js, ensure_ascii=False)};
+const MATERIALES_MOCK = {json.dumps(materiales_js, ensure_ascii=False)};
+const EMPAQUES_MOCK = {json.dumps(empaques_js, ensure_ascii=False)};
+const PRODUCTOS_MOCK = {json.dumps(productos_js, ensure_ascii=False)};
+const GASTOS_FIJOS_MOCK = {json.dumps(gastos_fijos_js, ensure_ascii=False)};
+const NOMINA_HISTORICA = {json.dumps(nomina_historica, ensure_ascii=False)};
+const NOMINA_ULTIMO = {json.dumps(nomina_ultimo, ensure_ascii=False)};
+const ANOMALIAS_MOCK = [];
+const REGISTROS_RECIENTES = {json.dumps(registros, ensure_ascii=False)};
+const COSTOS_EVOLUCION = {{}};
+const COSTOS_EVOLUCION_MESES = NOMINA_HISTORICA.map(m => m.label);
+const PRODUCCION_MES = [];
+
+const fmtMoney = (n, d = 2) =>
+  '$' + Number(n || 0).toLocaleString('es-EC', {{ minimumFractionDigits: d, maximumFractionDigits: d }});
+const fmtMoneyShort = (n) => {{
+  const v = Number(n || 0);
+  if (Math.abs(v) >= 1000) return '$' + (v / 1000).toFixed(1) + 'k';
+  return '$' + v.toFixed(0);
+}};
+const fmtNum = (n, d = 0) =>
+  Number(n || 0).toLocaleString('es-EC', {{ minimumFractionDigits: d, maximumFractionDigits: d }});
+
+Object.assign(window, {{
+  MESES, SBU_2026,
+  EMPLEADOS_MOCK, MATERIALES_MOCK, EMPAQUES_MOCK, PRODUCTOS_MOCK,
+  GASTOS_FIJOS_MOCK, NOMINA_HISTORICA, NOMINA_ULTIMO, ANOMALIAS_MOCK,
+  REGISTROS_RECIENTES, COSTOS_EVOLUCION, COSTOS_EVOLUCION_MESES, PRODUCCION_MES,
+  fmtMoney, fmtMoneyShort, fmtNum,
+}});
+"""
+
+
+def _build_login_patch():
+    return """
+// Auth patch — injected by server
+(function() {
+  window._api = {
+    login: async (role, password) => {
+      const r = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role, password }),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    saveEmpleado: async (id, data) => {
+      const r = await fetch('/api/empleados/' + encodeURIComponent(id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    createEmpleado: async (data) => {
+      const r = await fetch('/api/empleados', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    deleteEmpleado: async (id) => {
+      const r = await fetch('/api/empleados/' + encodeURIComponent(id), {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    saveRegistro: async (data) => {
+      const r = await fetch('/api/registros', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    uploadNomina: async (file) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch('/api/nomina/upload', { method: 'POST', body: fd, credentials: 'same-origin' });
+      if (r.ok) return r.json();
+      return null;
+    },
+  };
+})();
+"""
+
+
+def _inject_html(raw_html):
+    data_start = raw_html.find('<script type="text/babel" data-file="data.jsx">')
+    data_end = raw_html.find('</script>', data_start) + len('</script>')
+    if data_start >= 0:
+        new_data_script = (
+            '<script type="text/babel" data-file="data.jsx">\n'
+            + _build_data_jsx()
+            + '\n</script>'
+        )
+        raw_html = raw_html[:data_start] + new_data_script + raw_html[data_end:]
+
+    old_submit = "    if (!pwd) { setErr('Ingresa la contraseña'); return; }\n    onLogin(role);"
+    new_submit = """    if (!pwd) { setErr('Ingresa la contraseña'); return; }
+    setErr('');
+    setLoading(true);
+    (window._api?.login(role, pwd) || Promise.resolve(true)).then(ok => {
+      setLoading(false);
+      if (ok || !window._api) { onLogin(role); }
+      else { setErr('Contraseña incorrecta'); }
+    }).catch(() => { setLoading(false); setErr('Error de conexión'); });"""
+    if old_submit in raw_html:
+        raw_html = raw_html.replace(old_submit, new_submit)
+        old_login_state = "  const [err, setErr] = useState('');"
+        new_login_state = "  const [err, setErr] = useState('');\n  const [loading, setLoading] = useState(false);"
+        raw_html = raw_html.replace(old_login_state, new_login_state, 1)
+
+    api_script = f'<script>\n{_build_login_patch()}\n</script>\n'
+    babel_script_pos = raw_html.find('<script src="https://unpkg.com/@babel/standalone')
+    if babel_script_pos >= 0:
+        end_babel = raw_html.find('>', babel_script_pos) + 1
+        end_babel_tag = raw_html.find('\n', end_babel) + 1
+        raw_html = raw_html[:end_babel_tag] + api_script + raw_html[end_babel_tag:]
+
+    old_reg_save = "onClick={() => { setSaved(true); }}"
+    new_reg_save = "onClick={async () => { if (window._api) { await window._api.saveRegistro({ date, activeProds, prod, consumo, residuos, obs, totalMat, totalCajas, totalDesecho, totalMolidoGen, mermaPct }); } setSaved(true); }}"
+    raw_html = raw_html.replace(old_reg_save, new_reg_save, 1)
+
+    return raw_html
+
+
+def require_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if APP_PASSWORD and not session.get("_auth"):
+            return jsonify({"error": "No autorizado"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/")
+def index():
+    with open(HTML_PATH, "r", encoding="utf-8") as f:
+        html = f.read()
+    html = _inject_html(html)
+    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def auth_login():
+    data = request.get_json(force=True) or {}
+    role = data.get("role", "admin")
+    pwd = data.get("password", "")
+
+    if not APP_PASSWORD and not APP_PASSWORD_OP:
+        session["_auth"] = True
+        session["_role"] = role
+        return jsonify({"role": role})
+
+    if role == "admin" and APP_PASSWORD and pwd == APP_PASSWORD:
+        session["_auth"] = True
+        session["_role"] = "admin"
+        return jsonify({"role": "admin"})
+    if role == "operario" and APP_PASSWORD_OP and pwd == APP_PASSWORD_OP:
+        session["_auth"] = True
+        session["_role"] = "operario"
+        return jsonify({"role": "operario"})
+
+    return jsonify({"error": "Credenciales incorrectas"}), 401
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+def auth_logout():
+    session.clear()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/auth/me")
+def auth_me():
+    if APP_PASSWORD and not session.get("_auth"):
+        return jsonify({"role": None})
+    return jsonify({"role": session.get("_role", "admin")})
+
+
+@app.route("/api/empleados", methods=["GET"])
+@require_auth
+def get_empleados():
+    emp_db = load_empleados()
+    result = [_emp_to_js(k, v, i) for i, (k, v) in enumerate(emp_db.items())]
+    return jsonify(result)
+
+
+@app.route("/api/empleados", methods=["POST"])
+@require_auth
+def create_empleado():
+    data = request.get_json(force=True) or {}
+    emp_db = load_empleados()
+    nombre = data.get("nombre", "").strip()
+    if not nombre:
+        return jsonify({"error": "Nombre requerido"}), 400
+    key = normalize(nombre)
+    emp_db[key] = {
+        "nombre": nombre,
+        "cargo": data.get("cargo", ""),
+        "salario": float(data.get("salario", 0)),
+        "horas_base": int(data.get("horas_base", 8)),
+        "transporte_dia": float(data.get("transporte", 0)),
+        "region": data.get("region", "Sierra/Amazonia"),
+        "fondos_reserva": bool(data.get("fondos_reserva", False)),
+        "prestamo_iess": float(data.get("prestamo_iess", 0)),
+        "descuento_iess": True,
+        "ocultar": False,
+    }
+    save_empleados(emp_db)
+    return jsonify({"id": key})
+
+
+@app.route("/api/empleados/<emp_id>", methods=["PUT"])
+@require_auth
+def update_empleado(emp_id):
+    data = request.get_json(force=True) or {}
+    emp_db = load_empleados()
+    if emp_id not in emp_db:
+        return jsonify({"error": "No encontrado"}), 404
+    emp = emp_db[emp_id]
+    emp["nombre"] = data.get("nombre", emp.get("nombre", ""))
+    emp["cargo"] = data.get("cargo", emp.get("cargo", ""))
+    emp["salario"] = float(data.get("salario", emp.get("salario", 0)))
+    emp["horas_base"] = int(data.get("horas_base", emp.get("horas_base", 8)))
+    emp["transporte_dia"] = float(data.get("transporte", emp.get("transporte_dia", 0)))
+    emp["region"] = data.get("region", emp.get("region", "Sierra/Amazonia"))
+    emp["fondos_reserva"] = bool(data.get("fondos_reserva", emp.get("fondos_reserva", False)))
+    emp["prestamo_iess"] = float(data.get("prestamo_iess", emp.get("prestamo_iess", 0)))
+    save_empleados(emp_db)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/empleados/<emp_id>", methods=["DELETE"])
+@require_auth
+def delete_empleado(emp_id):
+    emp_db = load_empleados()
+    if emp_id not in emp_db:
+        return jsonify({"error": "No encontrado"}), 404
+    del emp_db[emp_id]
+    save_empleados(emp_db)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/materiales", methods=["GET"])
+@require_auth
+def get_materiales():
+    mats = load_materiales()
+    return jsonify([_mat_to_js(k, v) for k, v in mats.items()])
+
+
+@app.route("/api/materiales/<mat_id>", methods=["PUT"])
+@require_auth
+def update_material(mat_id):
+    data = request.get_json(force=True) or {}
+    mats = load_materiales()
+    if mat_id not in mats:
+        mats[mat_id] = {}
+    mats[mat_id].update({
+        "nombre": data.get("nombre", mats[mat_id].get("nombre", mat_id)),
+        "costo_kg": float(data.get("costo_kg", mats[mat_id].get("costo_kg", 0))),
+        "merma_pct": float(data.get("merma", mats[mat_id].get("merma_pct", 3.0))),
+    })
+    save_materiales(mats)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/productos", methods=["GET"])
+@require_auth
+def get_productos():
+    prods = load_productos()
+    return jsonify([_prod_to_js(k, v) for k, v in prods.items()])
+
+
+@app.route("/api/empaques", methods=["GET"])
+@require_auth
+def get_empaques():
+    empaques = load_empaques()
+    return jsonify([
+        {"id": k, "nombre": v.get("nombre", k), "costo": float(v.get("costo", 0)), "unidad": v.get("unidad", "unidad")}
+        for k, v in empaques.items()
+    ])
+
+
+@app.route("/api/gastos_fijos/<period>", methods=["GET"])
+@require_auth
+def get_gastos_fijos(period):
+    return jsonify(load_gastos_fijos(period))
+
+
+@app.route("/api/gastos_fijos/<period>", methods=["PUT"])
+@require_auth
+def update_gastos_fijos(period):
+    data = request.get_json(force=True) or {}
+    save_gastos_fijos(period, data)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/registros", methods=["POST"])
+@require_auth
+def save_registro():
+    data = request.get_json(force=True) or {}
+    fecha = data.get("date", date.today().isoformat())
+    payload = {
+        "fecha": fecha,
+        "total_material_kg": float(data.get("totalMat", 0)),
+        "total_cajas": int(data.get("totalCajas", 0)),
+        "observaciones": data.get("obs", ""),
+        "merma_pct": float(data.get("mermaPct", 0)),
+        "raw": data,
+    }
+    save_registro_diario(fecha, payload)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/registros/<month>", methods=["GET"])
+@require_auth
+def get_registros(month):
+    registros_dict = list_registros_diarios(month)
+    result = []
+    for fecha in sorted(registros_dict.keys()):
+        try:
+            r = load_registro_diario(fecha)
+            if r:
+                result.append({
+                    "fecha": r.get("fecha", fecha),
+                    "material": float(r.get("total_material_kg", 0)),
+                    "cajas": int(r.get("total_cajas", 0)),
+                    "obs": r.get("observaciones", ""),
+                })
+        except Exception:
+            pass
+    return jsonify(result)
+
+
+@app.route("/api/nomina/reportes", methods=["GET"])
+@require_auth
+def get_nomina_reportes():
+    return jsonify(list_reportes())
+
+
+@app.route("/api/nomina/upload", methods=["POST"])
+@require_auth
+def nomina_upload():
+    if "file" not in request.files:
+        return jsonify({"error": "No file"}), 400
+    f = request.files["file"]
+    with tempfile.NamedTemporaryFile(suffix=".xls", delete=False) as tmp:
+        f.save(tmp.name)
+        try:
+            data = parse_xls(tmp.name)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 422
+        finally:
+            os.unlink(tmp.name)
+
+    emp_db = load_empleados()
+    matched, nuevos, faltantes = match_empleados(data, emp_db)
+    cls = clasificar_todo(data)
+
+    session["_nomina_data"] = data
+    session["_nomina_cls"] = cls
+    session["_nomina_matched"] = matched
+
+    n_anom = sum(
+        1 for _, days, _ in data
+        for d in days
+        if isinstance(d, dict) and d.get("flag") and d["flag"] != "CORREGIDO"
+    )
+    return jsonify({
+        "empleados": len(data),
+        "anomalias": n_anom,
+        "nuevos": nuevos,
+        "faltantes": faltantes,
+    })
+
+
+@app.route("/api/nomina/calcular", methods=["POST"])
+@require_auth
+def nomina_calcular():
+    req = request.get_json(force=True) or {}
+    periodo = req.get("periodo", date.today().strftime("%Y-%m"))
+    emp_db = load_empleados()
+    data = session.get("_nomina_data", [])
+    cls = session.get("_nomina_cls", {})
+    matched = session.get("_nomina_matched", {})
+
+    if not data:
+        return jsonify({"error": "No hay reporte cargado en sesion"}), 400
+
+    resultados = []
+    total = 0.0
+    for emp_full, days, nid in data:
+        name = emp_name(emp_full)
+        db_key = matched.get(name)
+        cfg = emp_db.get(db_key, {}) if db_key else {}
+        if not cfg.get("salario"):
+            continue
+        hrs = calcular_horas_clasificadas(cls.get(name, {}), cfg.get("horas_base", 8))
+        nom = calcular_nomina(hrs, cfg, req.get("extras_config", {}))
+        nom["nombre"] = name
+        resultados.append(nom)
+        total += nom.get("transferido", 0)
+
+    resumen = {
+        "periodo": periodo,
+        "periodo_label": periodo,
+        "total_transferido": total,
+        "n_empleados": len(resultados),
+        "empleados": resultados,
+    }
+    save_nomina_resumen(periodo, resumen)
+    return jsonify(resumen)
+
+
+@app.route("/api/nomina/resumenes", methods=["GET"])
+@require_auth
+def get_nomina_resumenes():
+    return jsonify(load_all_nomina_resumenes())
+
+
+@app.route("/api/costos/calcular", methods=["POST"])
+@require_auth
+def costos_calcular():
+    req = request.get_json(force=True) or {}
+    periodo = req.get("periodo", date.today().strftime("%Y-%m"))
+    mats = load_materiales()
+    prods = load_productos()
+    empaques = load_empaques()
+    gastos_raw = load_gastos_fijos(periodo)
+    gastos_total = sumar_gastos_fijos(gastos_raw)
+
+    resumenes = load_all_nomina_resumenes()
+    nomina_total = 0.0
+    if resumenes and periodo in resumenes:
+        nomina_total = float(resumenes[periodo].get("total_transferido", 0))
+
+    costos = calcular_costos(prods, mats, empaques, gastos_total, nomina_total)
+    snap = {"periodo": periodo, "periodo_label": periodo, "costos": costos}
+    save_costos_snapshot(periodo, snap)
+    return jsonify(costos)
+
+
+@app.route("/api/costos/snapshots", methods=["GET"])
+@require_auth
+def get_costos_snapshots():
+    return jsonify(load_all_costos_snapshots())
+
+
+@app.route("/api/dashboard", methods=["GET"])
+@require_auth
+def get_dashboard():
+    emp_db = load_empleados()
+    reps = list_reportes()
+    resumenes = load_all_nomina_resumenes()
+    last_nom, last_lab = 0.0, ""
+    if resumenes:
+        lk = max(resumenes.keys())
+        last_nom = float(resumenes[lk].get("total_transferido", 0))
+        last_lab = resumenes[lk].get("periodo_label", lk)
+    hoy = date.today()
+    today_regs = list_registros_diarios(hoy.strftime("%Y-%m"))
+    return jsonify({
+        "empleados": len(emp_db),
+        "reportes": len(reps),
+        "ultima_nomina": last_nom,
+        "ultima_nomina_label": last_lab,
+        "registros_mes": len(today_regs),
+    })
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port, debug=True)

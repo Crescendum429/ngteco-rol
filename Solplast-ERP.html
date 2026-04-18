@@ -1,0 +1,3531 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solplast — Sistema de gestión</title>
+  <style>
+/* ═══════════════════════════════════════════════════════════════════
+   Solplast — Sistema de gestión
+   Design system
+   ═══════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Type */
+  --sans: 'Manrope', system-ui, -apple-system, sans-serif;
+  --serif: 'Fraunces', 'Instrument Serif', Georgia, serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+
+  /* Layout */
+  --sidebar-w: 248px;
+  --content-max: 1280px;
+}
+
+/* ─────────── DARK (default) ─────────── */
+:root, [data-theme="dark"] {
+  --bg: #0d0d12;
+  --bg-raised: #15151c;
+  --bg-hover: #1e1e28;
+  --surface: #181821;
+  --surface-hi: #1f1f2b;
+  --line: #272734;
+  --line-hi: #343445;
+
+  --text: #edecef;
+  --text-dim: #b5b3bc;
+  --text-mute: #7b7986;
+
+  --accent: oklch(72% 0.16 295);       /* lavender */
+  --accent-hi: oklch(80% 0.14 295);
+  --accent-soft: color-mix(in oklab, oklch(72% 0.16 295) 18%, transparent);
+
+  --good: oklch(75% 0.15 155);
+  --good-soft: color-mix(in oklab, oklch(75% 0.15 155) 16%, transparent);
+  --warn: oklch(78% 0.16 80);
+  --warn-soft: color-mix(in oklab, oklch(78% 0.16 80) 18%, transparent);
+  --bad:  oklch(70% 0.20 20);
+  --bad-soft: color-mix(in oklab, oklch(70% 0.20 20) 16%, transparent);
+  --info: oklch(75% 0.13 230);
+  --info-soft: color-mix(in oklab, oklch(75% 0.13 230) 16%, transparent);
+
+  --shadow-sm: 0 1px 0 0 color-mix(in oklab, white 4%, transparent);
+  --shadow-md: 0 12px 30px -16px rgba(0,0,0,0.6), 0 2px 6px -2px rgba(0,0,0,0.4);
+}
+
+[data-theme="light"] {
+  --bg: #faf8f4;
+  --bg-raised: #ffffff;
+  --bg-hover: #f3efe7;
+  --surface: #ffffff;
+  --surface-hi: #faf8f4;
+  --line: #e8e3d8;
+  --line-hi: #d5cfc0;
+
+  --text: #1a1917;
+  --text-dim: #524f48;
+  --text-mute: #8a857a;
+
+  --accent: oklch(60% 0.17 295);
+  --accent-hi: oklch(52% 0.19 295);
+  --accent-soft: color-mix(in oklab, oklch(60% 0.17 295) 12%, transparent);
+
+  --good: oklch(50% 0.14 155);
+  --good-soft: color-mix(in oklab, oklch(50% 0.14 155) 10%, transparent);
+  --warn: oklch(60% 0.16 60);
+  --warn-soft: color-mix(in oklab, oklch(60% 0.16 60) 14%, transparent);
+  --bad:  oklch(55% 0.20 20);
+  --bad-soft: color-mix(in oklab, oklch(55% 0.20 20) 12%, transparent);
+  --info: oklch(55% 0.15 230);
+  --info-soft: color-mix(in oklab, oklch(55% 0.15 230) 12%, transparent);
+
+  --shadow-sm: 0 1px 0 0 rgba(0,0,0,0.02);
+  --shadow-md: 0 16px 40px -20px rgba(30,25,15,0.18), 0 2px 6px -2px rgba(30,25,15,0.06);
+}
+
+/* ─────────── Base ─────────── */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'ss01', 'cv11';
+}
+button { font-family: inherit; cursor: pointer; }
+h1, h2, h3, h4 { margin: 0; font-weight: 500; }
+a { color: var(--accent-hi); }
+
+.fadein { animation: fadein 300ms ease-out; }
+@keyframes fadein {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─────────── Text utilities ─────────── */
+.mute { color: var(--text-mute); }
+.small { font-size: 12.5px; }
+.xs { font-size: 11.5px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.num { font-variant-numeric: tabular-nums; font-family: var(--mono); }
+.num-big { font-family: var(--serif); font-size: 28px; letter-spacing: -0.02em; }
+.eyebrow { font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-mute); }
+em { font-style: italic; font-family: var(--serif); color: var(--accent-hi); font-weight: 400; }
+
+.row { display: flex; gap: 8px; align-items: center; }
+.row.wrap { flex-wrap: wrap; }
+.spacer { flex: 1; }
+
+.cols-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.cols-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 860px) {
+  .cols-2, .cols-3 { grid-template-columns: 1fr; }
+}
+.hide-mobile { display: flex; }
+@media (max-width: 760px) { .hide-mobile { display: none !important; } }
+
+/* ─────────── Layout ─────────── */
+/* Sidebar is position:fixed — reserve space via padding-left */
+.app {
+  min-height: 100vh;
+  padding-left: var(--sidebar-w);
+}
+.content-wrap {
+  padding: 36px 40px 80px;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.content {
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+@media (max-width: 960px) {
+  .app { padding-left: 0; }
+  .content-wrap { padding: 16px 16px 92px; }
+}
+
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.page-title {
+  font-family: var(--serif);
+  font-size: clamp(32px, 4vw, 44px);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin: 8px 0 6px;
+}
+.page-sub {
+  color: var(--text-dim);
+  max-width: 640px;
+  font-size: 14.5px;
+}
+
+/* ─────────── Sidebar ─────────── */
+.sidebar {
+  position: fixed;
+  left: 0; top: 0;
+  width: var(--sidebar-w);
+  height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  overflow-y: auto;
+}
+.brand { padding: 4px 10px 16px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.brand-mark { font-family: var(--serif); font-size: 24px; letter-spacing: -0.02em; line-height: 1; }
+.brand-sub { font-size: 10.5px; color: var(--text-mute); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 6px; }
+
+.nav-group-label { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-mute); padding: 14px 10px 6px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  background: transparent; border: 0;
+  padding: 9px 10px;
+  margin: 1px 0;
+  color: var(--text-dim);
+  font-size: 13.5px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: background 120ms, color 120ms;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text); }
+.nav-item.active { background: var(--accent-soft); color: var(--accent-hi); font-weight: 600; }
+.nav-item .nav-ico { flex-shrink: 0; opacity: 0.9; }
+.nav-item.active .nav-ico { opacity: 1; }
+
+.sidebar-foot { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.theme-toggle {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.theme-toggle button {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: transparent; border: 0;
+  padding: 6px; border-radius: 6px;
+  color: var(--text-mute);
+  font-size: 11.5px; font-weight: 500;
+}
+.theme-toggle button.on { background: var(--surface-hi); color: var(--text); box-shadow: var(--shadow-sm); }
+.user-chip { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: white;
+  font-size: 10.5px; font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* Mobile topbar */
+.topbar {
+  display: none;
+  position: sticky; top: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  align-items: center;
+  gap: 10px;
+  z-index: 30;
+}
+@media (max-width: 960px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+    width: 300px;
+  }
+  .sidebar.open { transform: translateX(0); box-shadow: var(--shadow-md); }
+  .topbar { display: flex; }
+}
+
+.mobile-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 35; opacity: 0; pointer-events: none; transition: opacity 180ms; }
+.mobile-scrim.open { opacity: 1; pointer-events: auto; }
+
+/* Bottom nav (mobile) */
+.mbnav {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
+  z-index: 30;
+  justify-content: space-around;
+}
+.mbnav button {
+  background: transparent; border: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 10px;
+  color: var(--text-mute);
+  font-size: 10.5px;
+  border-radius: 8px;
+  min-width: 56px;
+}
+.mbnav button.on { color: var(--accent-hi); }
+@media (max-width: 960px) { .mbnav { display: flex; } }
+
+/* ─────────── Buttons ─────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; justify-content: center;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--line);
+  padding: 9px 14px;
+  font-size: 13px; font-weight: 500;
+  border-radius: var(--radius-sm);
+  transition: background 120ms, border 120ms, transform 80ms;
+}
+.btn:hover { background: var(--bg-hover); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn.primary {
+  background: var(--accent);
+  color: #0d0d12;
+  border-color: transparent;
+  font-weight: 600;
+}
+[data-theme="light"] .btn.primary { color: white; }
+.btn.primary:hover { background: var(--accent-hi); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--text-dim); }
+.btn.ghost:hover { background: var(--bg-hover); color: var(--text); }
+.btn.danger { color: var(--bad); }
+.btn.sm { padding: 5px 9px; font-size: 12px; }
+.btn.block { display: flex; width: 100%; }
+
+/* ─────────── Chip ─────────── */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px;
+  font-size: 10.5px; font-weight: 500;
+  border-radius: 20px;
+  background: var(--bg-hover);
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  letter-spacing: 0.01em;
+}
+.chip.accent { background: var(--accent-soft); color: var(--accent-hi); border-color: transparent; }
+.chip.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.chip.good { background: var(--good-soft); color: var(--good); border-color: transparent; }
+.chip.bad  { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+.chip.info { background: var(--info-soft); color: var(--info); border-color: transparent; }
+
+/* ─────────── Fields ─────────── */
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 11.5px; font-weight: 500; color: var(--text-dim); margin-bottom: 5px; letter-spacing: 0.02em; }
+.input, .select {
+  width: 100%;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 9px 12px;
+  font-size: 13.5px;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  transition: border-color 120ms;
+}
+.input:focus, .select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+select.input, select.select { background-color: var(--bg-raised); color: var(--text); }
+select.input option, select.select option { background: var(--surface); color: var(--text); padding: 8px; }
+.input.num-input { width: 80px; font-family: var(--mono); text-align: right; }
+.select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: right 14px top 50%, right 10px top 50%; background-size: 4px 4px, 4px 4px; background-repeat: no-repeat; padding-right: 30px; color: var(--text); }
+
+.seg {
+  display: inline-flex;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 2px;
+}
+.seg button {
+  background: transparent; border: 0;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  color: var(--text-mute);
+  border-radius: 5px;
+  font-weight: 500;
+}
+.seg button.on { background: var(--surface-hi); color: var(--text); box-shadow: var(--shadow-sm); }
+
+.check { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; font-size: 13px; }
+.check input { display: none; }
+.check .box { width: 17px; height: 17px; border: 1.5px solid var(--line-hi); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; color: transparent; transition: all 120ms; }
+.check input:checked + .box { background: var(--accent); border-color: var(--accent); color: #0d0d12; }
+[data-theme="light"] .check input:checked + .box { color: white; }
+
+.toggle-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 10px 5px 5px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  font-size: 12.5px; font-weight: 500;
+  color: var(--text-dim);
+}
+.toggle-pill .sw { width: 26px; height: 16px; background: var(--line); border-radius: 99px; position: relative; transition: background 150ms; }
+.toggle-pill .sw::after { content: ''; position: absolute; width: 12px; height: 12px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: left 150ms; }
+.toggle-pill.on { background: var(--accent-soft); color: var(--accent-hi); border-color: transparent; }
+.toggle-pill.on .sw { background: var(--accent); }
+.toggle-pill.on .sw::after { left: 12px; }
+
+/* ─────────── Panels ─────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+}
+.panel-flush { padding: 0; overflow: hidden; }
+.panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.panel-title { font-family: var(--serif); font-size: 22px; letter-spacing: -0.015em; line-height: 1.1; }
+.panel-sub { font-size: 12.5px; color: var(--text-mute); margin-top: 4px; }
+
+/* ─────────── KPI ─────────── */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 960px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .kpi-grid { grid-template-columns: 1fr; } }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px; position: relative; overflow: hidden; box-shadow: var(--shadow-sm); }
+.kpi-label { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-mute); margin-bottom: 10px; }
+.kpi-val { font-family: var(--serif); font-size: 34px; letter-spacing: -0.02em; line-height: 1; }
+.kpi-val .unit { font-size: 16px; color: var(--text-mute); margin-left: 4px; letter-spacing: 0; }
+.kpi-delta { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--text-mute); margin-top: 8px; }
+.kpi-delta.up { color: var(--good); }
+.kpi-delta.down { color: var(--bad); }
+.kpi-spark { position: absolute; right: 8px; bottom: 6px; opacity: 0.7; pointer-events: none; }
+
+/* ─────────── Home hero ─────────── */
+.home-hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 30px;
+  align-items: center;
+  margin-bottom: 28px;
+}
+.home-hero h1 { font-family: var(--serif); font-size: clamp(40px, 5.5vw, 60px); letter-spacing: -0.025em; line-height: 1; }
+.home-hero .sub { color: var(--text-dim); font-size: 16px; max-width: 520px; margin-top: 14px; line-height: 1.55; }
+.home-hero .illus { opacity: 0.95; }
+.home-hero-stack { grid-template-columns: 1fr; margin-bottom: 0; }
+@media (max-width: 860px) { .home-hero { grid-template-columns: 1fr; } .home-hero .illus { display: none; } }
+
+/* Module grid */
+.module-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 960px) { .module-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .module-grid { grid-template-columns: 1fr; } }
+.module-card {
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: transform 160ms, border-color 160ms, background 160ms;
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.module-card:hover { transform: translateY(-2px); border-color: var(--accent); background: var(--surface-hi); }
+.mc-meta { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text-mute); }
+.mc-title { font-family: var(--serif); font-size: 26px; letter-spacing: -0.02em; line-height: 1.1; }
+.mc-desc { font-size: 13px; color: var(--text-dim); flex: 1; }
+
+/* ─────────── List rows (alerts + history) ─────────── */
+.list-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  transition: background 120ms;
+}
+.list-row:hover { background: var(--bg-hover); }
+.list-row:last-child { border-bottom: 0; }
+.list-row .ico { width: 34px; height: 34px; border-radius: var(--radius-sm); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.list-row .body { flex: 1; min-width: 0; }
+.list-row .ttl { font-weight: 500; font-size: 13.5px; }
+.list-row .cap { font-size: 12px; color: var(--text-mute); margin-top: 2px; }
+
+/* ─────────── Alerts ─────────── */
+.alert { display: flex; gap: 12px; padding: 12px 14px; border-radius: var(--radius-md); border: 1px solid transparent; }
+.alert .icon { flex-shrink: 0; }
+.alert .body { flex: 1; }
+.alert .title { font-weight: 600; font-size: 13.5px; }
+.alert .msg { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; }
+.alert.good { background: var(--good-soft); color: var(--good); }
+.alert.warn { background: var(--warn-soft); color: var(--warn); }
+.alert.bad  { background: var(--bad-soft); color: var(--bad); }
+.alert.info { background: var(--info-soft); color: var(--info); }
+.alert .title { color: var(--text); }
+
+/* ─────────── Stepper (nómina) ─────────── */
+.stepper { display: flex; gap: 4px; margin-bottom: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 4px; overflow-x: auto; }
+.step { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; background: transparent; border: 0; color: var(--text-mute); font-size: 13px; font-weight: 500; border-radius: var(--radius-sm); white-space: nowrap; }
+.step .num { display: inline-flex; width: 22px; height: 22px; border-radius: 50%; background: var(--bg-hover); color: var(--text-mute); font-size: 11px; align-items: center; justify-content: center; font-weight: 600; font-family: var(--mono); }
+.step.active { background: var(--accent-soft); color: var(--accent-hi); }
+.step.active .num { background: var(--accent); color: #0d0d12; }
+[data-theme="light"] .step.active .num { color: white; }
+.step.done .num { background: var(--good-soft); color: var(--good); }
+.step-sep { color: var(--text-mute); opacity: 0.4; margin: 0 2px; }
+
+/* Wizard stepper (registro) */
+.wiz-stepper { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 18px; }
+.wstep { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 12px; display: flex; gap: 10px; align-items: center; text-align: left; color: var(--text-mute); transition: all 150ms; }
+.wstep .wico { width: 28px; height: 28px; border-radius: var(--radius-sm); background: var(--bg-hover); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.wstep .wlbl { font-weight: 600; font-size: 12.5px; color: var(--text); }
+.wstep .wsub { font-size: 10.5px; color: var(--text-mute); margin-top: 2px; }
+.wstep.active { border-color: var(--accent); background: var(--accent-soft); }
+.wstep.active .wico { background: var(--accent); color: #0d0d12; }
+[data-theme="light"] .wstep.active .wico { color: white; }
+.wstep.done .wico { background: var(--good-soft); color: var(--good); }
+@media (max-width: 760px) {
+  .wiz-stepper { grid-template-columns: repeat(2, 1fr); }
+  .wstep .wsub { display: none; }
+}
+
+/* ─────────── Tables ─────────── */
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl th { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; text-align: left; padding: 12px 14px; color: var(--text-mute); border-bottom: 1px solid var(--line); background: var(--bg-raised); position: sticky; top: 0; }
+.tbl th.num { text-align: right; }
+.tbl td { padding: 11px 14px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.tbl tbody tr:hover { background: var(--bg-hover); }
+.tbl tbody tr:last-child td { border-bottom: 0; }
+
+/* ─────────── Anomaly list ─────────── */
+.anom { display: flex; align-items: flex-start; gap: 14px; padding: 10px 14px; border-radius: var(--radius-md); border-left: 3px solid; margin-bottom: 6px; background: var(--bg-raised); }
+.anom.warn { border-left-color: var(--warn); }
+.anom .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); margin-top: 6px; flex-shrink: 0; }
+
+/* Stat stack (nómina row) */
+.stat-stack { display: flex; gap: 22px; padding: 0 18px; border-left: 1px solid var(--line); }
+.stat-stack .st { text-align: center; }
+.stat-stack .st-val { font-size: 15px; font-family: var(--mono); font-weight: 500; }
+.stat-stack .st-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-mute); margin-top: 2px; }
+
+/* ─────────── Catálogo ─────────── */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; overflow-x: auto; }
+.tab { background: transparent; border: 0; padding: 10px 16px; font-size: 13.5px; font-weight: 500; color: var(--text-mute); border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; gap: 8px; align-items: center; white-space: nowrap; }
+.tab:hover { color: var(--text-dim); }
+.tab.on { color: var(--text); border-bottom-color: var(--accent); }
+.tab .count { font-size: 11px; padding: 2px 7px; border-radius: 10px; background: var(--bg-hover); color: var(--text-mute); font-weight: 500; font-family: var(--mono); }
+
+/* Materials row */
+.mat-row { display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); margin-bottom: 8px; }
+.mat-row .swatch { width: 32px; height: 32px; border-radius: var(--radius-sm); flex-shrink: 0; opacity: 0.8; display: inline-flex; align-items: center; justify-content: center; }
+.mat-row .unit { font-size: 11px; color: var(--text-mute); font-family: var(--mono); min-width: 20px; }
+
+/* Number stepper */
+.num-stepper { display: inline-flex; align-items: center; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.num-stepper button { background: transparent; border: 0; padding: 6px 8px; color: var(--text-mute); }
+.num-stepper button:hover { background: var(--bg-hover); color: var(--text); }
+.num-stepper input { width: 60px; padding: 6px 8px; font-family: var(--mono); text-align: center; background: transparent; border: 0; color: var(--text); font-size: 13px; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+.num-stepper input:focus { outline: none; }
+.num-stepper input::-webkit-outer-spin-button, .num-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.num-stepper input[type=number] { -moz-appearance: textfield; }
+
+.sum-bar { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: var(--accent-soft); border-radius: var(--radius-md); color: var(--accent-hi); font-weight: 500; }
+
+/* Product cards */
+.prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.prod-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px; text-align: left; transition: all 150ms; color: var(--text); display: flex; flex-direction: column; }
+.prod-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.prod-card.on { border-color: var(--accent); background: var(--accent-soft); }
+.prod-card.static { cursor: pointer; }
+
+/* Empaque cards */
+.empaque-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.empaque-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.empaque-card .ico { width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; }
+
+/* Gasto grid */
+.gasto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.gasto-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 13px; }
+.gasto-card .ico { width: 28px; height: 28px; background: var(--accent-soft); color: var(--accent-hi); border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; }
+.gasto-card .unit { font-size: 10.5px; color: var(--text-mute); }
+
+/* ─────────── Cost breakdown ─────────── */
+.cost-lines { display: flex; flex-direction: column; }
+.cl { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px dashed var(--line); }
+.cl .dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.cl .l { flex: 1; font-size: 13.5px; color: var(--text-dim); }
+.cl .v { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.cl.tot { padding-top: 14px; border-bottom: 0; border-top: 1px solid var(--text-dim); margin-top: 6px; }
+.cl.tot .l { color: var(--text); font-weight: 600; }
+.cl.sub { padding: 6px 0 0; border: 0; }
+
+.stack-bar { height: 14px; border-radius: 6px; overflow: hidden; display: flex; }
+
+/* Comparison */
+.prod-picker { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.pp { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); padding: 8px 12px; border-radius: var(--radius-md); color: var(--text); text-align: left; white-space: nowrap; }
+.pp:hover { border-color: var(--accent); }
+.pp.on { border-color: var(--accent); background: var(--accent-soft); }
+
+.pp-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 99px; background: var(--bg-raised); border: 1px solid var(--line); color: var(--text-dim); font-size: 12.5px; }
+.pp-toggle.on { background: var(--accent-soft); color: var(--accent-hi); border-color: transparent; }
+
+.compare-bar { display: flex; height: 22px; border-radius: 5px; overflow: hidden; background: var(--bg-raised); border: 1px solid var(--line); }
+
+.legend-row { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-mute); margin-bottom: 14px; }
+.legend-row .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+.legend-chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 99px; font-size: 11.5px; color: var(--text-dim); }
+.legend-chip .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+/* ─────────── Prod-consumo (material por producto) ─────────── */
+.prod-consumo-list { display: flex; flex-direction: column; gap: 14px; }
+.prod-consumo-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; }
+.pcc-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--bg-raised); border-bottom: 1px solid var(--line); }
+.pcc-totals { display: flex; gap: 14px; align-items: center; }
+.pcc-totals > div { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.pcc-totals strong { font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.pcc-block { padding: 14px 16px; border-top: 1px dashed var(--line); }
+.pcc-block:first-of-type { border-top: 0; }
+.pcc-label { display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-mute); margin-bottom: 10px; }
+.pcc-label .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.pcc-mat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.pcc-mat-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.pcc-mat-name { flex: 1; font-size: 12.5px; min-width: 0; }
+.swatch-sm { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; opacity: 0.85; }
+.num-stepper.sm input { width: 46px; font-size: 12px; padding: 4px 6px; }
+.num-stepper.sm button { padding: 4px 6px; }
+.unit.sm { font-size: 10.5px; color: var(--text-mute); font-family: var(--mono); }
+.input.sm { padding: 5px 8px; font-size: 12.5px; height: auto; }
+.pcc-mol-list { display: flex; flex-direction: column; gap: 6px; }
+.pcc-mol-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--good-soft, color-mix(in oklch, var(--good) 12%, transparent)); border: 1px dashed color-mix(in oklch, var(--good) 40%, var(--line)); border-radius: var(--radius-sm); }
+.pcc-mol-row select { min-width: 140px; max-width: 200px; }
+.pcc-del { background: transparent; border: 0; color: var(--text-mute); padding: 4px; cursor: pointer; }
+.pcc-del:hover { color: var(--bad); }
+.pcc-empty { padding: 12px; text-align: center; font-size: 12.5px; color: var(--text-mute); background: var(--bg); border: 1px dashed var(--line); border-radius: var(--radius-sm); }
+.pcc-note { display: flex; align-items: center; gap: 5px; margin-top: 8px; }
+
+/* ─────────── Residuo cards ─────────── */
+.residuo-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
+.residuo-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px; }
+.rc-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed var(--line); }
+.rc-fields { display: flex; flex-direction: column; gap: 10px; }
+.rc-field { display: flex; align-items: center; gap: 10px; }
+.rc-lbl { flex: 1; display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-dim); }
+.rc-lbl .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+/* ─────────── Revisar desglose ─────────── */
+.rev-prod-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.rev-prod-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.rev-metrics { display: flex; gap: 14px; align-items: center; }
+.rev-metrics > div { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: 11px; }
+.rev-metrics strong { font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* Summary boxes (registro revisar) */
+.summary-box { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px; }
+.sb-ttl { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-mute); margin-bottom: 8px; }
+.sb-big { font-family: var(--serif); font-size: 22px; letter-spacing: -0.015em; line-height: 1.2; }
+.sb-list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); font-size: 12.5px; }
+.sb-list > div { display: flex; justify-content: space-between; color: var(--text-dim); }
+
+/* ─────────── Empleados ─────────── */
+.emp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.emp-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px; text-align: left; transition: all 150ms; color: var(--text); box-shadow: var(--shadow-sm); }
+.emp-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+.emp-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 0; border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); }
+.emp-meta > div { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+.emp-meta > div > strong { font-size: 14px; color: var(--text); font-weight: 600; }
+
+/* ─────────── Drawer ─────────── */
+.drawer-back { position: fixed; inset: 0; background: rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: opacity 220ms; z-index: 50; }
+.drawer-back.open { opacity: 1; pointer-events: auto; }
+.drawer { position: fixed; right: 0; top: 0; bottom: 0; width: 500px; max-width: 100vw; background: var(--surface); border-left: 1px solid var(--line); transform: translateX(100%); transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1); z-index: 60; display: flex; flex-direction: column; box-shadow: var(--shadow-md); }
+.drawer.open { transform: translateX(0); }
+.drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--line); }
+.drawer-body { flex: 1; overflow-y: auto; padding: 24px; }
+.drawer-foot { padding: 16px 24px; border-top: 1px solid var(--line); display: flex; gap: 10px; justify-content: flex-end; background: var(--bg-raised); }
+
+/* ─────────── Bar chart ─────────── */
+.bar-chart { display: flex; align-items: flex-end; gap: 3px; }
+.bar-chart .bar { flex: 1; min-height: 4px; border-radius: 2px 2px 0 0; opacity: 0.85; transition: opacity 120ms; }
+.bar-chart .bar:hover { opacity: 1; }
+
+/* ─────────── Modal ─────────── */
+.modal-back { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 80; display: grid; place-items: center; padding: 20px; animation: fadein 160ms ease; }
+.modal-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); width: 100%; max-width: 480px; box-shadow: var(--shadow-md); display: flex; flex-direction: column; max-height: 90vh; animation: popin 180ms cubic-bezier(0.32, 0.72, 0, 1); }
+.modal-card.sm { max-width: 400px; }
+.modal-card.lg { max-width: 640px; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+.modal-body { padding: 22px; overflow-y: auto; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--line); background: var(--bg-raised); }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popin { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+/* ─────────── Login ─────────── */
+.login-page { min-height: 100vh; display: grid; place-items: center; padding: 20px; background:
+  radial-gradient(circle at 20% 30%, var(--accent-soft) 0%, transparent 50%),
+  radial-gradient(circle at 80% 70%, var(--info-soft) 0%, transparent 50%),
+  var(--bg);
+}
+.login-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-xl); padding: 36px 32px; box-shadow: var(--shadow-md); }
+.login-brand { font-family: var(--serif); font-size: 44px; letter-spacing: -0.02em; line-height: 1; }
+
+/* ─────────── Tweaks panel ─────────── */
+.tweaks-panel { position: fixed; right: 20px; bottom: 20px; width: 280px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-md); z-index: 70; }
+.tweaks-panel h4 { font-family: var(--serif); font-size: 18px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.tweak-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 12.5px; }
+.tweak-swatches { display: flex; gap: 6px; }
+.tweak-swatches button { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.tweak-swatches button.on { border-color: var(--text); }
+@media (max-width: 760px) { .tweaks-panel { left: 10px; right: 10px; bottom: 80px; width: auto; } }
+
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" data-file="data.jsx">
+// Mock data for the Solplast redesign prototype
+// All values inspired by the real logic but hard-coded for demo
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const SBU_2026 = 470;
+
+const EMPLEADOS_MOCK = [
+  { id: 'jp', nombre: 'Juan Pérez',      cargo: 'Operador maquinas',   salario: 520, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 45, fondos_reserva: true,  iniciales: 'JP', color: 'oklch(72% 0.14 295)' },
+  { id: 'mr', nombre: 'María Rodríguez', cargo: 'Supervisora turno',   salario: 640, horas_base: 8, transporte: 2.00, region: 'Sierra/Amazonia', prestamo_iess: 0,  fondos_reserva: true,  iniciales: 'MR', color: 'oklch(72% 0.14 30)' },
+  { id: 'cl', nombre: 'Carlos López',    cargo: 'Operador extrusión',  salario: 480, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 30, fondos_reserva: false, iniciales: 'CL', color: 'oklch(72% 0.14 200)' },
+  { id: 'ar', nombre: 'Ana Ramírez',     cargo: 'Empacadora',          salario: 470, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 0,  fondos_reserva: true,  iniciales: 'AR', color: 'oklch(72% 0.14 140)' },
+  { id: 'lm', nombre: 'Luis Morales',    cargo: 'Molinero',            salario: 495, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 55, fondos_reserva: true,  iniciales: 'LM', color: 'oklch(72% 0.14 70)' },
+  { id: 'pg', nombre: 'Patricia Gómez',  cargo: 'Operadora ensamble',  salario: 470, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 0,  fondos_reserva: false, iniciales: 'PG', color: 'oklch(72% 0.14 330)' },
+  { id: 'rv', nombre: 'Roberto Vargas',  cargo: 'Mantenimiento',       salario: 580, horas_base: 8, transporte: 2.00, region: 'Sierra/Amazonia', prestamo_iess: 0,  fondos_reserva: true,  iniciales: 'RV', color: 'oklch(72% 0.14 260)' },
+  { id: 'sc', nombre: 'Sofía Castillo',  cargo: 'Operadora jeringas',  salario: 485, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 20, fondos_reserva: false, iniciales: 'SC', color: 'oklch(72% 0.14 100)' },
+];
+
+const MATERIALES_MOCK = [
+  { id: 'pp_omo',         nombre: 'PP Homopolímero',  costo_kg: 1.75, merma: 3.1, color: 'oklch(70% 0.12 220)' },
+  { id: 'pp_clarificado', nombre: 'PP Clarificado',   costo_kg: 2.25, merma: 2.8, color: 'oklch(70% 0.12 180)' },
+  { id: 'pe_alta',        nombre: 'PE Alta Densidad', costo_kg: 1.85, merma: 4.2, color: 'oklch(70% 0.12 140)' },
+  { id: 'pe_baja',        nombre: 'PE Baja Densidad', costo_kg: 2.00, merma: 3.8, color: 'oklch(70% 0.12 100)' },
+  { id: 'pvc',            nombre: 'PVC',              costo_kg: 2.10, merma: 5.1, color: 'oklch(70% 0.12 30)' },
+];
+
+const EMPAQUES_MOCK = [
+  { id: 'caja',                  nombre: 'Caja',                   costo: 1.00,   unidad: 'caja' },
+  { id: 'funda_individual',      nombre: 'Funda individual',       costo: 0.004,  unidad: 'unidad' },
+  { id: 'funda_exterior_simple', nombre: 'Funda exterior simple',  costo: 0.080,  unidad: 'caja' },
+  { id: 'funda_exterior_doble',  nombre: 'Funda exterior doble',   costo: 0.150,  unidad: 'caja' },
+  { id: 'cinta_embalaje',        nombre: 'Cinta embalaje',         costo: 0.015,  unidad: 'caja' },
+  { id: 'tinta_tampo',           nombre: 'Tinta de tampo',         costo: 0.002,  unidad: 'unidad' },
+];
+
+const PRODUCTOS_MOCK = [
+  { id: 'v_life',      kind: 'vaso',    nombre: 'Vaso Life',              unidades_caja: 2500, peso_g: 2.920, material: 'PP Clarificado / PP Omo 66/33', factor: 1.0, costo_unit: 0.0082, costo_caja: 20.50 },
+  { id: 'v_solplast',  kind: 'vaso',    nombre: 'Vaso Solplast',          unidades_caja: 2500, peso_g: 2.546, material: 'PP Homopolímero',                factor: 1.0, costo_unit: 0.0067, costo_caja: 16.75 },
+  { id: 'v_farm_ant',  kind: 'vaso',    nombre: 'Vaso Farmayala antiguo', unidades_caja: 2000, peso_g: 3.296, material: 'PP Homopolímero',                factor: 1.0, costo_unit: 0.0082, costo_caja: 16.40 },
+  { id: 'v_lamosan',   kind: 'vaso',    nombre: 'Vaso Lamosan',           unidades_caja: 2500, peso_g: 2.874, material: 'PP Homopolímero',                factor: 1.0, costo_unit: 0.0076, costo_caja: 19.00 },
+  { id: 'v_farm_new',  kind: 'vaso',    nombre: 'Vaso Farmayala nuevo',   unidades_caja: 2000, peso_g: 3.182, material: 'PP Homopolímero',                factor: 1.0, costo_unit: 0.0080, costo_caja: 16.00 },
+  { id: 'v_pequena',   kind: 'vaso',    nombre: 'Vaso Pequeño',           unidades_caja: 3500, peso_g: 2.208, material: 'PP Homopolímero',                factor: 1.0, costo_unit: 0.0058, costo_caja: 20.30 },
+  { id: 'cuchara_5ml', kind: 'cuchara', nombre: 'Cuchara 5ml',            unidades_caja: 8000, peso_g: 0.260, material: 'PP Clarificado / PP Omo',        factor: 1.0, costo_unit: 0.0011, costo_caja: 8.80 },
+  { id: 'gotero',      kind: 'gotero',  nombre: 'Gotero completo',        unidades_caja: 1000, peso_g: 3.290, material: 'Mezcla + PVC',                   factor: 1.8, costo_unit: 0.0194, costo_caja: 19.40 },
+  { id: 'j_sin_tampo', kind: 'jeringa', nombre: 'Jeringa sin tampo',      unidades_caja: 1000, peso_g: 7.886, material: 'PP Clarif + PE Alta + PE Baja',  factor: 2.5, costo_unit: 0.0231, costo_caja: 23.10 },
+  { id: 'j_farmayala', kind: 'jeringa', nombre: 'Jeringa Farmayala',      unidades_caja: 1000, peso_g: 7.886, material: 'PP Clarif + PE Alta + PE Baja',  factor: 3.0, costo_unit: 0.0256, costo_caja: 25.60 },
+  { id: 'j_life',      kind: 'jeringa', nombre: 'Jeringa Life',           unidades_caja: 1200, peso_g: 7.058, material: 'PP Clarif + PE Alta + PE Baja',  factor: 3.3, costo_unit: 0.0249, costo_caja: 29.88 },
+];
+
+const GASTOS_FIJOS_MOCK = {
+  electricidad:  550, agua: 45, tinta: 60, tinner: 30,
+  solvente: 45, transporte: 150, mantenimiento: 80,
+};
+
+const NOMINA_HISTORICA = [
+  { id: '2025-09', label: 'Sep 2025', total: 4285.40, h50: 28.5, h100: 4.0, empleados: 8 },
+  { id: '2025-10', label: 'Oct 2025', total: 4410.20, h50: 32.0, h100: 6.5, empleados: 8 },
+  { id: '2025-11', label: 'Nov 2025', total: 4580.75, h50: 38.0, h100: 8.0, empleados: 8 },
+  { id: '2025-12', label: 'Dic 2025', total: 5120.00, h50: 45.5, h100: 12.0, empleados: 8 }, // 13ro
+  { id: '2026-01', label: 'Ene 2026', total: 4490.60, h50: 30.0, h100: 5.0, empleados: 8 },
+  { id: '2026-02', label: 'Feb 2026', total: 4525.30, h50: 34.0, h100: 7.0, empleados: 8 },
+  { id: '2026-03', label: 'Mar 2026', total: 5240.50, h50: 36.0, h100: 8.5, empleados: 8 }, // 14to
+  { id: '2026-04', label: 'Abr 2026', total: 4612.80, h50: 32.5, h100: 6.0, empleados: 8 },
+];
+
+const NOMINA_ULTIMO = [
+  { id: 'jp', nombre: 'Juan Pérez',      dias: 22, horas: 179.5, h50: 5.5, h100: 1.5, quincena: 260, extras: 18.20, transporte: 33.00, ingresos: 571.20, iess: 53.98, neto: 517.22, fondos: 47.60, total: 564.82 },
+  { id: 'mr', nombre: 'María Rodríguez', dias: 22, horas: 181.0, h50: 7.0, h100: 2.0, quincena: 320, extras: 28.45, transporte: 44.00, ingresos: 712.45, iess: 67.33, neto: 645.12, fondos: 59.30, total: 704.42 },
+  { id: 'cl', nombre: 'Carlos López',    dias: 20, horas: 160.0, h50: 0.0, h100: 0.0, quincena: 240, extras:  0.00, transporte: 30.00, ingresos: 510.00, iess: 48.20, neto: 461.80, fondos: 0.00, total: 461.80 },
+  { id: 'ar', nombre: 'Ana Ramírez',     dias: 22, horas: 176.0, h50: 3.0, h100: 0.0, quincena: 235, extras:  8.10, transporte: 33.00, ingresos: 511.10, iess: 48.30, neto: 462.80, fondos: 42.60, total: 505.40 },
+  { id: 'lm', nombre: 'Luis Morales',    dias: 21, horas: 168.0, h50: 4.0, h100: 0.0, quincena: 247.5, extras: 11.40, transporte: 31.50, ingresos: 537.90, iess: 50.83, neto: 432.07, fondos: 44.82, total: 476.89 },
+  { id: 'pg', nombre: 'Patricia Gómez',  dias: 22, horas: 176.0, h50: 2.5, h100: 0.0, quincena: 235, extras:  6.80, transporte: 33.00, ingresos: 509.80, iess: 48.18, neto: 461.62, fondos: 0.00, total: 461.62 },
+  { id: 'rv', nombre: 'Roberto Vargas',  dias: 21, horas: 168.0, h50: 6.0, h100: 2.5, quincena: 290, extras: 31.10, transporte: 42.00, ingresos: 653.10, iess: 61.72, neto: 591.38, fondos: 54.36, total: 645.74 },
+  { id: 'sc', nombre: 'Sofía Castillo',  dias: 22, horas: 178.0, h50: 4.5, h100: 0.5, quincena: 242.5, extras: 15.30, transporte: 33.00, ingresos: 533.30, iess: 50.40, neto: 462.90, fondos: 0.00, total: 462.90 },
+];
+
+const ANOMALIAS_MOCK = [
+  { emp: 'Juan Pérez',      fecha: '03/04', issue: 'missing OUT', detalle: 'Entrada 07:00, sin salida. Asumió 16:00.' },
+  { emp: 'Ana Ramírez',     fecha: '12/04', issue: 'entrada faltante', detalle: 'Salida 16:03 sin entrada registrada.' },
+  { emp: 'Luis Morales',    fecha: '18/04', issue: 'fechas cruzadas', detalle: 'Salida 00:15 (día siguiente).' },
+  { emp: 'Sofía Castillo',  fecha: '22/04', issue: 'missing OUT', detalle: 'Entrada 07:02, sin salida.' },
+];
+
+const REGISTROS_RECIENTES = [
+  { fecha: '2026-04-17', material: 145.2, cajas: 42, obs: 'Arranque lento maquina 2' },
+  { fecha: '2026-04-16', material: 162.5, cajas: 51, obs: '' },
+  { fecha: '2026-04-15', material: 158.0, cajas: 49, obs: 'Cambio molde vaso Life' },
+  { fecha: '2026-04-14', material: 141.8, cajas: 44, obs: '' },
+  { fecha: '2026-04-13', material: 156.4, cajas: 50, obs: '' },
+];
+
+// Costos evolución
+const COSTOS_EVOLUCION = {
+  'Vaso Life':         [0.0076, 0.0078, 0.0080, 0.0080, 0.0081, 0.0082, 0.0082, 0.0082],
+  'Jeringa Life':      [0.0235, 0.0240, 0.0245, 0.0248, 0.0248, 0.0249, 0.0249, 0.0249],
+  'Gotero':            [0.0180, 0.0185, 0.0188, 0.0190, 0.0192, 0.0193, 0.0194, 0.0194],
+  'Cuchara 5ml':       [0.0009, 0.0010, 0.0010, 0.0011, 0.0011, 0.0011, 0.0011, 0.0011],
+};
+const COSTOS_EVOLUCION_MESES = NOMINA_HISTORICA.map(m => m.label);
+
+// Producción por mes (último)
+const PRODUCCION_MES = [
+  { id: 'v_life',      cajas: 52, unidades: 130000 },
+  { id: 'v_solplast',  cajas: 28, unidades: 70000 },
+  { id: 'v_farm_new',  cajas: 18, unidades: 36000 },
+  { id: 'v_lamosan',   cajas: 12, unidades: 30000 },
+  { id: 'v_pequena',   cajas: 8,  unidades: 28000 },
+  { id: 'cuchara_5ml', cajas: 15, unidades: 120000 },
+  { id: 'gotero',      cajas: 10, unidades: 10000 },
+  { id: 'j_sin_tampo', cajas: 14, unidades: 14000 },
+  { id: 'j_farmayala', cajas: 9,  unidades: 9000 },
+  { id: 'j_life',      cajas: 7,  unidades: 8400 },
+];
+
+const fmtMoney = (n, d = 2) =>
+  '$' + Number(n || 0).toLocaleString('es-EC', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtMoneyShort = (n) => {
+  const v = Number(n || 0);
+  if (Math.abs(v) >= 1000) return '$' + (v / 1000).toFixed(1) + 'k';
+  return '$' + v.toFixed(0);
+};
+const fmtNum = (n, d = 0) =>
+  Number(n || 0).toLocaleString('es-EC', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+Object.assign(window, {
+  MESES, SBU_2026,
+  EMPLEADOS_MOCK, MATERIALES_MOCK, EMPAQUES_MOCK, PRODUCTOS_MOCK,
+  GASTOS_FIJOS_MOCK, NOMINA_HISTORICA, NOMINA_ULTIMO, ANOMALIAS_MOCK,
+  REGISTROS_RECIENTES, COSTOS_EVOLUCION, COSTOS_EVOLUCION_MESES, PRODUCCION_MES,
+  fmtMoney, fmtMoneyShort, fmtNum,
+});
+
+</script>
+
+<script type="text/babel" data-file="primitives.jsx">
+// Shared primitives
+
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+// ─────────────────────────────── Icon ───────────────────────────────
+function Icon({ name, size = 16, strokeWidth = 1.6, className = '' }) {
+  const paths = ICON_PATHS[name];
+  if (!paths) return null;
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size} height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {paths}
+    </svg>
+  );
+}
+
+const ICON_PATHS = {
+  home:      (<><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9v11a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9" /></>),
+  doc:       (<><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /><path d="M9 13h6" /><path d="M9 17h4" /></>),
+  clipboard: (<><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/><path d="M9 13h6"/><path d="M9 17h4"/></>),
+  bag:       (<><rect x="3" y="7" width="18" height="14" rx="2" /><path d="M8 7V5a4 4 0 0 1 8 0v2" /></>),
+  chart:     (<><path d="M3 21h18"/><rect x="6" y="10" width="3" height="8"/><rect x="11" y="6" width="3" height="12"/><rect x="16" y="13" width="3" height="5"/></>),
+  users:     (<><circle cx="9" cy="8" r="4" /><path d="M2 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2" /><circle cx="17.5" cy="8.5" r="3" /><path d="M22 21v-1.5a4.5 4.5 0 0 0-3.5-4.4" /></>),
+  plus:      (<><path d="M12 5v14"/><path d="M5 12h14"/></>),
+  minus:     (<><path d="M5 12h14"/></>),
+  check:     (<><path d="M5 12l5 5L20 7"/></>),
+  x:         (<><path d="M6 6l12 12"/><path d="M6 18L18 6"/></>),
+  menu:      (<><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></>),
+  chev_r:    (<><path d="M9 6l6 6-6 6"/></>),
+  chev_l:    (<><path d="M15 6l-6 6 6 6"/></>),
+  chev_d:    (<><path d="M6 9l6 6 6-6"/></>),
+  chev_u:    (<><path d="M6 15l6-6 6 6"/></>),
+  download:  (<><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/></>),
+  upload:    (<><path d="M12 20V8"/><path d="M7 13l5-5 5 5"/><path d="M5 4h14"/></>),
+  alert:     (<><path d="M12 9v4"/><path d="M12 17h0"/><path d="M10.3 3.3a2 2 0 0 1 3.4 0l8.2 13.4a2 2 0 0 1-1.7 3H3.8a2 2 0 0 1-1.7-3z"/></>),
+  info:      (<><circle cx="12" cy="12" r="9"/><path d="M12 8h0"/><path d="M12 12v5"/></>),
+  sparkle:   (<><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5z"/><path d="M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></>),
+  sun:       (<><circle cx="12" cy="12" r="4"/><path d="M12 3v2"/><path d="M12 19v2"/><path d="M3 12h2"/><path d="M19 12h2"/><path d="M5.6 5.6l1.4 1.4"/><path d="M17 17l1.4 1.4"/><path d="M5.6 18.4L7 17"/><path d="M17 7l1.4-1.4"/></>),
+  moon:      (<><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></>),
+  calendar:  (<><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M8 3v4"/><path d="M16 3v4"/></>),
+  trash:     (<><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M5 7l1 13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-13"/><path d="M9 7V4h6v3"/></>),
+  edit:      (<><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M13 7l4 4"/></>),
+  search:    (<><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></>),
+  clock:     (<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>),
+  arrow_r:   (<><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></>),
+  arrow_l:   (<><path d="M19 12H5"/><path d="M11 19l-7-7 7-7"/></>),
+  filter:    (<><path d="M3 5h18"/><path d="M7 12h10"/><path d="M11 19h2"/></>),
+  trend_up:  (<><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></>),
+  trend_down:(<><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></>),
+  flame:     (<><path d="M12 22c3.5 0 6-2.5 6-6 0-4-4-6-4-9 0-1 .5-2 1-3-3 1-7 3.5-7 8 0 2 1 3 1 4 0 1-1 2-2 2-2 0-3-2-3-4 0 5 3 8 8 8z"/></>),
+  box:       (<><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/><path d="M3 7l9 4 9-4"/><path d="M12 11v10"/></>),
+  settings:  (<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></>),
+  logout:    (<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></>),
+  sliders:   (<><path d="M3 6h18"/><circle cx="8" cy="6" r="2"/><path d="M3 12h18"/><circle cx="15" cy="12" r="2"/><path d="M3 18h18"/><circle cx="10" cy="18" r="2"/></>),
+  eye:       (<><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z"/><circle cx="12" cy="12" r="3"/></>),
+  dot:       (<><circle cx="12" cy="12" r="4" fill="currentColor"/></>),
+  bell:      (<><path d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2h16z"/><path d="M10 20a2 2 0 0 0 4 0"/></>),
+  play:      (<><path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/></>),
+  grid:      (<><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></>),
+  package:   (<><path d="M21 16V8a2 2 0 0 0-1-1.73L13 2.27a2 2 0 0 0-2 0L4 6.27A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12l8.73-5.04"/><path d="M12 22V12"/></>),
+  dollar:    (<><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></>),
+  flask:     (<><path d="M9 3h6"/><path d="M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/></>),
+};
+
+// ─────────────────────────────── Primitives ───────────────────────────────
+function Btn({ variant = 'default', size, block, className = '', children, ...p }) {
+  const cls = ['btn'];
+  if (variant === 'primary') cls.push('primary');
+  if (variant === 'ghost') cls.push('ghost');
+  if (variant === 'danger') cls.push('danger');
+  if (size === 'sm') cls.push('sm');
+  if (block) cls.push('block');
+  if (className) cls.push(className);
+  return <button {...p} className={cls.join(' ')}>{children}</button>;
+}
+
+function Chip({ tone = 'default', children, className = '', ...p }) {
+  return <span className={`chip${tone !== 'default' ? ' ' + tone : ''} ${className}`} {...p}>{children}</span>;
+}
+
+function Input({ label, hint, error, className = '', ...p }) {
+  return (
+    <div className={`field ${className}`}>
+      {label && <label>{label}</label>}
+      <input className="input" {...p} />
+      {hint && <div className="xs mute">{hint}</div>}
+    </div>
+  );
+}
+
+function NumInput(p) {
+  return <input className="input num-input" type="number" {...p} />;
+}
+
+function Select({ label, options, value, onChange, className = '' }) {
+  return (
+    <div className={`field ${className}`}>
+      {label && <label>{label}</label>}
+      <select className="select" value={value} onChange={e => onChange(e.target.value)}>
+        {options.map(o => typeof o === 'string'
+          ? <option key={o} value={o}>{o}</option>
+          : <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function Seg({ options, value, onChange, className = '' }) {
+  return (
+    <div className={`seg ${className}`}>
+      {options.map(o => {
+        const v = typeof o === 'string' ? o : o.value;
+        const l = typeof o === 'string' ? o : o.label;
+        return (
+          <button key={v} className={value === v ? 'on' : ''} onClick={() => onChange(v)}>
+            {l}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function Check({ checked, onChange, children }) {
+  return (
+    <label className="check">
+      <input type="checkbox" checked={!!checked} onChange={e => onChange(e.target.checked)} />
+      <span className="box">
+        <Icon name="check" size={10} strokeWidth={3} />
+      </span>
+      <span>{children}</span>
+    </label>
+  );
+}
+
+function Toggle({ checked, onChange, children }) {
+  return (
+    <button type="button" className={`toggle-pill ${checked ? 'on' : ''}`} onClick={() => onChange(!checked)}>
+      <span className="sw" />
+      <span>{children}</span>
+    </button>
+  );
+}
+
+function Kpi({ label, value, unit, delta, deltaDir, icon, accent, spark }) {
+  return (
+    <div className="kpi">
+      <div className="kpi-label">
+        {icon && <Icon name={icon} size={12} />}
+        {label}
+      </div>
+      <div>
+        <div className="kpi-val" style={accent ? { color: accent } : undefined}>
+          {value}{unit && <span className="unit">{unit}</span>}
+        </div>
+        {delta && (
+          <div className={`kpi-delta ${deltaDir || ''}`}>
+            {deltaDir === 'up' && <Icon name="trend_up" size={12} />}
+            {deltaDir === 'down' && <Icon name="trend_down" size={12} />}
+            {delta}
+          </div>
+        )}
+      </div>
+      {spark && <div className="kpi-spark">{spark}</div>}
+    </div>
+  );
+}
+
+// Mini bar chart (pure divs)
+function Bars({ data, color = 'var(--accent)', height = 72, className = '' }) {
+  const max = Math.max(...data, 1);
+  return (
+    <div className={`bar-chart ${className}`} style={{ height }}>
+      {data.map((v, i) => (
+        <div key={i} className="bar" style={{ height: `${Math.max(4, (v / max) * 100)}%`, background: color }} />
+      ))}
+    </div>
+  );
+}
+
+// SVG line chart
+function LineChart({ series, labels, height = 220, colors, yFmt = (v) => v, showPoints = true }) {
+  const ref = useRef(null);
+  const [w, setW] = useState(600);
+  useEffect(() => {
+    if (!ref.current) return;
+    const ro = new ResizeObserver(entries => setW(entries[0].contentRect.width));
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, []);
+  const padL = 46, padR = 16, padT = 16, padB = 30;
+  const all = series.flatMap(s => s.data);
+  const min = Math.min(...all);
+  const max = Math.max(...all);
+  const range = max - min || 1;
+  const ymin = min - range * 0.15;
+  const ymax = max + range * 0.15;
+  const xStep = (w - padL - padR) / Math.max(labels.length - 1, 1);
+  const y = v => padT + (height - padT - padB) * (1 - (v - ymin) / (ymax - ymin));
+  const x = i => padL + i * xStep;
+  const defaultColors = ['var(--accent)', 'var(--warn)', 'var(--good)', 'var(--info)'];
+  const palette = colors || defaultColors;
+
+  // y-axis ticks
+  const ticks = 4;
+  const tickVals = Array.from({length: ticks}, (_, i) => ymin + (ymax - ymin) * (i / (ticks - 1)));
+
+  return (
+    <div ref={ref} style={{ width: '100%' }}>
+      <svg width={w} height={height} style={{ overflow: 'visible' }}>
+        {/* grid */}
+        {tickVals.map((v, i) => (
+          <g key={i}>
+            <line x1={padL} x2={w - padR} y1={y(v)} y2={y(v)} stroke="var(--line)" strokeDasharray="3 4" />
+            <text x={padL - 8} y={y(v)} textAnchor="end" dominantBaseline="middle" fontSize="10" fill="var(--text-mute)" fontFamily="var(--mono)">
+              {yFmt(v)}
+            </text>
+          </g>
+        ))}
+        {/* x labels */}
+        {labels.map((l, i) => (
+          <text key={i} x={x(i)} y={height - 8} textAnchor="middle" fontSize="10" fill="var(--text-mute)">{l}</text>
+        ))}
+        {/* lines */}
+        {series.map((s, si) => {
+          const color = s.color || palette[si % palette.length];
+          const path = s.data.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(v)}`).join(' ');
+          const areaPath = path + ` L ${x(s.data.length - 1)} ${y(ymin)} L ${x(0)} ${y(ymin)} Z`;
+          return (
+            <g key={si}>
+              {s.area !== false && (
+                <path d={areaPath} fill={color} opacity="0.1" />
+              )}
+              <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+              {showPoints && s.data.map((v, i) => (
+                <circle key={i} cx={x(i)} cy={y(v)} r="3.5" fill="var(--bg)" stroke={color} strokeWidth="2" />
+              ))}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function Modal({ open, onClose, title, children, footer, size = 'md' }) {
+  useEffect(() => {
+    if (open) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+  if (!open) return null;
+  return (
+    <div className="modal-back" onClick={onClose}>
+      <div className={`modal-card ${size}`} onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22, letterSpacing: '-0.01em' }}>{title}</div>
+          <Btn variant="ghost" size="sm" onClick={onClose}><Icon name="x" size={16}/></Btn>
+        </div>
+        <div className="modal-body">{children}</div>
+        {footer && <div className="modal-foot">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+function Drawer({ open, onClose, title, children, footer }) {
+  useEffect(() => {
+    if (open) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+  return (
+    <>
+      <div className={`drawer-back ${open ? 'open' : ''}`} onClick={onClose} />
+      <aside className={`drawer ${open ? 'open' : ''}`}>
+        <div className="drawer-head">
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 24, letterSpacing: '-0.01em' }}>{title}</div>
+          <Btn variant="ghost" size="sm" onClick={onClose}><Icon name="x" size={16} /></Btn>
+        </div>
+        <div className="drawer-body">{children}</div>
+        {footer && <div className="drawer-foot">{footer}</div>}
+      </aside>
+    </>
+  );
+}
+
+// Section helpers
+function PanelHead({ title, sub, right }) {
+  return (
+    <div className="panel-head">
+      <div>
+        <h3 className="panel-title">{title}</h3>
+        {sub && <div className="panel-sub">{sub}</div>}
+      </div>
+      {right}
+    </div>
+  );
+}
+
+function Eyebrow({ children }) { return <div className="eyebrow">{children}</div>; }
+
+Object.assign(window, {
+  Icon, Btn, Chip, Input, NumInput, Select, Seg, Check, Toggle, Kpi,
+  Bars, LineChart, Drawer, Modal, PanelHead, Eyebrow,
+});
+
+</script>
+
+<script type="text/babel" data-file="illustrations.jsx">
+// SVG product illustrations — based on real Solplast dosificadores
+
+function IllusVaso({ size = 64, strokeWidth = 1.5, color = 'currentColor' }) {
+  // Vaso dosificador — cilíndrico, corto, con marcas de ml por dentro
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      {/* cuerpo cilíndrico (ligeramente cónico) */}
+      <path d="M16 14 L18 54 Q18 56 20 56 L44 56 Q46 56 46 54 L48 14" />
+      {/* borde superior (elipse) */}
+      <ellipse cx="32" cy="14" rx="16" ry="3.5" />
+      {/* fondo interior */}
+      <ellipse cx="32" cy="54" rx="13" ry="1.5" opacity="0.4" />
+      {/* marcas de medida */}
+      <path d="M22 24 L28 24" opacity="0.5" />
+      <path d="M22 32 L30 32" opacity="0.5" />
+      <path d="M22 40 L28 40" opacity="0.5" />
+      <path d="M22 48 L30 48" opacity="0.5" />
+    </svg>
+  );
+}
+
+function IllusJeringa({ size = 64, strokeWidth = 1.5, color = 'currentColor' }) {
+  // Jeringa dosificadora oral — barril con escala, émbolo con tope
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      {/* brida trasera (donde se apoya el dedo) */}
+      <path d="M4 22 L8 22 L8 42 L4 42" />
+      {/* émbolo */}
+      <path d="M8 28 L14 28 L14 36 L8 36" />
+      {/* barril (cuerpo de la jeringa) */}
+      <path d="M14 22 L48 22 L48 42 L14 42 Z" />
+      {/* cuello cónico que va a la punta */}
+      <path d="M48 26 L54 30 L54 34 L48 38" />
+      {/* punta */}
+      <path d="M54 31 L60 31 L60 33 L54 33" />
+      {/* escala dentro del barril */}
+      <path d="M20 25 L20 28" opacity="0.5" />
+      <path d="M26 25 L26 28" opacity="0.5" />
+      <path d="M32 25 L32 28" opacity="0.5" />
+      <path d="M38 25 L38 28" opacity="0.5" />
+      <path d="M44 25 L44 28" opacity="0.5" />
+      {/* nivel del líquido */}
+      <path d="M30 22 L30 42" opacity="0.3" strokeDasharray="2 2" />
+    </svg>
+  );
+}
+
+function IllusGotero({ size = 64, strokeWidth = 1.5, color = 'currentColor' }) {
+  // Gotero de farmacia: bulbo + pipeta + gota
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      {/* bulbo (goma) */}
+      <path d="M22 6 Q22 4 24 4 L40 4 Q42 4 42 6 L42 14 Q42 18 38 20 L26 20 Q22 18 22 14 Z" />
+      {/* tapa/rosca */}
+      <path d="M24 20 L40 20 L40 24 L24 24 Z" />
+      {/* pipeta / cuerpo de vidrio */}
+      <path d="M28 24 L28 48 Q28 50 30 50 L34 50 Q36 50 36 48 L36 24" />
+      {/* marcas de medida */}
+      <path d="M30 30 L34 30" opacity="0.4" />
+      <path d="M30 36 L34 36" opacity="0.4" />
+      <path d="M30 42 L34 42" opacity="0.4" />
+      {/* punta */}
+      <path d="M30 50 L34 50 L32 58 Z" />
+      {/* gota */}
+      <path d="M32 60 Q30 58 32 62 Q34 58 32 60 Z" fill={color} stroke="none" opacity="0.5" />
+    </svg>
+  );
+}
+
+function IllusCuchara({ size = 64, strokeWidth = 1.5, color = 'currentColor' }) {
+  // Cuchara dosificadora tipo Solplast: mango plano + pala en forma de "concha de mejillón"
+  // (vista ligeramente en perspectiva, la pala es ovalada con profundidad)
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      {/* mango plano */}
+      <path d="M8 30 L8 34 L28 36 L28 28 Z" />
+      {/* pala: contorno exterior en forma de mejillón */}
+      <path d="M28 30 Q32 18 46 18 Q58 18 58 32 Q58 46 46 46 Q32 46 28 34 Z" />
+      {/* borde interior de la pala (profundidad) */}
+      <path d="M32 32 Q36 24 46 24 Q54 24 54 32 Q54 40 46 40 Q36 40 32 34" opacity="0.5" />
+      {/* marca de medida (línea al centro de la pala) */}
+      <path d="M40 26 L40 38" opacity="0.3" strokeDasharray="2 2" />
+      {/* punto de relleno */}
+      <ellipse cx="46" cy="32" rx="5" ry="3" opacity="0.15" fill={color} stroke="none" />
+    </svg>
+  );
+}
+
+// Hero — Banda difuminada (wide, fade edges, no container)
+function HeroIllus() {
+  const items = [
+    { kind: 'vaso',    scale: 1.4 },
+    { kind: 'jeringa', scale: 1.2 },
+    { kind: 'cuchara', scale: 1.3 },
+    { kind: 'gotero',  scale: 1.3 },
+    { kind: 'vaso',    scale: 1.2 },
+    { kind: 'jeringa', scale: 1.4 },
+    { kind: 'cuchara', scale: 1.1 },
+    { kind: 'gotero',  scale: 1.2 },
+  ];
+  const duration = 28; // segundos por ciclo completo (lento, hipnótico)
+
+  return (
+    <div className="hero-ribbon">
+      <style>{`
+        .hero-ribbon {
+          position: relative;
+          height: 200px;
+          margin: 8px -24px 24px;
+          overflow: hidden;
+          /* fade suave en los extremos horizontales */
+          -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 12%, black 88%, transparent 100%);
+                  mask-image: linear-gradient(90deg, transparent 0%, black 12%, black 88%, transparent 100%);
+        }
+        /* brillo/ambiance detrás */
+        .hr-glow {
+          position: absolute; inset: 0;
+          background:
+            radial-gradient(ellipse 60% 70% at 30% 55%, color-mix(in oklab, var(--accent) 14%, transparent), transparent 70%),
+            radial-gradient(ellipse 50% 65% at 75% 60%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 70%);
+          pointer-events: none;
+        }
+        /* superficie sutil de la banda — solo una línea horizontal con reflejo */
+        .hr-surface {
+          position: absolute; left: 0; right: 0;
+          bottom: 42px; height: 1px;
+          background: linear-gradient(90deg, transparent, var(--line-hi) 20%, var(--line-hi) 80%, transparent);
+          opacity: 0.6;
+        }
+        .hr-surface::before {
+          content: ''; position: absolute; left: 0; right: 0;
+          top: -1px; height: 30px;
+          background: linear-gradient(180deg,
+            color-mix(in oklab, var(--accent) 5%, transparent) 0%,
+            transparent 100%);
+        }
+        /* reflejo difuso debajo de cada producto */
+        .hr-stream {
+          position: absolute; left: 0; right: 0;
+          bottom: 0; top: 0;
+          display: flex; align-items: flex-end;
+        }
+        .hr-item {
+          position: absolute;
+          bottom: 42px;
+          animation: hrFlow ${duration}s linear infinite;
+          filter: drop-shadow(0 8px 14px color-mix(in oklab, var(--accent) 35%, transparent));
+          opacity: 0.95;
+        }
+        .hr-item svg { display: block; }
+        /* reflejo espejado debajo */
+        .hr-item::after {
+          content: '';
+          position: absolute; left: 50%; top: 100%;
+          width: 80%; height: 40px;
+          transform: translateX(-50%);
+          background: radial-gradient(ellipse at top, color-mix(in oklab, var(--accent) 30%, transparent), transparent 70%);
+          opacity: 0.5;
+          pointer-events: none;
+        }
+        @keyframes hrFlow {
+          from { transform: translateX(calc(100vw + 80px)); }
+          to   { transform: translateX(-120px); }
+        }
+        /* flotación sutil vertical para sensación de ingravidez */
+        .hr-float {
+          animation: hrBob 3.2s ease-in-out infinite;
+          display: inline-block;
+        }
+        @keyframes hrBob {
+          0%, 100% { transform: translateY(0); }
+          50%      { transform: translateY(-6px); }
+        }
+        /* partículas sutiles */
+        .hr-particles { position: absolute; inset: 0; pointer-events: none; }
+        .hr-p {
+          position: absolute; width: 3px; height: 3px; border-radius: 50%;
+          background: var(--accent-hi);
+          opacity: 0;
+          animation: hrPart 6s linear infinite;
+        }
+        @keyframes hrPart {
+          0%   { opacity: 0; transform: translate(0, 0); }
+          15%  { opacity: 0.6; }
+          85%  { opacity: 0.4; }
+          100% { opacity: 0; transform: translate(-180px, -40px); }
+        }
+      `}</style>
+
+      <div className="hr-glow"/>
+      <div className="hr-surface"/>
+
+      <div className="hr-stream">
+        {items.map((it, i) => (
+          <div
+            key={i}
+            className="hr-item"
+            style={{
+              animationDelay: `-${(i * duration) / items.length}s`,
+              transform: `scale(${it.scale})`,
+            }}
+          >
+            <span className="hr-float" style={{ animationDelay: `-${i * 0.4}s` }}>
+              <BeltProduct kind={it.kind} />
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="hr-particles">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <span
+            key={i}
+            className="hr-p"
+            style={{
+              left: `${15 + i * 11}%`,
+              top: `${30 + (i % 3) * 25}%`,
+              animationDelay: `-${i * 0.7}s`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Productos semi-realistas en la banda (stroke + sutil fill)
+function BeltProduct({ kind }) {
+  const stroke = 'var(--text)';
+  const accent = 'var(--accent-hi)';
+  const common = { fill: 'none', stroke, strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round' };
+
+  if (kind === 'vaso') {
+    return (
+      <svg width="34" height="52" viewBox="0 0 34 52">
+        <defs>
+          <linearGradient id="vf" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={accent} stopOpacity="0.15"/>
+            <stop offset="1" stopColor={accent} stopOpacity="0.35"/>
+          </linearGradient>
+        </defs>
+        {/* líquido dentro */}
+        <path d="M7 28 L8 46 Q8 48 10 48 L24 48 Q26 48 26 46 L27 28 Z" fill="url(#vf)"/>
+        {/* cuerpo */}
+        <path {...common} d="M5 6 L8 46 Q8 48 10 48 L24 48 Q26 48 26 46 L29 6" />
+        {/* boca */}
+        <ellipse {...common} cx="17" cy="6" rx="12" ry="2.4"/>
+        {/* marcas de ml */}
+        <path {...common} d="M10 18 L15 18" opacity="0.5"/>
+        <path {...common} d="M10 28 L16 28" opacity="0.5"/>
+        <path {...common} d="M10 38 L15 38" opacity="0.5"/>
+      </svg>
+    );
+  }
+
+  if (kind === 'jeringa') {
+    return (
+      <svg width="56" height="22" viewBox="0 0 56 22">
+        <defs>
+          <linearGradient id="jf" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor={accent} stopOpacity="0.3"/>
+            <stop offset="1" stopColor={accent} stopOpacity="0.1"/>
+          </linearGradient>
+        </defs>
+        {/* líquido */}
+        <rect x="12" y="7" width="18" height="8" fill="url(#jf)"/>
+        {/* émbolo */}
+        <path {...common} d="M2 9 L6 9 L6 13 L2 13 Z"/>
+        <path {...common} d="M6 10 L12 10 L12 12 L6 12 Z"/>
+        {/* cilindro con brida */}
+        <path {...common} d="M10 4 L12 4 L12 18 L10 18 Z"/>
+        <path {...common} d="M12 6 L42 6 L42 16 L12 16 Z"/>
+        {/* aguja/punta */}
+        <path {...common} d="M42 9 L50 10.5 L50 11.5 L42 13"/>
+        <path {...common} d="M50 10 L54 10.5 L54 11.5 L50 12"/>
+        {/* graduación */}
+        <path {...common} d="M18 7 L18 9" opacity="0.4"/>
+        <path {...common} d="M24 7 L24 9" opacity="0.4"/>
+        <path {...common} d="M30 7 L30 9" opacity="0.4"/>
+        <path {...common} d="M36 7 L36 9" opacity="0.4"/>
+      </svg>
+    );
+  }
+
+  if (kind === 'cuchara') {
+    return (
+      <svg width="48" height="26" viewBox="0 0 48 26">
+        <defs>
+          <radialGradient id="cf" cx="0.75" cy="0.5" r="0.45">
+            <stop offset="0" stopColor={accent} stopOpacity="0.3"/>
+            <stop offset="1" stopColor={accent} stopOpacity="0"/>
+          </radialGradient>
+        </defs>
+        {/* relleno pala */}
+        <ellipse cx="33" cy="13" rx="11" ry="8" fill="url(#cf)"/>
+        {/* mango */}
+        <path {...common} d="M2 11 L2 15 L22 17 L22 9 Z"/>
+        {/* pala */}
+        <path {...common} d="M22 10 Q26 2 34 2 Q46 2 46 13 Q46 24 34 24 Q26 24 22 16 Z"/>
+        {/* marca interna */}
+        <path {...common} d="M27 13 Q30 7 36 7 Q42 7 42 13 Q42 19 36 19 Q30 19 27 13" opacity="0.35"/>
+      </svg>
+    );
+  }
+
+  if (kind === 'gotero') {
+    return (
+      <svg width="24" height="50" viewBox="0 0 24 50">
+        <defs>
+          <linearGradient id="gf" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor={accent} stopOpacity="0.3"/>
+            <stop offset="1" stopColor={accent} stopOpacity="0.05"/>
+          </linearGradient>
+        </defs>
+        {/* bulbo */}
+        <path d="M3 3 Q3 1 5 1 L19 1 Q21 1 21 3 L21 10 Q21 14 17 16 L7 16 Q3 14 3 10 Z" fill="url(#gf)"/>
+        <path {...common} d="M3 3 Q3 1 5 1 L19 1 Q21 1 21 3 L21 10 Q21 14 17 16 L7 16 Q3 14 3 10 Z"/>
+        {/* cuello */}
+        <path {...common} d="M5 16 L19 16 L19 20 L5 20 Z"/>
+        {/* pipeta */}
+        <path {...common} d="M9 20 L9 44 Q9 46 11 46 L13 46 Q15 46 15 44 L15 20"/>
+        {/* punta */}
+        <path {...common} d="M11 46 L13 46 L12 49 Z"/>
+        {/* líquido en pipeta */}
+        <rect x="10" y="30" width="4" height="14" fill="url(#gf)"/>
+      </svg>
+    );
+  }
+  return null;
+}
+
+function ProductIllus({ kind, size = 48, color = 'var(--accent-hi)' }) {
+  switch (kind) {
+    case 'vaso':    return <IllusVaso size={size} color={color} />;
+    case 'jeringa': return <IllusJeringa size={size} color={color} />;
+    case 'gotero':  return <IllusGotero size={size} color={color} />;
+    case 'cuchara': return <IllusCuchara size={size} color={color} />;
+    default:        return <IllusVaso size={size} color={color} />;
+  }
+}
+
+Object.assign(window, { IllusVaso, IllusJeringa, IllusGotero, IllusCuchara, HeroIllus, ProductIllus });
+
+</script>
+
+<script type="text/babel" data-file="shell.jsx">
+// Shell: sidebar nav + topbar + theme toggle
+
+const NAV_ITEMS = [
+  { key: 'home',      label: 'Inicio',         icon: 'home',      group: null },
+  { key: 'nomina',    label: 'Roles y Nómina', icon: 'doc',       group: 'Personal' },
+  { key: 'empleados', label: 'Empleados',      icon: 'users',     group: 'Personal' },
+  { key: 'metricas',  label: 'Métricas',       icon: 'chart',     group: 'Personal' },
+  { key: 'registro',  label: 'Registro Diario',icon: 'clipboard', group: 'Producción' },
+  { key: 'catalogo',  label: 'Catálogo',       icon: 'box',       group: 'Producción' },
+  { key: 'costos',    label: 'Costos',         icon: 'dollar',    group: 'Producción' },
+];
+
+// Items exposed in mobile bottom nav (limit to 5)
+const MBNAV = ['home', 'nomina', 'registro', 'costos', 'metricas'];
+
+function Sidebar({ page, setPage, role, open, onClose, theme, setTheme }) {
+  const items = role === 'operario'
+    ? NAV_ITEMS.filter(i => i.key === 'registro')
+    : NAV_ITEMS;
+
+  const groups = [];
+  let lastGroup = undefined;
+  items.forEach(it => {
+    if (it.group !== lastGroup) {
+      groups.push({ label: it.group, items: [] });
+      lastGroup = it.group;
+    }
+    groups[groups.length - 1].items.push(it);
+  });
+
+  return (
+    <>
+      <aside className={`sidebar ${open ? 'open' : ''}`}>
+        <div className="brand">
+          <div>
+            <div className="brand-mark">sol<em>plast</em></div>
+            <div className="brand-sub">Sistema de gestión</div>
+          </div>
+        </div>
+
+        {groups.map((g, gi) => (
+          <React.Fragment key={gi}>
+            {g.label && <div className="nav-group-label">{g.label}</div>}
+            {g.items.map(it => (
+              <button
+                key={it.key}
+                className={`nav-item ${page === it.key ? 'active' : ''}`}
+                onClick={() => { setPage(it.key); onClose && onClose(); }}
+              >
+                <Icon name={it.icon} className="nav-ico" />
+                <span>{it.label}</span>
+                {it.badge && <span className="nav-badge">{it.badge}</span>}
+              </button>
+            ))}
+          </React.Fragment>
+        ))}
+
+        <div className="sidebar-foot">
+          <div className="theme-toggle">
+            <button className={theme === 'dark' ? 'on' : ''} onClick={() => setTheme('dark')}>
+              <Icon name="moon" size={13} /> Oscuro
+            </button>
+            <button className={theme === 'light' ? 'on' : ''} onClick={() => setTheme('light')}>
+              <Icon name="sun" size={13} /> Claro
+            </button>
+          </div>
+          <div className="user-chip">
+            <div className="avatar">{role === 'operario' ? 'OP' : 'AD'}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600 }}>{role === 'operario' ? 'Operario' : 'Admin Solplast'}</div>
+              <div className="xs mute">v4.0 · Demo</div>
+            </div>
+            <Btn variant="ghost" size="sm" title="Cerrar sesión"><Icon name="logout" size={14} /></Btn>
+          </div>
+        </div>
+      </aside>
+      {open && <div className="mobile-scrim open" onClick={onClose} />}
+    </>
+  );
+}
+
+function Topbar({ onOpenNav, page }) {
+  const it = NAV_ITEMS.find(i => i.key === page);
+  return (
+    <header className="topbar">
+      <Btn variant="ghost" size="sm" onClick={onOpenNav}><Icon name="menu" size={18} /></Btn>
+      <div style={{ fontFamily: 'var(--serif)', fontSize: 20, letterSpacing: '-0.01em' }}>
+        sol<em style={{ color: 'var(--accent)', fontStyle: 'italic' }}>plast</em>
+      </div>
+      <div className="spacer" />
+      <div className="small mute">{it ? it.label : ''}</div>
+    </header>
+  );
+}
+
+function MobileBottomNav({ page, setPage, role }) {
+  if (role === 'operario') return null;
+  const keys = MBNAV;
+  return (
+    <nav className="mbnav">
+      {keys.map(k => {
+        const it = NAV_ITEMS.find(i => i.key === k);
+        if (!it) return null;
+        return (
+          <button key={k} className={page === k ? 'on' : ''} onClick={() => setPage(k)}>
+            <Icon name={it.icon} size={18} />
+            <span>{it.label.split(' ')[0]}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+Object.assign(window, { Sidebar, Topbar, MobileBottomNav });
+
+</script>
+
+<script type="text/babel" data-file="login.jsx">
+function Login({ onLogin }) {
+  const [pwd, setPwd] = useState('');
+  const [role, setRole] = useState('admin');
+  const [err, setErr] = useState('');
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!pwd) { setErr('Ingresa la contraseña'); return; }
+    onLogin(role);
+  };
+
+  return (
+    <div className="login-page">
+      <form className="login-card fadein" onSubmit={submit}>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <h1 className="login-brand">sol<em>plast</em></h1>
+          <div className="xs mute" style={{ letterSpacing: '0.16em', textTransform: 'uppercase', marginTop: 8 }}>
+            Sistema de gestión · ERP
+          </div>
+        </div>
+
+        <div className="field" style={{ marginBottom: 12 }}>
+          <label>Entrar como</label>
+          <Seg
+            options={[{ value: 'admin', label: 'Administrador' }, { value: 'operario', label: 'Operario' }]}
+            value={role}
+            onChange={setRole}
+          />
+        </div>
+
+        <div className="field" style={{ marginBottom: 16 }}>
+          <label>Contraseña</label>
+          <input
+            className="input"
+            type="password"
+            placeholder="••••••••"
+            value={pwd}
+            onChange={e => { setPwd(e.target.value); setErr(''); }}
+            autoFocus
+          />
+          {err && <div className="xs" style={{ color: 'var(--bad)' }}>{err}</div>}
+          <div className="xs mute">Demo: cualquier contraseña funciona.</div>
+        </div>
+
+        <Btn variant="primary" block type="submit">
+          Entrar
+          <Icon name="arrow_r" size={14} />
+        </Btn>
+
+        <div style={{ marginTop: 20, textAlign: 'center', fontSize: 11, color: 'var(--text-mute)' }}>
+          Soluciones Plásticas del Ecuador · v4.0
+        </div>
+      </form>
+    </div>
+  );
+}
+
+Object.assign(window, { Login });
+
+</script>
+
+<script type="text/babel" data-file="home.jsx">
+function Home({ setPage, role }) {
+  const ultimo = NOMINA_HISTORICA[NOMINA_HISTORICA.length - 1];
+  const prev   = NOMINA_HISTORICA[NOMINA_HISTORICA.length - 2];
+  const deltaNom = ((ultimo.total - prev.total) / prev.total) * 100;
+  const costoProm = PRODUCTOS_MOCK.reduce((a, p) => a + p.costo_unit, 0) / PRODUCTOS_MOCK.length;
+  const unidadesMes = PRODUCCION_MES.reduce((a, p) => a + p.unidades, 0);
+  const alertas = [
+    { tone: 'warn', icon: 'alert', ttl: '4 anomalías en el reporte de horas',      cap: 'Abril 2026 · revisar en Nómina', go: 'nomina' },
+    { tone: 'info', icon: 'flame', ttl: 'Merma PVC subió a 5.1% (meta 3%)',        cap: 'Materias primas · últimos 30 días', go: 'catalogo' },
+    { tone: 'good', icon: 'check', ttl: 'Nómina de abril lista para transferir',   cap: `${fmtMoney(ultimo.total)} — 8 empleados`, go: 'nomina' },
+  ];
+
+  const modules = [
+    { key: 'nomina',    title: 'Nómina',           desc: 'Subir reporte del reloj, revisar horas y calcular sueldos del mes.',  meta: '3 pasos',          illus: <IllusJeringa size={56} color="var(--accent-hi)"/> },
+    { key: 'registro',  title: 'Registro diario',  desc: 'Cierre de jornada: material, desechos, molido y producción.',          meta: 'Operario',         illus: <IllusVaso size={56} color="var(--accent-hi)"/> },
+    { key: 'catalogo',  title: 'Catálogo',         desc: 'Materiales, productos, empaques y gastos fijos en un solo lugar.',     meta: 'Configuración',    illus: <IllusGotero size={56} color="var(--accent-hi)"/> },
+    { key: 'costos',    title: 'Costos',           desc: 'Costo unitario calculado con material, empaque, nómina y gastos.',     meta: 'Cálculo',          illus: <IllusCuchara size={56} color="var(--accent-hi)"/> },
+    { key: 'metricas',  title: 'Métricas',         desc: 'Histórico de nómina, horas extras y evolución de costos.',             meta: 'Análisis',         illus: <IllusJeringa size={56} color="var(--accent-hi)"/> },
+    { key: 'empleados', title: 'Empleados',        desc: 'Salarios, transporte, IESS y fondos de reserva del personal.',          meta: '8 activos',        illus: <IllusVaso size={56} color="var(--accent-hi)"/> },
+  ];
+
+  return (
+    <div className="fadein">
+      <div className="home-hero home-hero-stack">
+        <div>
+          <Eyebrow>Abril 2026 · jueves 18</Eyebrow>
+          <h1>Buenos días, <em>Admin</em>.</h1>
+          <p className="sub">
+            Hoy tienes <strong style={{color:'var(--text)'}}>{alertas.length} cosas</strong> por revisar.
+            La nómina del mes está casi lista, falta cerrar 4 anomalías de horas.
+          </p>
+          <div className="row wrap" style={{ marginTop: 16 }}>
+            <Btn variant="primary" onClick={() => setPage('nomina')}>Continuar nómina <Icon name="arrow_r" size={14}/></Btn>
+            <Btn onClick={() => setPage('registro')}>Nuevo registro diario</Btn>
+          </div>
+        </div>
+      </div>
+      <HeroIllus />
+
+      {/* KPIs */}
+      <div className="kpi-grid" style={{ marginBottom: 18 }}>
+        <Kpi
+          label="Nómina del mes" icon="dollar"
+          value={fmtMoneyShort(ultimo.total)}
+          delta={`${deltaNom >= 0 ? '+' : ''}${deltaNom.toFixed(1)}% vs ${prev.label}`}
+          deltaDir={deltaNom >= 0 ? 'up' : 'down'}
+          spark={<svg width="120" height="50" viewBox="0 0 120 50">
+            <path d={sparkPath(NOMINA_HISTORICA.map(n => n.total), 120, 50)} fill="none" stroke="var(--accent)" strokeWidth="1.5" />
+          </svg>}
+        />
+        <Kpi
+          label="Costo unitario promedio" icon="flask"
+          value={'$' + costoProm.toFixed(4)}
+          delta="Estable"
+          deltaDir="up"
+        />
+        <Kpi
+          label="Unidades producidas" icon="package"
+          value={fmtNum(unidadesMes / 1000, 0)}
+          unit="k"
+          delta="+8.2% vs mes anterior"
+          deltaDir="up"
+        />
+        <Kpi
+          label="Empleados activos" icon="users"
+          value="8"
+          delta="22 días laborados"
+        />
+      </div>
+
+      {/* Alerts + quick activity */}
+      <div className="cols-2" style={{ marginBottom: 18 }}>
+        <div className="panel panel-flush">
+          <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <h3 className="panel-title">Alertas inteligentes</h3>
+              <div className="panel-sub">Requieren tu atención esta semana</div>
+            </div>
+            <Chip tone="accent">{alertas.length}</Chip>
+          </div>
+          {alertas.map((a, i) => (
+            <button key={i} className="list-row" style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 0, cursor: 'pointer' }} onClick={() => setPage(a.go)}>
+              <div className="ico" style={{
+                background: a.tone === 'warn' ? 'var(--warn-soft)' : a.tone === 'good' ? 'var(--good-soft)' : 'var(--accent-soft)',
+                color: a.tone === 'warn' ? 'var(--warn)' : a.tone === 'good' ? 'var(--good)' : 'var(--accent-hi)',
+              }}>
+                <Icon name={a.icon} size={16} />
+              </div>
+              <div className="body">
+                <div className="ttl">{a.ttl}</div>
+                <div className="cap">{a.cap}</div>
+              </div>
+              <Icon name="chev_r" size={14} className="mute" />
+            </button>
+          ))}
+        </div>
+
+        <div className="panel">
+          <PanelHead title="Nómina últimos 8 meses" sub="Evolución total transferido" />
+          <LineChart
+            series={[{ data: NOMINA_HISTORICA.map(n => n.total) }]}
+            labels={NOMINA_HISTORICA.map(n => n.label.split(' ')[0])}
+            height={200}
+            yFmt={fmtMoneyShort}
+          />
+        </div>
+      </div>
+
+      {/* Modules */}
+      <Eyebrow>Módulos</Eyebrow>
+      <div className="module-grid">
+        {modules.map(m => (
+          <button key={m.key} className="module-card" onClick={() => setPage(m.key)}>
+            <div className="mc-meta">{m.meta}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <div className="mc-title">{m.title}</div>
+              <div>{m.illus}</div>
+            </div>
+            <div className="mc-desc">{m.desc}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--accent-hi)', fontSize: 12, fontWeight: 500 }}>
+              Abrir <Icon name="arrow_r" size={12} />
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function sparkPath(data, w, h) {
+  const min = Math.min(...data), max = Math.max(...data);
+  const r = max - min || 1;
+  const step = w / (data.length - 1);
+  return data.map((v, i) => `${i ? 'L' : 'M'} ${i * step} ${h - ((v - min) / r) * (h - 6) - 3}`).join(' ');
+}
+
+Object.assign(window, { Home });
+
+</script>
+
+<script type="text/babel" data-file="nomina.jsx">
+// Nómina: 3-step flow (Subir → Revisar horas → Sueldos)
+
+function Nomina({ setPage }) {
+  const [step, setStep] = useState(0);
+  const [uploaded, setUploaded] = useState(true);  // demo: already uploaded
+  const [periodo] = useState('Abril 2026');
+
+  const steps = [
+    { label: 'Subir reporte', sub: 'Archivo XLS del reloj NGTeco' },
+    { label: 'Revisar horas', sub: 'Corregir anomalías antes de calcular' },
+    { label: 'Calcular sueldos', sub: 'Nómina final con extras y descuentos' },
+  ];
+
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <Eyebrow>Personal · Nómina · {periodo}</Eyebrow>
+          <h1 className="page-title">Roles y <em>nómina</em></h1>
+          <div className="page-sub">Tres pasos para cerrar el mes: importar el reporte del reloj, revisar las anomalías detectadas y calcular los sueldos según la ley ecuatoriana.</div>
+        </div>
+      </div>
+
+      <div className="stepper">
+        {steps.map((s, i) => (
+          <button key={i} className={`step ${i === step ? 'active' : ''} ${i < step ? 'done' : ''}`} onClick={() => setStep(i)}>
+            <span className="num">{i < step ? <Icon name="check" size={11} strokeWidth={3}/> : i + 1}</span>
+            <span>{s.label}</span>
+            {i < steps.length - 1 && <span className="step-sep">·</span>}
+          </button>
+        ))}
+      </div>
+
+      {step === 0 && <NomStepSubir periodo={periodo} uploaded={uploaded} onUploaded={() => { setUploaded(true); setStep(1); }} onNext={() => setStep(1)} />}
+      {step === 1 && <NomStepRevisar onNext={() => setStep(2)} onBack={() => setStep(0)} />}
+      {step === 2 && <NomStepSueldos periodo={periodo} onBack={() => setStep(1)} />}
+    </div>
+  );
+}
+
+function NomStepSubir({ periodo, uploaded, onUploaded, onNext }) {
+  const reportes = [
+    { id: '2026-04', label: 'Abril 2026', count: 8, anom: 4, current: true },
+    { id: '2026-03', label: 'Marzo 2026', count: 8, anom: 0 },
+    { id: '2026-02', label: 'Febrero 2026', count: 8, anom: 1 },
+    { id: '2026-01', label: 'Enero 2026', count: 8, anom: 2 },
+  ];
+
+  return (
+    <div className="cols-2">
+      <div className="panel">
+        <PanelHead title="Subir reporte del reloj" sub="XLS exportado del NGTeco · hasta 10MB" />
+        <div style={{
+          border: '2px dashed var(--line-hi)', borderRadius: 'var(--radius-lg)',
+          padding: '40px 20px', textAlign: 'center', background: 'var(--bg-raised)',
+        }}>
+          <div style={{ color: 'var(--accent)', margin: '0 auto 12px' }}><Icon name="upload" size={28} /></div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22, marginBottom: 4 }}>Arrastra el archivo aquí</div>
+          <div className="small mute" style={{ marginBottom: 16 }}>o selecciona desde tu computadora</div>
+          <Btn variant="primary" onClick={onUploaded}>Elegir archivo XLS</Btn>
+          <div className="xs mute" style={{ marginTop: 16 }}>El sistema detecta entradas faltantes, salidas sin fichar y fechas cruzadas.</div>
+        </div>
+        {uploaded && (
+          <div className="alert good" style={{ marginTop: 14 }}>
+            <div className="icon"><Icon name="check" size={16}/></div>
+            <div className="body">
+              <div className="title">Reporte cargado: {periodo}</div>
+              <div className="msg">8 empleados detectados · 4 anomalías para revisar</div>
+            </div>
+            <Btn variant="primary" size="sm" onClick={onNext}>Revisar <Icon name="arrow_r" size={12}/></Btn>
+          </div>
+        )}
+      </div>
+
+      <div className="panel panel-flush">
+        <div style={{ padding: '18px', borderBottom: '1px solid var(--line)' }}>
+          <PanelHead title="Períodos guardados" sub="Puedes volver a cualquier mes anterior" />
+        </div>
+        {reportes.map(r => (
+          <div key={r.id} className="list-row">
+            <div className="ico" style={{ background: r.current ? 'var(--accent-soft)' : 'var(--bg-hover)', color: r.current ? 'var(--accent-hi)' : 'var(--text-dim)' }}>
+              <Icon name="calendar" size={16} />
+            </div>
+            <div className="body">
+              <div className="ttl">{r.label}{r.current && <Chip tone="accent" style={{ marginLeft: 8 }}>actual</Chip>}</div>
+              <div className="cap">{r.count} empleados{r.anom > 0 ? ` · ${r.anom} anomalías` : ' · sin anomalías'}</div>
+            </div>
+            <Btn variant="ghost" size="sm"><Icon name="eye" size={14}/></Btn>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NomStepRevisar({ onNext, onBack }) {
+  const [sel, setSel] = useState(EMPLEADOS_MOCK[0].id);
+  const emp = EMPLEADOS_MOCK.find(e => e.id === sel);
+  const anoms = ANOMALIAS_MOCK;
+
+  // Mock days data
+  const days = useMemo(() => {
+    const rows = [];
+    for (let d = 1; d <= 22; d++) {
+      const dow = (d + 2) % 7;
+      const isWeekend = dow === 0 || dow === 6;
+      if (isWeekend && d !== 19) continue;
+      const anom = anoms.find(a => a.emp === emp.nombre && Number(a.fecha.split('/')[0]) === d);
+      rows.push({
+        day: d,
+        h1: anom?.issue === 'entrada faltante' ? null : '07:' + (d % 3 === 0 ? '05' : '00'),
+        h2: '12:00',
+        h3: '13:00',
+        h4: anom?.issue === 'missing OUT' ? null : (d === 19 ? '15:30' : '16:' + (d % 2 === 0 ? '02' : '00')),
+        total: isWeekend ? 7.5 : 8,
+        flag: anom ? anom.issue : (d % 5 === 0 ? 'CORREGIDO' : ''),
+      });
+    }
+    return rows;
+  }, [sel]);
+
+  return (
+    <div>
+      <div className="cols-3" style={{ marginBottom: 16 }}>
+        <div className="panel">
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <Eyebrow>Empleados</Eyebrow>
+            <span className="num-big">{EMPLEADOS_MOCK.length}</span>
+          </div>
+          <div className="small mute" style={{ marginTop: 6 }}>detectados en el reporte</div>
+        </div>
+        <div className="panel">
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <Eyebrow>Anomalías</Eyebrow>
+            <span className="num-big" style={{ color: 'var(--warn)' }}>{anoms.length}</span>
+          </div>
+          <div className="small mute" style={{ marginTop: 6 }}>requieren revisión manual</div>
+        </div>
+        <div className="panel">
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <Eyebrow>Horas totales</Eyebrow>
+            <span className="num-big">1,397.5</span>
+          </div>
+          <div className="small mute" style={{ marginTop: 6 }}>en el período</div>
+        </div>
+      </div>
+
+      {anoms.length > 0 && (
+        <div className="panel" style={{ marginBottom: 16 }}>
+          <PanelHead
+            title="Anomalías pendientes"
+            sub="Selecciona una para ir directo al día con problema"
+            right={<Chip tone="warn">{anoms.length}</Chip>}
+          />
+          <div>
+            {anoms.map((a, i) => (
+              <div key={i} className="anom warn">
+                <div className="dot" />
+                <div style={{ flex: 1 }}>
+                  <strong>{a.emp}</strong> <span className="mute">· {a.fecha} ·</span> <span style={{ color: 'var(--warn)' }}>{a.issue}</span>
+                  <div className="xs mute" style={{ marginTop: 2 }}>{a.detalle}</div>
+                </div>
+                <Btn size="sm" onClick={() => setSel(EMPLEADOS_MOCK.find(e => e.nombre === a.emp)?.id || sel)}>Revisar</Btn>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="panel">
+        <div className="panel-head">
+          <div>
+            <h3 className="panel-title">Hoja de horas editable</h3>
+            <div className="panel-sub">Corrige manualmente antes de calcular los sueldos</div>
+          </div>
+          <Select
+            value={sel}
+            onChange={setSel}
+            options={EMPLEADOS_MOCK.map(e => ({ value: e.id, label: e.nombre }))}
+          />
+        </div>
+
+        <div style={{ overflowX: 'auto' }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Fecha</th><th>Entrada</th><th>Almuerzo</th><th>Regreso</th><th>Salida</th><th className="num">Total</th><th>Obs.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {days.map((d, i) => {
+                const flagged = d.flag && !d.flag.startsWith('CORREG');
+                return (
+                  <tr key={i} style={flagged ? { background: 'color-mix(in oklab, var(--warn-soft) 20%, transparent)' } : {}}>
+                    <td>{String(d.day).padStart(2, '0')}/04 <span className="mute xs">mié</span></td>
+                    <td className="num">{d.h1 || <span style={{color:'var(--warn)'}}>—</span>}</td>
+                    <td className="num">{d.h2}</td>
+                    <td className="num">{d.h3}</td>
+                    <td className="num">{d.h4 || <span style={{color:'var(--warn)'}}>—</span>}</td>
+                    <td className="num">{d.total}</td>
+                    <td>{d.flag && <Chip tone={flagged ? 'warn' : 'good'}>{d.flag}</Chip>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="row" style={{ justifyContent: 'space-between', marginTop: 18 }}>
+          <Btn onClick={onBack}><Icon name="arrow_l" size={14}/> Volver</Btn>
+          <div className="row">
+            <Btn><Icon name="download" size={14}/> Descargar horas (XLSX)</Btn>
+            <Btn variant="primary" onClick={onNext}>Calcular sueldos <Icon name="arrow_r" size={14}/></Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NomStepSueldos({ periodo, onBack }) {
+  const [d13, setD13] = useState(false);
+  const [d14, setD14] = useState(false);
+  const [expanded, setExpanded] = useState(null);
+
+  const totalIngresos = NOMINA_ULTIMO.reduce((a, e) => a + e.ingresos, 0);
+  const totalIess     = NOMINA_ULTIMO.reduce((a, e) => a + e.iess, 0);
+  const totalFondos   = NOMINA_ULTIMO.reduce((a, e) => a + e.fondos, 0);
+  const totalPagado   = NOMINA_ULTIMO.reduce((a, e) => a + e.total, 0);
+
+  return (
+    <div>
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <PanelHead
+          title="Extras del mes"
+          sub="Activa los décimos cuando corresponda según el calendario legal ecuatoriano"
+          right={
+            <div className="row">
+              <Toggle checked={d13} onChange={setD13}>13er sueldo</Toggle>
+              <Toggle checked={d14} onChange={setD14}>14to sueldo (${SBU_2026})</Toggle>
+            </div>
+          }
+        />
+        <div className="alert info">
+          <div className="icon"><Icon name="info" size={16}/></div>
+          <div className="body">
+            <div className="title">Cálculo con ley ecuatoriana</div>
+            <div className="msg">Horas 50% (Art. 55) · Horas 100% fines de semana (Art. 55) · IESS 9.45% · Fondos 8.33% · 13ro: dic 24 · 14to Sierra: ago 15</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="kpi-grid" style={{ marginBottom: 18 }}>
+        <Kpi label="Total ingresos" icon="dollar" value={fmtMoneyShort(totalIngresos)} />
+        <Kpi label="IESS empleado"  icon="minus"  value={fmtMoneyShort(totalIess)} />
+        <Kpi label="Fondos reserva" icon="plus"   value={fmtMoneyShort(totalFondos)} />
+        <Kpi label="Total a transferir" icon="arrow_r" value={fmtMoneyShort(totalPagado)}
+             accent="var(--accent-hi)" />
+      </div>
+
+      <Eyebrow style={{ marginBottom: 10 }}>Detalle por empleado</Eyebrow>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {NOMINA_ULTIMO.map(n => {
+          const emp = EMPLEADOS_MOCK.find(e => e.id === n.id);
+          const isOpen = expanded === n.id;
+          return (
+            <div key={n.id} className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+              <button
+                onClick={() => setExpanded(isOpen ? null : n.id)}
+                style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 0, padding: '16px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, color: 'var(--text)' }}
+              >
+                <div className="avatar" style={{ background: emp.color, width: 36, height: 36, fontSize: 12 }}>{emp.iniciales}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{n.nombre}</div>
+                  <div className="xs mute">{emp.cargo}</div>
+                </div>
+                <div className="hide-mobile stat-stack">
+                  <div className="st"><div className="st-val mono">{n.dias}</div><div className="st-lbl">días</div></div>
+                  <div className="st"><div className="st-val mono">{n.horas.toFixed(1)}</div><div className="st-lbl">horas</div></div>
+                  <div className="st"><div className="st-val mono" style={{ color: 'var(--warn)' }}>{n.h50 + n.h100 > 0 ? (n.h50 + n.h100).toFixed(1) : '—'}</div><div className="st-lbl">extras</div></div>
+                </div>
+                <div style={{ textAlign: 'right', minWidth: 110 }}>
+                  <div style={{ fontFamily: 'var(--serif)', fontSize: 22, letterSpacing: '-0.01em' }}>{fmtMoney(n.total)}</div>
+                  <div className="xs mute">total a transferir</div>
+                </div>
+                <Icon name={isOpen ? 'chev_u' : 'chev_d'} size={16} className="mute" />
+              </button>
+              {isOpen && (
+                <div style={{ padding: '0 18px 18px', borderTop: '1px solid var(--line)' }}>
+                  <div className="cols-3" style={{ marginTop: 16 }}>
+                    <div>
+                      <Eyebrow>Ingresos</Eyebrow>
+                      <div className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+                        <span className="small mute">1ra quincena</span><span className="mono">{fmtMoney(n.quincena)}</span>
+                      </div>
+                      <div className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+                        <span className="small mute">2da quincena</span><span className="mono">{fmtMoney(n.quincena)}</span>
+                      </div>
+                      <div className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+                        <span className="small mute">Horas extras</span><span className="mono">{fmtMoney(n.extras)}</span>
+                      </div>
+                      <div className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+                        <span className="small mute">Transporte ({n.dias}×${emp.transporte.toFixed(2)})</span><span className="mono">{fmtMoney(n.transporte)}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <Eyebrow>Egresos</Eyebrow>
+                      <div className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+                        <span className="small mute">IESS 9.45%</span><span className="mono" style={{color:'var(--bad)'}}>-{fmtMoney(n.iess)}</span>
+                      </div>
+                      {emp.prestamo_iess > 0 && (
+                        <div className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+                          <span className="small mute">Préstamo IESS</span><span className="mono" style={{color:'var(--bad)'}}>-{fmtMoney(emp.prestamo_iess)}</span>
+                        </div>
+                      )}
+                      {emp.fondos_reserva && (
+                        <div className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+                          <span className="small mute">Fondos de reserva</span><span className="mono" style={{color:'var(--good)'}}>+{fmtMoney(n.fondos)}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <Eyebrow>Resultado</Eyebrow>
+                      <div className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+                        <span className="small mute">Total ingresos</span><span className="mono">{fmtMoney(n.ingresos)}</span>
+                      </div>
+                      <div className="row" style={{ justifyContent: 'space-between', padding: '6px 0' }}>
+                        <span className="small mute">Neto a recibir</span><span className="mono">{fmtMoney(n.neto)}</span>
+                      </div>
+                      <div className="row" style={{ justifyContent: 'space-between', padding: '10px 0 6px', borderTop: '1px dashed var(--line)', marginTop: 4 }}>
+                        <strong>Total transferir</strong>
+                        <strong style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>{fmtMoney(n.total)}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="row" style={{ marginTop: 14 }}>
+                    <Btn size="sm"><Icon name="download" size={12}/> PDF individual</Btn>
+                    <Btn size="sm" variant="ghost">Bono/ajuste</Btn>
+                    <Btn size="sm" variant="ghost">Pasar horas al próximo mes</Btn>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="row" style={{ justifyContent: 'space-between', marginTop: 22, flexWrap: 'wrap', gap: 10 }}>
+        <Btn onClick={onBack}><Icon name="arrow_l" size={14}/> Volver a horas</Btn>
+        <div className="row" style={{ flexWrap: 'wrap' }}>
+          <Btn><Icon name="download" size={14}/> PDFs todos</Btn>
+          <Btn variant="primary"><Icon name="download" size={14}/> Descargar nómina {periodo} (XLSX)</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Nomina });
+
+</script>
+
+<script type="text/babel" data-file="registro.jsx">
+// Registro Diario — wizard con trazabilidad por producto
+
+function RegistroDiario({ role }) {
+  const [step, setStep] = useState(0);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [date, setDate] = useState('2026-04-18');
+
+  // Producción: { [prod_id]: cajas }
+  const [prod, setProd] = useState({ v_life: 12, v_solplast: 6, cuchara_5ml: 5, j_life: 3 });
+
+  // Material consumido POR producto:
+  // { [prod_id]: { virgen: { [mat_id]: kg }, molido: [{ origen: prod_id, kg }] } }
+  const [consumo, setConsumo] = useState({
+    v_life:      { virgen: { pp_clarificado: 25, pp_omo: 12 }, molido: [{ origen: 'v_life', kg: 2.5 }] },
+    v_solplast:  { virgen: { pp_omo: 16 }, molido: [] },
+    cuchara_5ml: { virgen: { pp_clarificado: 8 }, molido: [{ origen: 'cuchara_5ml', kg: 1.2 }] },
+    j_life:      { virgen: { pp_clarificado: 12, pe_alta: 10, pe_baja: 7 }, molido: [] },
+  });
+
+  // Desechos y molido GENERADO por producto:
+  // { [prod_id]: { desecho_kg, molido_kg } }
+  const [residuos, setResiduos] = useState({
+    v_life:      { desecho: 1.8, molido: 1.2 },
+    v_solplast:  { desecho: 1.0, molido: 0.5 },
+    cuchara_5ml: { desecho: 0.4, molido: 0.3 },
+    j_life:      { desecho: 2.2, molido: 1.5 },
+  });
+
+  const [obs, setObs] = useState('');
+
+  const steps = [
+    { label: 'Día',            icon: 'calendar', sub: 'Fecha de la jornada' },
+    { label: 'Producción',     icon: 'box',      sub: 'Qué productos se hicieron' },
+    { label: 'Material',       icon: 'flask',    sub: 'Virgen + molido por producto' },
+    { label: 'Desechos',       icon: 'trash',    sub: 'Merma y molido generado' },
+    { label: 'Revisar',        icon: 'check',    sub: 'Confirmar y guardar' },
+  ];
+
+  // Derivados
+  const activeProds = Object.entries(prod).filter(([, v]) => v > 0).map(([id]) => id);
+  const totalCajas = Object.values(prod).reduce((a, b) => a + b, 0);
+
+  const totalVirgen = activeProds.reduce((sum, pid) => {
+    const v = consumo[pid]?.virgen || {};
+    return sum + Object.values(v).reduce((a, b) => a + (b || 0), 0);
+  }, 0);
+  const totalMolidoUsado = activeProds.reduce((sum, pid) => {
+    const ml = consumo[pid]?.molido || [];
+    return sum + ml.reduce((a, m) => a + (m.kg || 0), 0);
+  }, 0);
+  const totalMat = totalVirgen + totalMolidoUsado;
+
+  const totalDesecho = activeProds.reduce((s, pid) => s + (residuos[pid]?.desecho || 0), 0);
+  const totalMolidoGen = activeProds.reduce((s, pid) => s + (residuos[pid]?.molido || 0), 0);
+  const mermaPct = totalMat > 0 ? (totalDesecho / totalMat) * 100 : 0;
+
+  const next = () => setStep(s => Math.min(s + 1, 4));
+  const back = () => setStep(s => Math.max(s - 1, 0));
+
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <Eyebrow>Producción · Cierre de jornada</Eyebrow>
+          <h1 className="page-title">Registro <em>diario</em></h1>
+          <div className="page-sub">
+            {role === 'operario'
+              ? 'Al final de tu turno, registra qué productos se hicieron y cuánto material usó cada uno.'
+              : 'Cierre de jornada con trazabilidad por producto: material, molido usado, desechos y molido generado.'}
+          </div>
+        </div>
+        <Chip tone="accent"><Icon name="clock" size={11}/> Turno activo</Chip>
+      </div>
+
+      <div className="wiz-stepper">
+        {steps.map((s, i) => (
+          <button key={i} className={`wstep ${i === step ? 'active' : ''} ${i < step ? 'done' : ''}`} onClick={() => setStep(i)}>
+            <span className="wico">
+              {i < step ? <Icon name="check" size={14} strokeWidth={3}/> : <Icon name={s.icon} size={14} />}
+            </span>
+            <div>
+              <div className="wlbl">{s.label}</div>
+              <div className="wsub">{s.sub}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div className="panel" style={{ minHeight: 420 }}>
+        {step === 0 && <RegStepDia date={date} setDate={setDate} />}
+        {step === 1 && <RegStepProd prod={prod} setProd={setProd} />}
+        {step === 2 && <RegStepMaterial activeProds={activeProds} consumo={consumo} setConsumo={setConsumo} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} />}
+        {step === 3 && <RegStepResiduos activeProds={activeProds} residuos={residuos} setResiduos={setResiduos} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} />}
+        {step === 4 && <RegStepRevisar date={date} activeProds={activeProds} prod={prod} consumo={consumo} residuos={residuos} obs={obs} setObs={setObs} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} totalCajas={totalCajas} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} />}
+
+        <div className="row" style={{ justifyContent: 'space-between', marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
+          <Btn onClick={back} disabled={step === 0}><Icon name="arrow_l" size={14}/> Atrás</Btn>
+          <div className="small mute">Paso {step + 1} de {steps.length}</div>
+          {step < 4 ? (
+            <Btn variant="primary" onClick={next}>Siguiente <Icon name="arrow_r" size={14}/></Btn>
+          ) : (
+            <Btn variant="primary" onClick={() => setShowConfirm(true)}><Icon name="check" size={14}/> Guardar jornada</Btn>
+          )}
+        </div>
+      </div>
+
+      <Modal open={showConfirm && !saved} onClose={() => setShowConfirm(false)} title="¿Guardar jornada?"
+        footer={<><Btn onClick={() => setShowConfirm(false)}>Revisar de nuevo</Btn><Btn variant="primary" onClick={() => { setSaved(true); }}><Icon name="check" size={14}/> Sí, guardar</Btn></>}>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--accent-soft)', color: 'var(--accent-hi)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icon name="calendar" size={20}/>
+          </div>
+          <div>
+            <div style={{ fontSize: 14, marginBottom: 8 }}>Vas a guardar la jornada del <strong>{date}</strong> con:</div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.8 }}>
+              <li><strong style={{ color: 'var(--text)' }}>{activeProds.length}</strong> productos · <strong style={{ color: 'var(--text)' }}>{totalCajas}</strong> cajas</li>
+              <li><strong style={{ color: 'var(--text)' }}>{totalMat.toFixed(1)} kg</strong> material ({totalVirgen.toFixed(1)} virgen + {totalMolidoUsado.toFixed(1)} molido)</li>
+              <li><strong style={{ color: 'var(--text)' }}>{totalDesecho.toFixed(1)} kg</strong> desecho · <strong style={{ color: 'var(--good)' }}>+{totalMolidoGen.toFixed(1)} kg</strong> al bin de molido</li>
+              <li>Merma: <strong style={{ color: mermaPct > 5 ? 'var(--warn)' : 'var(--good)' }}>{mermaPct.toFixed(1)}%</strong></li>
+            </ul>
+            <div className="xs mute" style={{ marginTop: 12 }}>Una vez guardada, quedará en el historial. Podrás editarla después si encuentras un error.</div>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={saved} onClose={() => { setSaved(false); setShowConfirm(false); }} title="¡Jornada guardada!"
+        footer={<><Btn onClick={() => { setSaved(false); setShowConfirm(false); setStep(0); }}>Registrar otra</Btn><Btn variant="primary" onClick={() => { setSaved(false); setShowConfirm(false); }}>Listo</Btn></>}>
+        <div style={{ textAlign: 'center', padding: '10px 0' }}>
+          <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'var(--good-soft)', color: 'var(--good)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+            <Icon name="check" size={28} strokeWidth={3}/>
+          </div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 20, marginBottom: 6 }}>Jornada del {date}</div>
+          <div className="small mute">Guardada correctamente. Los costos y métricas se actualizarán en el próximo recalculo.</div>
+        </div>
+      </Modal>
+
+      {role !== 'operario' && (
+        <div className="panel panel-flush" style={{ marginTop: 18 }}>
+          <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+            <PanelHead title="Últimos registros" sub="Historial de jornadas guardadas" />
+          </div>
+          {REGISTROS_RECIENTES.map((r, i) => (
+            <div key={i} className="list-row">
+              <div className="ico" style={{ background: 'var(--accent-soft)', color: 'var(--accent-hi)' }}>
+                <Icon name="calendar" size={14}/>
+              </div>
+              <div className="body">
+                <div className="ttl">{r.fecha}</div>
+                <div className="cap">{r.material} kg material · {r.cajas} cajas{r.obs && ` · ${r.obs}`}</div>
+              </div>
+              <Btn variant="ghost" size="sm"><Icon name="edit" size={13}/></Btn>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RegStepDia({ date, setDate }) {
+  return (
+    <div style={{ maxWidth: 540, margin: '20px auto', textAlign: 'center' }}>
+      <div style={{ color: 'var(--accent)', margin: '0 auto 16px' }}><Icon name="calendar" size={32}/></div>
+      <h2 style={{ fontFamily: 'var(--serif)', fontSize: 32, marginBottom: 8, letterSpacing: '-0.02em' }}>¿Qué día estás registrando?</h2>
+      <div className="small mute" style={{ marginBottom: 24 }}>Usualmente hoy, pero puedes registrar un día pasado si se te olvidó.</div>
+      <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" style={{ fontSize: 20, padding: '14px 18px', textAlign: 'center', fontFamily: 'var(--serif)' }} />
+      <div className="row wrap" style={{ justifyContent: 'center', marginTop: 14 }}>
+        <Btn size="sm" onClick={() => setDate('2026-04-18')}>Hoy</Btn>
+        <Btn size="sm" onClick={() => setDate('2026-04-17')}>Ayer</Btn>
+      </div>
+    </div>
+  );
+}
+
+function RegStepProd({ prod, setProd }) {
+  return (
+    <div>
+      <h3 className="panel-title" style={{ marginBottom: 4 }}>¿Qué productos se hicieron hoy?</h3>
+      <div className="panel-sub" style={{ marginBottom: 18 }}>Cajas completadas por línea. Después podrás registrar material y desechos de cada uno.</div>
+      <div className="prod-grid">
+        {PRODUCTOS_MOCK.map(p => {
+          const v = prod[p.id] || 0;
+          const active = v > 0;
+          return (
+            <div key={p.id} className={`prod-card ${active ? 'on' : ''}`}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                <ProductIllus kind={p.kind} size={34} color={active ? 'var(--accent-hi)' : 'var(--text-dim)'} />
+                <div style={{ textAlign: 'right' }}>
+                  <div className="xs mute">x caja</div>
+                  <div className="mono xs">{fmtNum(p.unidades_caja)}</div>
+                </div>
+              </div>
+              <div style={{ fontWeight: 600, marginTop: 8, marginBottom: 2 }}>{p.nombre}</div>
+              <div className="xs mute" style={{ marginBottom: 10 }}>{p.peso_g} g · {fmtMoney(p.costo_caja)}/caja</div>
+              <div className="num-stepper">
+                <button onClick={() => setProd({ ...prod, [p.id]: Math.max(0, v - 1) })}><Icon name="minus" size={12}/></button>
+                <input type="number" value={v} onChange={e => setProd({ ...prod, [p.id]: parseInt(e.target.value) || 0 })} />
+                <button onClick={() => setProd({ ...prod, [p.id]: v + 1 })}><Icon name="plus" size={12}/></button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="sum-bar" style={{ marginTop: 18 }}>
+        <div>Total cajas hoy</div>
+        <div className="mono" style={{ fontSize: 22, fontFamily: 'var(--serif)' }}>
+          {Object.values(prod).reduce((a,b)=>a+b,0)} cajas
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RegStepMaterial({ activeProds, consumo, setConsumo, totalMat, totalVirgen, totalMolidoUsado }) {
+  if (activeProds.length === 0) {
+    return <EmptyProducts msg="Primero selecciona los productos que se hicieron hoy (paso anterior)." />;
+  }
+  return (
+    <div>
+      <h3 className="panel-title" style={{ marginBottom: 4 }}>Material consumido por producto</h3>
+      <div className="panel-sub" style={{ marginBottom: 14 }}>
+        Para cada producto, registra el material <strong>virgen</strong> (bodega) y el <strong>molido</strong> reusado.
+        Solo puedes reusar molido del mismo producto.
+      </div>
+
+      <div className="legend-row">
+        <div className="legend-chip"><span className="dot" style={{ background: 'var(--accent-hi)' }}/>Virgen · material nuevo</div>
+        <div className="legend-chip"><span className="dot" style={{ background: 'var(--good)' }}/>Molido · reusado</div>
+      </div>
+
+      <div className="prod-consumo-list">
+        {activeProds.map(pid => {
+          const p = PRODUCTOS_MOCK.find(x => x.id === pid);
+          const c = consumo[pid] || { virgen: {}, molido: [] };
+          const setC = (nc) => setConsumo({ ...consumo, [pid]: nc });
+          const vTotal = Object.values(c.virgen || {}).reduce((a, b) => a + (b || 0), 0);
+          const mTotal = (c.molido || []).reduce((a, m) => a + (m.kg || 0), 0);
+
+          return (
+            <div key={pid} className="prod-consumo-card">
+              <div className="pcc-head">
+                <ProductIllus kind={p.kind} size={28} color="var(--accent-hi)" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{p.nombre}</div>
+                  <div className="xs mute">{p.material}</div>
+                </div>
+                <div className="pcc-totals">
+                  <div><span className="xs mute">Virgen</span><strong className="mono">{vTotal.toFixed(1)} kg</strong></div>
+                  <div><span className="xs mute">Molido</span><strong className="mono" style={{ color: 'var(--good)' }}>{mTotal.toFixed(1)} kg</strong></div>
+                  <div><span className="xs mute">Total</span><strong className="mono" style={{ fontFamily: 'var(--serif)' }}>{(vTotal+mTotal).toFixed(1)} kg</strong></div>
+                </div>
+              </div>
+
+              {/* Virgen por material */}
+              <div className="pcc-block">
+                <div className="pcc-label"><span className="dot" style={{ background: 'var(--accent-hi)' }}/> Virgen</div>
+                <div className="pcc-mat-grid">
+                  {MATERIALES_MOCK.map(m => (
+                    <div key={m.id} className="pcc-mat-item">
+                      <div className="swatch-sm" style={{ background: m.color }} />
+                      <div className="pcc-mat-name">{m.nombre}</div>
+                      <div className="num-stepper sm">
+                        <button onClick={() => setC({ ...c, virgen: { ...c.virgen, [m.id]: Math.max(0, (c.virgen[m.id] || 0) - 1) } })}><Icon name="minus" size={11}/></button>
+                        <input type="number" step="0.5" value={c.virgen[m.id] || 0}
+                          onChange={e => setC({ ...c, virgen: { ...c.virgen, [m.id]: parseFloat(e.target.value) || 0 } })} />
+                        <button onClick={() => setC({ ...c, virgen: { ...c.virgen, [m.id]: (c.virgen[m.id] || 0) + 1 } })}><Icon name="plus" size={11}/></button>
+                      </div>
+                      <span className="unit sm">kg</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Molido */}
+              <div className="pcc-block">
+                <div className="pcc-label" style={{ justifyContent: 'space-between' }}>
+                  <div className="row" style={{ gap: 6 }}><span className="dot" style={{ background: 'var(--good)' }}/> Molido reusado</div>
+                  <Btn size="sm" variant="ghost" onClick={() => setC({ ...c, molido: [...(c.molido||[]), { origen: pid, kg: 0 }] })}>
+                    <Icon name="plus" size={12}/> Agregar lote
+                  </Btn>
+                </div>
+                {(c.molido || []).length === 0 ? (
+                  <div className="pcc-empty">Sin molido reusado en este producto.</div>
+                ) : (
+                  <div className="pcc-mol-list">
+                    {c.molido.map((m, i) => (
+                      <div key={i} className="pcc-mol-row">
+                        <Icon name="flame" size={14} style={{ color: 'var(--good)' }}/>
+                        <span className="xs mute">desde</span>
+                        <select className="input sm" value={m.origen}
+                          onChange={e => {
+                            const nm = [...c.molido]; nm[i] = { ...m, origen: e.target.value };
+                            setC({ ...c, molido: nm });
+                          }}>
+                          {PRODUCTOS_MOCK.filter(pp => pp.id === pid || pp.kind === p.kind).map(pp => (
+                            <option key={pp.id} value={pp.id}>{pp.nombre}{pp.id === pid ? ' (mismo)' : ''}</option>
+                          ))}
+                        </select>
+                        <div className="num-stepper sm">
+                          <button onClick={() => { const nm=[...c.molido]; nm[i]={...m,kg:Math.max(0,(m.kg||0)-0.5)}; setC({...c,molido:nm}); }}><Icon name="minus" size={11}/></button>
+                          <input type="number" step="0.5" value={m.kg}
+                            onChange={e => { const nm=[...c.molido]; nm[i]={...m,kg:parseFloat(e.target.value)||0}; setC({...c,molido:nm}); }} />
+                          <button onClick={() => { const nm=[...c.molido]; nm[i]={...m,kg:(m.kg||0)+0.5}; setC({...c,molido:nm}); }}><Icon name="plus" size={11}/></button>
+                        </div>
+                        <span className="unit sm">kg</span>
+                        <button className="pcc-del" onClick={() => setC({ ...c, molido: c.molido.filter((_, j) => j !== i) })}>
+                          <Icon name="close" size={12}/>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="pcc-note xs mute">
+                  <Icon name="info" size={11}/> Solo aparecen productos compatibles (mismo tipo de pieza y material).
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="sum-bar" style={{ marginTop: 18 }}>
+        <div>Total material consumido</div>
+        <div className="row" style={{ gap: 16 }}>
+          <div className="xs mute">Virgen <strong className="mono" style={{ color: 'var(--text)' }}>{totalVirgen.toFixed(1)} kg</strong></div>
+          <div className="xs mute">Molido <strong className="mono" style={{ color: 'var(--good)' }}>{totalMolidoUsado.toFixed(1)} kg</strong></div>
+          <div className="mono" style={{ fontSize: 22, fontFamily: 'var(--serif)' }}>{totalMat.toFixed(1)} kg</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RegStepResiduos({ activeProds, residuos, setResiduos, totalDesecho, totalMolidoGen, mermaPct }) {
+  if (activeProds.length === 0) {
+    return <EmptyProducts msg="Primero selecciona los productos que se hicieron hoy (paso 2)." />;
+  }
+  const tone = mermaPct > 5 ? 'warn' : mermaPct > 3 ? 'info' : 'good';
+  return (
+    <div>
+      <h3 className="panel-title" style={{ marginBottom: 4 }}>Desechos y molido generado</h3>
+      <div className="panel-sub" style={{ marginBottom: 14 }}>
+        Por cada producto: el <strong>desecho</strong> (irrecuperable) y el <strong>molido generado</strong> que queda
+        disponible para reusar en <em>el mismo producto</em>.
+      </div>
+
+      <div className="legend-row">
+        <div className="legend-chip"><span className="dot" style={{ background: 'var(--bad)' }}/>Desecho · no recuperable</div>
+        <div className="legend-chip"><span className="dot" style={{ background: 'var(--good)' }}/>Molido generado · al bin del producto</div>
+      </div>
+
+      <div className="residuo-list">
+        {activeProds.map(pid => {
+          const p = PRODUCTOS_MOCK.find(x => x.id === pid);
+          const r = residuos[pid] || { desecho: 0, molido: 0 };
+          const setR = (nr) => setResiduos({ ...residuos, [pid]: nr });
+          return (
+            <div key={pid} className="residuo-card">
+              <div className="rc-head">
+                <ProductIllus kind={p.kind} size={28} color="var(--accent-hi)" />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>{p.nombre}</div>
+                  <div className="xs mute">Bin de molido disponible para próxima jornada</div>
+                </div>
+              </div>
+              <div className="rc-fields">
+                <div className="rc-field">
+                  <div className="rc-lbl"><span className="dot" style={{ background: 'var(--bad)' }}/> Desecho</div>
+                  <div className="num-stepper">
+                    <button onClick={() => setR({ ...r, desecho: Math.max(0, (r.desecho||0) - 0.5) })}><Icon name="minus" size={12}/></button>
+                    <input type="number" step="0.1" value={r.desecho || 0}
+                      onChange={e => setR({ ...r, desecho: parseFloat(e.target.value) || 0 })} />
+                    <button onClick={() => setR({ ...r, desecho: (r.desecho||0) + 0.5 })}><Icon name="plus" size={12}/></button>
+                  </div>
+                  <span className="unit">kg</span>
+                </div>
+                <div className="rc-field">
+                  <div className="rc-lbl"><span className="dot" style={{ background: 'var(--good)' }}/> Molido generado</div>
+                  <div className="num-stepper">
+                    <button onClick={() => setR({ ...r, molido: Math.max(0, (r.molido||0) - 0.5) })}><Icon name="minus" size={12}/></button>
+                    <input type="number" step="0.1" value={r.molido || 0}
+                      onChange={e => setR({ ...r, molido: parseFloat(e.target.value) || 0 })} />
+                    <button onClick={() => setR({ ...r, molido: (r.molido||0) + 0.5 })}><Icon name="plus" size={12}/></button>
+                  </div>
+                  <span className="unit">kg</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="sum-bar" style={{ marginTop: 18 }}>
+        <div>Totales del día</div>
+        <div className="row" style={{ gap: 16 }}>
+          <div className="xs mute">Desecho <strong className="mono" style={{ color: 'var(--bad)' }}>{totalDesecho.toFixed(1)} kg</strong></div>
+          <div className="xs mute">Molido generado <strong className="mono" style={{ color: 'var(--good)' }}>{totalMolidoGen.toFixed(1)} kg</strong></div>
+        </div>
+      </div>
+
+      <div className={`alert ${tone}`} style={{ marginTop: 12 }}>
+        <div className="icon"><Icon name={tone === 'warn' ? 'alert' : 'info'} size={16}/></div>
+        <div className="body">
+          <div className="title">Merma efectiva: {mermaPct.toFixed(1)}% del material</div>
+          <div className="msg">
+            {mermaPct > 5 ? 'Por encima del objetivo (3%). Revisar calibración de máquinas.' :
+             mermaPct > 3 ? 'Levemente sobre el objetivo. Aceptable si no persiste.' :
+             'Dentro del objetivo. Buen rendimiento.'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyProducts({ msg }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-dim)' }}>
+      <Icon name="box" size={32} />
+      <div style={{ marginTop: 10 }}>{msg}</div>
+    </div>
+  );
+}
+
+function RegStepRevisar({ date, activeProds, prod, consumo, residuos, obs, setObs, totalMat, totalVirgen, totalMolidoUsado, totalCajas, totalDesecho, totalMolidoGen, mermaPct }) {
+  return (
+    <div>
+      <h3 className="panel-title" style={{ marginBottom: 4 }}>Revisa antes de guardar</h3>
+      <div className="panel-sub" style={{ marginBottom: 18 }}>Cada producto muestra su desglose completo. Si algo no está bien, vuelve al paso correspondiente.</div>
+
+      <div className="cols-2">
+        <div className="summary-box">
+          <div className="sb-ttl"><Icon name="calendar" size={13}/> Jornada</div>
+          <div className="sb-big">{date}</div>
+        </div>
+        <div className="summary-box">
+          <div className="sb-ttl"><Icon name="box" size={13}/> Producción</div>
+          <div className="sb-big">{totalCajas} cajas · {activeProds.length} productos</div>
+        </div>
+        <div className="summary-box">
+          <div className="sb-ttl"><Icon name="flask" size={13}/> Material</div>
+          <div className="sb-big">{totalMat.toFixed(1)} kg</div>
+          <div className="xs mute" style={{ marginTop: 4 }}>Virgen {totalVirgen.toFixed(1)} · Molido {totalMolidoUsado.toFixed(1)}</div>
+        </div>
+        <div className="summary-box">
+          <div className="sb-ttl"><Icon name="trash" size={13}/> Desechos / molido</div>
+          <div className="sb-big">{totalDesecho.toFixed(1)} kg · +{totalMolidoGen.toFixed(1)} molido</div>
+          <div className="xs mute" style={{ marginTop: 4 }}>Merma <strong style={{ color: mermaPct > 5 ? 'var(--warn)' : 'var(--good)' }}>{mermaPct.toFixed(1)}%</strong></div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 20 }}>
+        <Eyebrow>Desglose por producto</Eyebrow>
+        <div className="rev-prod-list">
+          {activeProds.map(pid => {
+            const p = PRODUCTOS_MOCK.find(x => x.id === pid);
+            const c = consumo[pid] || { virgen: {}, molido: [] };
+            const r = residuos[pid] || { desecho: 0, molido: 0 };
+            const vTotal = Object.values(c.virgen || {}).reduce((a, b) => a + (b || 0), 0);
+            const mTotal = (c.molido || []).reduce((a, m) => a + (m.kg || 0), 0);
+            return (
+              <div key={pid} className="rev-prod-row">
+                <ProductIllus kind={p.kind} size={28} color="var(--accent-hi)" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{p.nombre}</div>
+                  <div className="xs mute">{prod[pid]} cajas · {(vTotal + mTotal).toFixed(1)} kg material</div>
+                </div>
+                <div className="rev-metrics">
+                  <div><span className="xs mute">Virgen</span><strong className="mono">{vTotal.toFixed(1)}</strong></div>
+                  <div><span className="xs mute">Molido ↑</span><strong className="mono" style={{ color: 'var(--good)' }}>{mTotal.toFixed(1)}</strong></div>
+                  <div><span className="xs mute">Desecho</span><strong className="mono" style={{ color: 'var(--bad)' }}>{r.desecho.toFixed(1)}</strong></div>
+                  <div><span className="xs mute">Molido ↓</span><strong className="mono" style={{ color: 'var(--good)' }}>+{r.molido.toFixed(1)}</strong></div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="field" style={{ marginTop: 18 }}>
+        <label>Observaciones (opcional)</label>
+        <textarea className="input" rows={3} value={obs} onChange={e => setObs(e.target.value)}
+          placeholder="Ej: paro por falla eléctrica 14:00–14:30, cambio de molde tarde..." style={{ resize: 'vertical', fontFamily: 'inherit' }} />
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { RegistroDiario });
+
+</script>
+
+<script type="text/babel" data-file="catalogo.jsx">
+// Catálogo: Materiales + Productos + Empaques + Gastos fijos en un solo módulo
+
+function Catalogo() {
+  const [tab, setTab] = useState('productos');
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <Eyebrow>Producción · Configuración</Eyebrow>
+          <h1 className="page-title"><em>Catálogo</em></h1>
+          <div className="page-sub">Todo lo que alimenta el cálculo de costos, en un solo lugar. Cambia aquí y se actualiza en todo el sistema.</div>
+        </div>
+        <Btn variant="primary"><Icon name="plus" size={14}/> Nuevo</Btn>
+      </div>
+
+      <div className="tabs">
+        {[
+          { k: 'productos', l: 'Productos',  c: PRODUCTOS_MOCK.length },
+          { k: 'materiales',l: 'Materiales', c: MATERIALES_MOCK.length },
+          { k: 'empaques',  l: 'Empaques',   c: EMPAQUES_MOCK.length },
+          { k: 'gastos',    l: 'Gastos fijos', c: Object.keys(GASTOS_FIJOS_MOCK).length },
+        ].map(t => (
+          <button key={t.k} className={`tab ${tab === t.k ? 'on' : ''}`} onClick={() => setTab(t.k)}>
+            {t.l} <span className="count">{t.c}</span>
+          </button>
+        ))}
+      </div>
+
+      {tab === 'productos' && <TabProductos />}
+      {tab === 'materiales' && <TabMateriales />}
+      {tab === 'empaques' && <TabEmpaques />}
+      {tab === 'gastos' && <TabGastos />}
+    </div>
+  );
+}
+
+function TabProductos() {
+  const [sel, setSel] = useState(null);
+  const groups = {};
+  PRODUCTOS_MOCK.forEach(p => { (groups[p.kind] = groups[p.kind] || []).push(p); });
+  const kindLabel = { vaso: 'Vasos', cuchara: 'Cucharas', gotero: 'Goteros', jeringa: 'Jeringas' };
+
+  return (
+    <>
+      {Object.entries(groups).map(([kind, items]) => (
+        <div key={kind} style={{ marginBottom: 24 }}>
+          <Eyebrow>{kindLabel[kind] || kind}</Eyebrow>
+          <div className="prod-grid">
+            {items.map(p => (
+              <button key={p.id} className="prod-card static" onClick={() => setSel(p)}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                  <ProductIllus kind={p.kind} size={42} />
+                  <Chip>{fmtNum(p.unidades_caja)} u/caja</Chip>
+                </div>
+                <div style={{ fontWeight: 600, marginTop: 10 }}>{p.nombre}</div>
+                <div className="xs mute" style={{ marginBottom: 12 }}>{p.peso_g} g · factor {p.factor}x</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 12, borderTop: '1px dashed var(--line)' }}>
+                  <span className="xs mute">costo unitario</span>
+                  <strong style={{ fontFamily: 'var(--serif)', fontSize: 18, color: 'var(--accent-hi)' }}>${p.costo_unit.toFixed(4)}</strong>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      <Drawer open={!!sel} onClose={() => setSel(null)} title={sel?.nombre}
+        footer={<div className="row" style={{ justifyContent: 'flex-end' }}><Btn variant="ghost">Eliminar</Btn><Btn variant="primary">Guardar</Btn></div>}>
+        {sel && <ProductEditor p={sel} />}
+      </Drawer>
+    </>
+  );
+}
+
+function ProductEditor({ p }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'center' }}>
+        <div style={{ padding: 16, background: 'var(--bg-raised)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)' }}>
+          <ProductIllus kind={p.kind} size={64} />
+        </div>
+        <div>
+          <Eyebrow>Producto</Eyebrow>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{p.nombre}</div>
+          <div className="xs mute">{p.material}</div>
+        </div>
+      </div>
+      <div className="cols-2">
+        <Input label="Nombre" defaultValue={p.nombre} />
+        <Input label="Unidades por caja" type="number" defaultValue={p.unidades_caja} />
+        <Input label="Peso por unidad (g)" type="number" step="0.001" defaultValue={p.peso_g} />
+        <Input label="Factor de mano de obra" type="number" step="0.1" defaultValue={p.factor} hint="Jeringas pesan más que vasos en tiempo-máquina" />
+      </div>
+      <Eyebrow style={{ marginTop: 24 }}>Empaques incluidos</Eyebrow>
+      {EMPAQUES_MOCK.slice(0, 4).map(e => (
+        <Check key={e.id} checked={['caja','funda_exterior_simple'].includes(e.id)} onChange={()=>{}}>{e.nombre} <span className="mute xs">· {fmtMoney(e.costo, 3)}/{e.unidad}</span></Check>
+      ))}
+      <Eyebrow style={{ marginTop: 24 }}>Composición de costo (calculada)</Eyebrow>
+      <div style={{ background: 'var(--bg-raised)', borderRadius: 'var(--radius-md)', padding: 14 }}>
+        <CostBreakdownBar p={p} />
+      </div>
+    </div>
+  );
+}
+
+function CostBreakdownBar({ p }) {
+  // Mock breakdown
+  const parts = [
+    { k: 'Material', v: p.costo_unit * 0.55, c: 'var(--accent)' },
+    { k: 'Nómina',   v: p.costo_unit * 0.22, c: 'var(--info)' },
+    { k: 'Empaque',  v: p.costo_unit * 0.15, c: 'var(--good)' },
+    { k: 'Gastos fijos', v: p.costo_unit * 0.08, c: 'var(--warn)' },
+  ];
+  const total = parts.reduce((a,b)=>a+b.v,0);
+  return (
+    <div>
+      <div className="stack-bar">
+        {parts.map(p => <div key={p.k} style={{ flex: p.v / total, background: p.c }} title={p.k} />)}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginTop: 12 }}>
+        {parts.map(part => (
+          <div key={part.k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: part.c }} />
+            <span style={{ flex: 1 }}>{part.k}</span>
+            <span className="mono">${part.v.toFixed(4)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TabMateriales() {
+  const [sel, setSel] = useState(null);
+  return (
+    <>
+      <div className="panel panel-flush">
+        <table className="tbl">
+          <thead>
+            <tr><th>Material</th><th className="num">Costo / kg</th><th className="num">Merma típica</th><th>Uso</th><th></th></tr>
+          </thead>
+          <tbody>
+            {MATERIALES_MOCK.map(m => (
+              <tr key={m.id} style={{ cursor: 'pointer' }} onClick={() => setSel(m)}>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: m.color, opacity: 0.25, border: `1px solid ${m.color}` }} />
+                    <strong>{m.nombre}</strong>
+                  </div>
+                </td>
+                <td className="num mono">{fmtMoney(m.costo_kg, 2)}</td>
+                <td className="num"><Chip tone={m.merma > 4 ? 'warn' : 'good'}>{m.merma}%</Chip></td>
+                <td className="small mute">{m.id === 'pvc' ? 'Goteros (PVC cortado)' : 'Inyección / extrusión'}</td>
+                <td><Btn variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setSel(m); }}><Icon name="edit" size={13}/></Btn></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Drawer open={!!sel} onClose={() => setSel(null)} title={sel?.nombre}
+        footer={<div className="row" style={{ justifyContent: 'flex-end', width: '100%', gap: 10 }}><Btn onClick={() => setSel(null)}>Cancelar</Btn><Btn variant="primary">Guardar</Btn></div>}>
+        {sel && <MaterialEditor m={sel} />}
+      </Drawer>
+    </>
+  );
+}
+
+function MaterialEditor({ m }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 22 }}>
+        <div style={{ width: 56, height: 56, borderRadius: 12, background: m.color, opacity: 0.35, border: `1.5px solid ${m.color}` }} />
+        <div>
+          <Eyebrow>Material</Eyebrow>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{m.nombre}</div>
+        </div>
+      </div>
+      <div className="cols-2">
+        <Input label="Nombre" defaultValue={m.nombre} />
+        <Input label="Costo por kg ($)" type="number" step="0.01" defaultValue={m.costo_kg} />
+        <Input label="Merma típica (%)" type="number" step="0.1" defaultValue={m.merma} hint="Para alertas en el registro diario" />
+        <Input label="Código interno" defaultValue={m.id} />
+      </div>
+      <Eyebrow style={{ marginTop: 20 }}>Uso</Eyebrow>
+      <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14 }}>
+        <Check checked={m.id !== 'pvc'} onChange={()=>{}}>Inyección</Check>
+        <Check checked={m.id === 'pvc'} onChange={()=>{}}>Extrusión / corte (PVC)</Check>
+        <Check checked={true} onChange={()=>{}}>Disponible en bodega</Check>
+      </div>
+    </div>
+  );
+}
+
+function TabEmpaques() {
+  const [sel, setSel] = useState(null);
+  return (
+    <>
+      <div className="empaque-grid">
+        {EMPAQUES_MOCK.map(e => (
+          <button key={e.id} className="empaque-card" onClick={() => setSel(e)} style={{ textAlign: 'left', border: '1px solid var(--line)', cursor: 'pointer', color: 'var(--text)' }}>
+            <div className="ico" style={{ background: 'var(--accent-soft)', color: 'var(--accent-hi)' }}>
+              <Icon name="package" size={16}/>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 600 }}>{e.nombre}</div>
+              <div className="xs mute">por {e.unidad}</div>
+            </div>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>{fmtMoney(e.costo, 3)}</div>
+          </button>
+        ))}
+      </div>
+      <Drawer open={!!sel} onClose={() => setSel(null)} title={sel?.nombre}
+        footer={<div className="row" style={{ justifyContent: 'flex-end', width: '100%', gap: 10 }}><Btn onClick={() => setSel(null)}>Cancelar</Btn><Btn variant="primary">Guardar</Btn></div>}>
+        {sel && (
+          <div>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 22 }}>
+              <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--accent-soft)', color: 'var(--accent-hi)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="package" size={22}/>
+              </div>
+              <div>
+                <Eyebrow>Empaque</Eyebrow>
+                <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{sel.nombre}</div>
+              </div>
+            </div>
+            <div className="cols-2">
+              <Input label="Nombre" defaultValue={sel.nombre} />
+              <Input label="Costo ($)" type="number" step="0.001" defaultValue={sel.costo} />
+              <Select label="Unidad de consumo" value={sel.unidad} onChange={()=>{}} options={['unidad', 'caja', 'docena', 'kg']} />
+              <Input label="Código interno" defaultValue={sel.id} />
+            </div>
+            <Eyebrow style={{ marginTop: 20 }}>Productos que lo usan</Eyebrow>
+            <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {PRODUCTOS_MOCK.slice(0, 5).map(p => <Chip key={p.id}>{p.nombre}</Chip>)}
+            </div>
+          </div>
+        )}
+      </Drawer>
+    </>
+  );
+}
+
+function TabGastos() {
+  const total = Object.values(GASTOS_FIJOS_MOCK).reduce((a,b)=>a+b,0);
+  const items = [
+    { k: 'electricidad',  l: 'Electricidad',  icon: 'flame' },
+    { k: 'agua',          l: 'Agua',          icon: 'flask' },
+    { k: 'tinta',         l: 'Tinta',         icon: 'edit' },
+    { k: 'tinner',        l: 'Tinner',        icon: 'flask' },
+    { k: 'solvente',      l: 'Solvente',      icon: 'flask' },
+    { k: 'transporte',    l: 'Transporte',    icon: 'box' },
+    { k: 'mantenimiento', l: 'Mantenimiento', icon: 'settings' },
+  ];
+  return (
+    <>
+      <div className="panel" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <Eyebrow>Total mensual</Eyebrow>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 40, letterSpacing: '-0.02em' }}>{fmtMoney(total)}</div>
+        </div>
+        <div className="xs mute" style={{ maxWidth: 280, textAlign: 'right' }}>Estos gastos se prorratean entre todas las unidades producidas para obtener el componente "gastos fijos" del costo unitario.</div>
+      </div>
+      <div className="gasto-grid">
+        {items.map(it => (
+          <div key={it.k} className="gasto-card">
+            <div className="ico"><Icon name={it.icon} size={14}/></div>
+            <div style={{ flex: 1 }}>{it.l}</div>
+            <input className="input num-input" type="number" defaultValue={GASTOS_FIJOS_MOCK[it.k]} />
+            <span className="unit">/mes</span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+Object.assign(window, { Catalogo });
+
+</script>
+
+<script type="text/babel" data-file="costos.jsx">
+// Costos — breakdown + evolución + comparador
+function Costos() {
+  const [sel, setSel] = useState(PRODUCTOS_MOCK[0].id);
+  const [view, setView] = useState('detalle');
+  const prod = PRODUCTOS_MOCK.find(p => p.id === sel);
+
+  const nominaMes = NOMINA_HISTORICA[NOMINA_HISTORICA.length - 1].total;
+  const gastosFijos = Object.values(GASTOS_FIJOS_MOCK).reduce((a, b) => a + b, 0);
+  const totalUnits = PRODUCCION_MES.reduce((a, p) => a + p.unidades, 0);
+
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <Eyebrow>Producción · Análisis</Eyebrow>
+          <h1 className="page-title">Costos <em>por producto</em></h1>
+          <div className="page-sub">Costo unitario real, con descomposición completa: material, empaques, nómina prorrateada y gastos fijos.</div>
+        </div>
+        <Seg options={[{ value: 'detalle', label: 'Detalle' }, { value: 'comparar', label: 'Comparar' }, { value: 'evolucion', label: 'Evolución' }]} value={view} onChange={setView} />
+      </div>
+
+      {view === 'detalle' && <VistaDetalle prod={prod} sel={sel} setSel={setSel} nominaMes={nominaMes} gastosFijos={gastosFijos} totalUnits={totalUnits} />}
+      {view === 'comparar' && <VistaComparar />}
+      {view === 'evolucion' && <VistaEvolucion />}
+    </div>
+  );
+}
+
+function VistaDetalle({ prod, sel, setSel, nominaMes, gastosFijos, totalUnits }) {
+  const matCost = prod.costo_unit * 0.55;
+  const empCost = prod.costo_unit * 0.15;
+  const nomCost = prod.costo_unit * 0.22;
+  const gfCost  = prod.costo_unit * 0.08;
+
+  return (
+    <>
+      <div className="prod-picker">
+        {PRODUCTOS_MOCK.map(p => (
+          <button key={p.id} className={`pp ${sel === p.id ? 'on' : ''}`} onClick={() => setSel(p.id)}>
+            <ProductIllus kind={p.kind} size={28} color={sel === p.id ? 'var(--accent-hi)' : 'var(--text-dim)'} />
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600 }}>{p.nombre}</div>
+              <div className="xs mute mono">${p.costo_unit.toFixed(4)}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div className="cols-2" style={{ marginTop: 18 }}>
+        <div className="panel">
+          <Eyebrow>Seleccionado</Eyebrow>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 10, marginBottom: 20 }}>
+            <div style={{ padding: 16, background: 'var(--bg-raised)', borderRadius: 16, border: '1px solid var(--line)' }}>
+              <ProductIllus kind={prod.kind} size={56} />
+            </div>
+            <div>
+              <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, letterSpacing: '-0.02em', margin: 0 }}>{prod.nombre}</h2>
+              <div className="small mute">{prod.material}</div>
+              <div className="row" style={{ marginTop: 6 }}>
+                <Chip>{fmtNum(prod.unidades_caja)} u/caja</Chip>
+                <Chip>{prod.peso_g} g</Chip>
+                <Chip>factor {prod.factor}x</Chip>
+              </div>
+            </div>
+          </div>
+
+          <div className="cost-lines">
+            <div className="cl">
+              <div className="dot" style={{ background: 'var(--accent)' }}/>
+              <div className="l">Material ({prod.peso_g} g × precio medio)</div>
+              <div className="v mono">${matCost.toFixed(4)}</div>
+            </div>
+            <div className="cl">
+              <div className="dot" style={{ background: 'var(--good)' }}/>
+              <div className="l">Empaque (caja + funda + cinta)</div>
+              <div className="v mono">${empCost.toFixed(4)}</div>
+            </div>
+            <div className="cl">
+              <div className="dot" style={{ background: 'var(--info)' }}/>
+              <div className="l">Nómina prorrateada</div>
+              <div className="v mono">${nomCost.toFixed(4)}</div>
+            </div>
+            <div className="cl">
+              <div className="dot" style={{ background: 'var(--warn)' }}/>
+              <div className="l">Gastos fijos ({fmtMoneyShort(gastosFijos)}/mes ÷ {fmtNum(totalUnits/1000,0)}k u)</div>
+              <div className="v mono">${gfCost.toFixed(4)}</div>
+            </div>
+            <div className="cl tot">
+              <div className="l">Total unitario</div>
+              <div className="v mono" style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>${prod.costo_unit.toFixed(4)}</div>
+            </div>
+            <div className="cl sub">
+              <div className="l small mute">Costo por caja ({fmtNum(prod.unidades_caja)} u)</div>
+              <div className="v mono">{fmtMoney(prod.costo_caja)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="panel">
+            <PanelHead title="Descomposición visual" sub="Proporción por componente" />
+            <CostDonut parts={[
+              { k: 'Material', v: matCost, c: 'var(--accent)' },
+              { k: 'Empaque',  v: empCost, c: 'var(--good)' },
+              { k: 'Nómina',   v: nomCost, c: 'var(--info)' },
+              { k: 'Gastos',   v: gfCost,  c: 'var(--warn)' },
+            ]} />
+          </div>
+          <div className="panel" style={{ marginTop: 16 }}>
+            <PanelHead title="¿Por qué este costo?" sub="Cómo el sistema llega al número" />
+            <div className="alert info" style={{ marginBottom: 10 }}>
+              <div className="icon"><Icon name="info" size={14}/></div>
+              <div className="body">
+                <div className="msg">
+                  Partimos del <strong>peso de la pieza</strong> ({prod.peso_g} g) × <strong>costo del material</strong>. Sumamos los empaques que usa este producto.
+                  La nómina del mes ({fmtMoneyShort(nominaMes)}) se reparte entre todas las unidades producidas ponderadas por <strong>factor {prod.factor}x</strong>.
+                  Los gastos fijos se prorratean del mismo modo.
+                </div>
+              </div>
+            </div>
+            <Check checked onChange={()=>{}}>Incluir nómina en el prorrateo</Check>
+            <Check checked onChange={()=>{}}>Incluir gastos fijos</Check>
+            <Check onChange={()=>{}}>Usar merma real del mes (en vez de la típica)</Check>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function CostDonut({ parts }) {
+  const total = parts.reduce((a,b)=>a+b.v,0);
+  const size = 180, r = 70, cx = 100, cy = 100, strokeW = 22;
+  let cum = 0;
+  const circ = 2 * Math.PI * r;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+      <svg width={200} height={size}>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--line)" strokeWidth={strokeW} />
+        {parts.map((p, i) => {
+          const frac = p.v / total;
+          const dash = frac * circ;
+          const off = -cum * circ;
+          cum += frac;
+          return (
+            <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={p.c} strokeWidth={strokeW}
+              strokeDasharray={`${dash} ${circ - dash}`} strokeDashoffset={off}
+              transform={`rotate(-90 ${cx} ${cy})`} />
+          );
+        })}
+        <text x={cx} y={cy - 4} textAnchor="middle" fontSize="10" fill="var(--text-mute)">Total</text>
+        <text x={cx} y={cy + 14} textAnchor="middle" fontFamily="var(--serif)" fontSize="20" fill="var(--text)">${total.toFixed(4)}</text>
+      </svg>
+      <div style={{ flex: 1 }}>
+        {parts.map(p => (
+          <div key={p.k} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: p.c }} />
+            <span style={{ flex: 1, fontSize: 13 }}>{p.k}</span>
+            <span className="mono xs">${p.v.toFixed(4)}</span>
+            <span className="xs mute" style={{ width: 40, textAlign: 'right' }}>{((p.v/total)*100).toFixed(0)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VistaComparar() {
+  const [ids, setIds] = useState(['v_life', 'j_life', 'gotero']);
+  const items = PRODUCTOS_MOCK.filter(p => ids.includes(p.id));
+  const max = Math.max(...items.map(p => p.costo_unit));
+  return (
+    <>
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <Eyebrow>Seleccionar productos para comparar</Eyebrow>
+        <div className="row wrap" style={{ marginTop: 10 }}>
+          {PRODUCTOS_MOCK.map(p => (
+            <button key={p.id} className={`pp-toggle ${ids.includes(p.id) ? 'on' : ''}`} onClick={() => setIds(ids.includes(p.id) ? ids.filter(x => x !== p.id) : [...ids, p.id])}>
+              <ProductIllus kind={p.kind} size={18} />
+              <span>{p.nombre}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="panel">
+        <PanelHead title="Comparación" sub="Costo unitario y composición lado a lado" />
+        {items.map(p => (
+          <div key={p.id} style={{ marginBottom: 18 }}>
+            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
+              <div className="row">
+                <ProductIllus kind={p.kind} size={22} />
+                <strong>{p.nombre}</strong>
+              </div>
+              <span className="mono" style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>${p.costo_unit.toFixed(4)}</span>
+            </div>
+            <div className="compare-bar">
+              <div style={{ flex: 55, background: 'var(--accent)' }} title="Material"/>
+              <div style={{ flex: 22, background: 'var(--info)' }} title="Nómina"/>
+              <div style={{ flex: 15, background: 'var(--good)' }} title="Empaque"/>
+              <div style={{ flex: 8, background: 'var(--warn)' }} title="Gastos"/>
+              <div style={{ flex: ((max - p.costo_unit) / max) * 100, background: 'transparent' }} />
+            </div>
+          </div>
+        ))}
+        <div className="legend-row">
+          <span><span className="sw" style={{background:'var(--accent)'}}/> Material</span>
+          <span><span className="sw" style={{background:'var(--info)'}}/> Nómina</span>
+          <span><span className="sw" style={{background:'var(--good)'}}/> Empaque</span>
+          <span><span className="sw" style={{background:'var(--warn)'}}/> Gastos fijos</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function VistaEvolucion() {
+  const prods = Object.keys(COSTOS_EVOLUCION);
+  const series = prods.map((p, i) => ({ data: COSTOS_EVOLUCION[p], color: ['var(--accent)', 'var(--info)', 'var(--warn)', 'var(--good)'][i] }));
+  return (
+    <div className="panel">
+      <PanelHead title="Evolución del costo unitario" sub="Últimos 8 meses · principales productos" />
+      <LineChart
+        series={series}
+        labels={COSTOS_EVOLUCION_MESES.map(m => m.split(' ')[0])}
+        height={340}
+        yFmt={v => '$' + v.toFixed(4)}
+      />
+      <div className="legend-row" style={{ marginTop: 16 }}>
+        {prods.map((p, i) => (
+          <span key={p}><span className="sw" style={{background: ['var(--accent)', 'var(--info)', 'var(--warn)', 'var(--good)'][i]}}/> {p}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Costos });
+
+</script>
+
+<script type="text/babel" data-file="metricas.jsx">
+// Métricas — histórico de nómina + horas extras
+
+function Metricas() {
+  const [year, setYear] = useState('ultimos12');
+
+  const totalAnual  = NOMINA_HISTORICA.reduce((a, m) => a + m.total, 0);
+  const h50Total    = NOMINA_HISTORICA.reduce((a, m) => a + m.h50, 0);
+  const h100Total   = NOMINA_HISTORICA.reduce((a, m) => a + m.h100, 0);
+  const mesMax      = NOMINA_HISTORICA.reduce((a, m) => (m.total > a.total ? m : a));
+
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <Eyebrow>Personal · Análisis</Eyebrow>
+          <h1 className="page-title"><em>Métricas</em> de nómina</h1>
+          <div className="page-sub">Cómo ha evolucionado el gasto de personal y las horas extras del último año.</div>
+        </div>
+        <Seg options={[{ value: 'ultimos12', label: 'Últimos 12' }, { value: '2026', label: '2026' }, { value: '2025', label: '2025' }]} value={year} onChange={setYear} />
+      </div>
+
+      <div className="kpi-grid" style={{ marginBottom: 18 }}>
+        <Kpi label="Total pagado" icon="dollar" value={fmtMoneyShort(totalAnual)} delta="8 meses" />
+        <Kpi label="Horas extras 50%" icon="clock" value={h50Total.toFixed(1)} unit="h" />
+        <Kpi label="Horas extras 100%" icon="flame" value={h100Total.toFixed(1)} unit="h" />
+        <Kpi label="Mes más alto" icon="trend_up" value={mesMax.label} delta={fmtMoney(mesMax.total)} deltaDir="up" />
+      </div>
+
+      <div className="panel" style={{ marginBottom: 18 }}>
+        <PanelHead title="Total nómina por mes" sub="Incluye quincenas, extras, transporte y décimos" />
+        <LineChart
+          series={[{ data: NOMINA_HISTORICA.map(n => n.total), color: 'var(--accent)' }]}
+          labels={NOMINA_HISTORICA.map(n => n.label.split(' ')[0])}
+          height={260}
+          yFmt={fmtMoneyShort}
+        />
+      </div>
+
+      <div className="cols-2">
+        <div className="panel">
+          <PanelHead title="Horas extras" sub="50% y 100%" />
+          <LineChart
+            series={[
+              { data: NOMINA_HISTORICA.map(n => n.h50),  color: 'var(--warn)' },
+              { data: NOMINA_HISTORICA.map(n => n.h100), color: 'var(--bad)'  },
+            ]}
+            labels={NOMINA_HISTORICA.map(n => n.label.split(' ')[0])}
+            height={200}
+            yFmt={v => v.toFixed(0) + 'h'}
+          />
+          <div className="legend-row" style={{ marginTop: 12 }}>
+            <span><span className="sw" style={{background:'var(--warn)'}}/> 50% (Art. 55)</span>
+            <span><span className="sw" style={{background:'var(--bad)'}}/> 100% (fin de semana)</span>
+          </div>
+        </div>
+
+        <div className="panel panel-flush">
+          <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--line)' }}>
+            <PanelHead title="Histórico mensual" sub="Descargables individualmente" />
+          </div>
+          {NOMINA_HISTORICA.slice().reverse().map(m => (
+            <div key={m.id} className="list-row">
+              <div className="ico" style={{ background: 'var(--bg-hover)' }}><Icon name="calendar" size={13}/></div>
+              <div className="body">
+                <div className="ttl">{m.label}</div>
+                <div className="cap">{m.empleados} empleados · {m.h50 + m.h100} h extras</div>
+              </div>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 17 }}>{fmtMoney(m.total)}</div>
+              <Btn variant="ghost" size="sm"><Icon name="download" size={13}/></Btn>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Metricas });
+
+</script>
+
+<script type="text/babel" data-file="empleados.jsx">
+// Empleados — grid de tarjetas + drawer lateral de edición
+
+const EMPTY_EMP = {
+  id: 'nuevo', nombre: '', cargo: '', iniciales: '··',
+  color: 'var(--accent-soft)', salario: 470, transporte: 1.5, horas_base: 8,
+  region: 'Sierra/Amazonia', fondos_reserva: false, prestamo_iess: 0, isNew: true,
+};
+
+function Empleados() {
+  const [sel, setSel] = useState(null);
+  const [q, setQ] = useState('');
+  const items = EMPLEADOS_MOCK.filter(e => e.nombre.toLowerCase().includes(q.toLowerCase()));
+
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <Eyebrow>Personal · Configuración</Eyebrow>
+          <h1 className="page-title"><em>Empleados</em></h1>
+          <div className="page-sub">Salario base, transporte, IESS y fondos. Estos datos se usan cada mes en el cálculo de nómina.</div>
+        </div>
+        <div className="row">
+          <div className="field" style={{ margin: 0, width: 260 }}>
+            <div style={{ position: 'relative' }}>
+              <Icon name="search" size={14} className="mute" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+              <input className="input" style={{ paddingLeft: 32 }} placeholder="Buscar..." value={q} onChange={e => setQ(e.target.value)} />
+            </div>
+          </div>
+          <Btn variant="primary" onClick={() => setSel(EMPTY_EMP)}><Icon name="plus" size={14}/> Nuevo empleado</Btn>
+        </div>
+      </div>
+
+      <div className="emp-grid">
+        {items.map(e => (
+          <button key={e.id} className="emp-card" onClick={() => setSel(e)}>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 14 }}>
+              <div className="avatar" style={{ background: e.color, width: 44, height: 44, fontSize: 14 }}>{e.iniciales}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600 }}>{e.nombre}</div>
+                <div className="xs mute">{e.cargo}</div>
+              </div>
+            </div>
+            <div className="emp-meta">
+              <div><span className="mute">Salario</span><strong className="mono">{fmtMoney(e.salario, 0)}</strong></div>
+              <div><span className="mute">Transporte</span><strong className="mono">{fmtMoney(e.transporte)}</strong></div>
+              <div><span className="mute">Horas/día</span><strong className="mono">{e.horas_base}h</strong></div>
+            </div>
+            <div className="row" style={{ marginTop: 12, flexWrap: 'wrap', gap: 4 }}>
+              {e.fondos_reserva && <Chip tone="good">Fondos reserva</Chip>}
+              {e.prestamo_iess > 0 && <Chip tone="warn">Préstamo IESS</Chip>}
+              <Chip>{e.region.split('/')[0]}</Chip>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <Drawer open={!!sel} onClose={() => setSel(null)} title={sel?.isNew ? 'Nuevo empleado' : sel?.nombre}
+        footer={<div className="row" style={{ justifyContent: 'space-between', width: '100%' }}>{!sel?.isNew && <Btn variant="ghost" className="danger">Desactivar</Btn>}<div className="row" style={{ marginLeft: 'auto' }}><Btn onClick={() => setSel(null)}>Cancelar</Btn><Btn variant="primary">{sel?.isNew ? 'Crear empleado' : 'Guardar'}</Btn></div></div>}>
+        {sel && <EmpEditor e={sel} />}
+      </Drawer>
+    </div>
+  );
+}
+
+function EmpEditor({ e }) {
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
+        <div className="avatar" style={{ background: e.color, width: 56, height: 56, fontSize: 18 }}>{e.iniciales}</div>
+        <div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{e.isNew ? 'Empleado nuevo' : e.nombre}</div>
+          <div className="xs mute">{e.isNew ? 'Completa los datos para agregarlo a nómina' : e.cargo}</div>
+        </div>
+      </div>
+
+      <Eyebrow>Datos básicos</Eyebrow>
+      <div className="cols-2">
+        <Input label="Nombre completo" defaultValue={e.nombre} placeholder={e.isNew ? 'Ej: Juan Pérez' : ''} />
+        <Input label="Cargo" defaultValue={e.cargo} placeholder={e.isNew ? 'Ej: Operario de línea' : ''} />
+      </div>
+
+      <Eyebrow style={{ marginTop: 20 }}>Compensación</Eyebrow>
+      <div className="cols-2">
+        <Input label="Salario base mensual" type="number" defaultValue={e.salario} hint={`Mín. legal 2026: $${SBU_2026}`} />
+        <Input label="Transporte por día" type="number" step="0.5" defaultValue={e.transporte} />
+        <Input label="Horas base diarias" type="number" defaultValue={e.horas_base} />
+        <Select label="Región (para 14to)" value={e.region} onChange={()=>{}} options={['Sierra/Amazonia', 'Costa/Galápagos']} />
+      </div>
+
+      <Eyebrow style={{ marginTop: 20 }}>Beneficios y descuentos</Eyebrow>
+      <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14 }}>
+        <Check checked={e.fondos_reserva} onChange={()=>{}}>Recibe fondos de reserva (8.33%) <span className="mute xs">· Después del primer año</span></Check>
+        <div className="field" style={{ marginTop: 12 }}>
+          <label>Préstamo IESS (descuento mensual)</label>
+          <input className="input" type="number" step="0.01" defaultValue={e.prestamo_iess} />
+          <div className="xs mute">Dejar en 0 si no hay préstamo activo.</div>
+        </div>
+      </div>
+
+      {!e.isNew && <>
+      <Eyebrow style={{ marginTop: 20 }}>Resumen último mes (Abril 2026)</Eyebrow>
+      <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+        <div>
+          <div className="xs mute">Horas trabajadas</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 20 }}>179.5h</div>
+        </div>
+        <div>
+          <div className="xs mute">Horas extras</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 20, color: 'var(--warn)' }}>7h</div>
+        </div>
+        <div>
+          <div className="xs mute">Total cobrado</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 20, color: 'var(--accent-hi)' }}>{fmtMoney(564.82)}</div>
+        </div>
+      </div>
+      </>}
+    </div>
+  );
+}
+
+Object.assign(window, { Empleados });
+
+</script>
+
+<script type="text/babel" data-file="app.jsx">
+// App shell + Tweaks integration
+
+const { useState: useStateA, useEffect: useEffectA } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "dark",
+  "accent": "lavender",
+  "density": "normal",
+  "showExplanations": true
+}/*EDITMODE-END*/;
+
+const ACCENTS = {
+  lavender: { h: '295', c: '0.16', l: '72%', lHi: '80%' },
+  mint:     { h: '155', c: '0.15', l: '70%', lHi: '78%' },
+  amber:    { h: '75',  c: '0.16', l: '72%', lHi: '80%' },
+  rose:     { h: '15',  c: '0.17', l: '70%', lHi: '78%' },
+  sky:      { h: '230', c: '0.14', l: '72%', lHi: '80%' },
+};
+
+function App() {
+  const [tw, setTw] = useStateA(() => {
+    try {
+      const saved = localStorage.getItem('solplast.tweaks');
+      if (saved) return { ...TWEAK_DEFAULTS, ...JSON.parse(saved) };
+    } catch {}
+    return TWEAK_DEFAULTS;
+  });
+  const [editMode, setEditMode] = useStateA(false);
+  const [logged, setLogged] = useStateA(() => localStorage.getItem('solplast.logged') || null);
+  const [page, setPage] = useStateA(() => localStorage.getItem('solplast.page') || 'home');
+  const [navOpen, setNavOpen] = useStateA(false);
+
+  // Apply tweaks to DOM
+  useEffectA(() => {
+    document.documentElement.setAttribute('data-theme', tw.theme);
+    const acc = ACCENTS[tw.accent] || ACCENTS.lavender;
+    document.documentElement.style.setProperty('--accent',    `oklch(${acc.l} ${acc.c} ${acc.h})`);
+    document.documentElement.style.setProperty('--accent-hi', `oklch(${acc.lHi} ${acc.c} ${acc.h})`);
+    document.documentElement.style.setProperty('--accent-soft', `color-mix(in oklab, oklch(${acc.l} ${acc.c} ${acc.h}) 18%, transparent)`);
+    localStorage.setItem('solplast.tweaks', JSON.stringify(tw));
+  }, [tw]);
+
+  useEffectA(() => { if (logged) localStorage.setItem('solplast.logged', logged); else localStorage.removeItem('solplast.logged'); }, [logged]);
+  useEffectA(() => { localStorage.setItem('solplast.page', page); }, [page]);
+
+  // Edit-mode host handshake
+  useEffectA(() => {
+    const onMsg = (e) => {
+      if (e?.data?.type === '__activate_edit_mode') setEditMode(true);
+      if (e?.data?.type === '__deactivate_edit_mode') setEditMode(false);
+    };
+    window.addEventListener('message', onMsg);
+    try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch {}
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const setTweak = (k, v) => {
+    setTw(prev => ({ ...prev, [k]: v }));
+    try { window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [k]: v } }, '*'); } catch {}
+  };
+
+  if (!logged) return <Login onLogin={(role) => setLogged(role)} />;
+
+  const role = logged;
+
+  return (
+    <>
+      <Topbar onOpenNav={() => setNavOpen(true)} page={page} />
+      <div className="app" data-screen-label={`app-${page}`}>
+        <Sidebar page={page} setPage={setPage} role={role} open={navOpen} onClose={() => setNavOpen(false)} theme={tw.theme} setTheme={(t) => setTweak('theme', t)} />
+        <main className="content-wrap" style={{ marginLeft: window.innerWidth > 960 ? 0 : 0 }}>
+          <div className="content">
+            {page === 'home' && <Home setPage={setPage} role={role} />}
+            {page === 'nomina' && <Nomina setPage={setPage} />}
+            {page === 'registro' && <RegistroDiario role={role} />}
+            {page === 'catalogo' && <Catalogo />}
+            {page === 'costos' && <Costos />}
+            {page === 'metricas' && <Metricas />}
+            {page === 'empleados' && <Empleados />}
+          </div>
+        </main>
+      </div>
+      <MobileBottomNav page={page} setPage={setPage} role={role} />
+      {editMode && <TweaksPanel tw={tw} setTweak={setTweak} onLogout={() => setLogged(null)} />}
+    </>
+  );
+}
+
+function TweaksPanel({ tw, setTweak, onLogout }) {
+  return (
+    <div className="tweaks-panel fadein">
+      <h4><Icon name="sliders" size={14}/> Tweaks</h4>
+      <div className="tweak-row">
+        <span>Tema</span>
+        <Seg options={[{ value: 'dark', label: 'Oscuro' }, { value: 'light', label: 'Claro' }]} value={tw.theme} onChange={v => setTweak('theme', v)} />
+      </div>
+      <div className="tweak-row">
+        <span>Acento</span>
+        <div className="tweak-swatches">
+          {Object.entries(ACCENTS).map(([k, v]) => (
+            <button key={k} onClick={() => setTweak('accent', k)} className={tw.accent === k ? 'on' : ''}
+              style={{ background: `oklch(${v.l} ${v.c} ${v.h})` }} title={k} />
+          ))}
+        </div>
+      </div>
+      <div className="tweak-row">
+        <span>Explicaciones inline</span>
+        <Toggle checked={tw.showExplanations} onChange={v => setTweak('showExplanations', v)}>{tw.showExplanations ? 'On' : 'Off'}</Toggle>
+      </div>
+      <div style={{ borderTop: '1px solid var(--line)', marginTop: 10, paddingTop: 10, fontSize: 11.5 }}>
+        <Btn variant="ghost" size="sm" onClick={onLogout} block><Icon name="logout" size={12}/> Cerrar sesión</Btn>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+</script>
+
+
+</body>
+</html>
