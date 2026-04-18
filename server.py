@@ -130,22 +130,36 @@ def _build_data_jsx():
     ]
 
     resumenes = load_all_nomina_resumenes()
+    _mes_names = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
     nomina_historica = []
     for rid in sorted(resumenes.keys()):
         r = resumenes[rid]
         try:
             y, m = rid.split("-")
-            mes_names = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
-            label = f"{mes_names[int(m)-1]} {y}"
+            label = f"{_mes_names[int(m)-1]} {y}"
         except Exception:
             label = rid
         nomina_historica.append({
             "id": rid,
             "label": label,
             "total": float(r.get("total_transferido", 0)),
-            "h50": float(r.get("h50_total", 0)),
-            "h100": float(r.get("h100_total", 0)),
-            "empleados": int(r.get("n_empleados", len(emp_db))),
+            "h50": float(r.get("total_h50", r.get("h50_total", 0))),
+            "h100": float(r.get("total_h100", r.get("h100_total", 0))),
+            "empleados": len(emp_db),
+        })
+
+    # Home requires at least 2 entries to compute delta — pad if needed
+    while len(nomina_historica) < 2:
+        from datetime import date as _date
+        import calendar as _cal
+        _hoy = _date.today()
+        _idx = len(nomina_historica)
+        _m = (_hoy.month - _idx - 1) % 12
+        _y = _hoy.year if _hoy.month - _idx > 0 else _hoy.year - 1
+        nomina_historica.insert(0, {
+            "id": f"{_y}-{_m+1:02d}",
+            "label": f"{_mes_names[_m]} {_y}",
+            "total": 0.0, "h50": 0.0, "h100": 0.0, "empleados": len(emp_db),
         })
 
     hoy = date.today()
