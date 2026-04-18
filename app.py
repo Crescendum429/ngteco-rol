@@ -289,6 +289,87 @@ html, body, [data-testid="stAppViewContainer"] {
 /* ── Tabs ── */
 [data-testid="stTabs"] [role="tab"] { font-family: var(--sans) !important; font-size: 13.5px !important; font-weight: 500 !important; }
 [data-testid="stTabs"] [role="tab"][aria-selected="true"] { color: var(--text) !important; border-bottom-color: var(--accent) !important; }
+
+/* ── Theme toggle (sidebar footer) ── */
+.theme-toggle { display: flex; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 3px; gap: 3px; }
+.theme-toggle button { flex: 1; padding: 5px 8px; border-radius: 4px; border: none; background: transparent; color: var(--text-mute); font-size: 11.5px; font-weight: 500; cursor: pointer; transition: background 120ms, color 120ms; font-family: var(--sans); }
+.theme-toggle button.on { background: var(--surface-hi); color: var(--text); box-shadow: var(--shadow-sm); }
+
+/* ── Hero ribbon ── */
+.hero-ribbon {
+  position: relative; height: 160px;
+  margin: 8px 0 24px; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 12%, black 88%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, black 12%, black 88%, transparent 100%);
+}
+.hr-glow {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 70% at 30% 55%, color-mix(in oklab, var(--accent) 14%, transparent), transparent 70%),
+    radial-gradient(ellipse 50% 65% at 75% 60%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 70%);
+  pointer-events: none;
+}
+.hr-surface {
+  position: absolute; left: 0; right: 0; bottom: 30px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-hi) 20%, var(--line-hi) 80%, transparent);
+  opacity: 0.6;
+}
+.hr-stream { position: absolute; left: 0; right: 0; bottom: 0; top: 0; }
+.hr-item {
+  position: absolute; bottom: 30px;
+  animation: hrFlow 28s linear infinite;
+  filter: drop-shadow(0 8px 14px color-mix(in oklab, var(--accent) 35%, transparent));
+  opacity: 0.9;
+}
+.hr-float { animation: hrBob 3.2s ease-in-out infinite; display: inline-block; }
+@keyframes hrFlow {
+  from { transform: translateX(110vw); }
+  to   { transform: translateX(-160px); }
+}
+@keyframes hrBob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.hr-p {
+  position: absolute; width: 3px; height: 3px; border-radius: 50%;
+  background: var(--accent-hi); opacity: 0;
+  animation: hrPart 6s linear infinite;
+}
+@keyframes hrPart {
+  0%   { opacity: 0; transform: translate(0, 0); }
+  15%  { opacity: 0.6; }
+  85%  { opacity: 0.4; }
+  100% { opacity: 0; transform: translate(-180px, -40px); }
+}
+</style>
+""", unsafe_allow_html=True)
+
+_theme = st.session_state.get("_theme", "dark")
+if _theme == "light":
+    st.markdown("""
+<style>
+:root {
+  --bg: #faf8f4; --bg-raised: #ffffff; --bg-hover: #f3efe7;
+  --surface: #ffffff; --surface-hi: #faf8f4;
+  --line: #e8e3d8; --line-hi: #d5cfc0;
+  --text: #1a1917; --text-dim: #524f48; --text-mute: #8a857a;
+  --accent: oklch(60% 0.17 295);
+  --accent-hi: oklch(52% 0.19 295);
+  --accent-soft: color-mix(in oklab, oklch(60% 0.17 295) 12%, transparent);
+  --good: oklch(50% 0.14 155);
+  --good-soft: color-mix(in oklab, oklch(50% 0.14 155) 10%, transparent);
+  --warn: oklch(60% 0.16 60);
+  --warn-soft: color-mix(in oklab, oklch(60% 0.16 60) 14%, transparent);
+  --bad: oklch(55% 0.20 20);
+  --bad-soft: color-mix(in oklab, oklch(55% 0.20 20) 12%, transparent);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 8px 24px -8px rgba(0,0,0,0.18), 0 2px 6px -2px rgba(0,0,0,0.1);
+}
+[data-testid="stSidebar"] { background: #ffffff !important; border-right: 1px solid #e8e3d8 !important; }
+[data-testid="stAppViewContainer"], [data-testid="stMain"], body { background: #faf8f4 !important; }
+[data-testid="stSidebar"] * { color: #524f48 !important; }
+[data-testid="stTextInput"] input { background: #ffffff !important; border: 1px solid #e8e3d8 !important; color: #1a1917 !important; }
+[data-testid="stMetric"] { background: #ffffff !important; border: 1px solid #e8e3d8 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -314,16 +395,24 @@ if APP_PASSWORD or APP_PASSWORD_OP:
                 '</div>',
                 unsafe_allow_html=True,
             )
+            _role_sel = st.radio(
+                "Entrar como",
+                ["Administrador", "Operario"],
+                horizontal=True,
+                key="login_role_sel",
+            )
             pwd = st.text_input("Contrasena", type="password", label_visibility="collapsed",
                                 placeholder="••••••••")
-            if pwd:
-                if APP_PASSWORD and pwd == APP_PASSWORD:
+            if st.button("Entrar", use_container_width=True, type="primary"):
+                _target_role = "admin" if _role_sel == "Administrador" else "operario"
+                _target_pwd = APP_PASSWORD if _target_role == "admin" else APP_PASSWORD_OP
+                if _target_pwd and pwd == _target_pwd:
                     st.session_state._auth = True
-                    st.session_state._role = "admin"
+                    st.session_state._role = _target_role
                     st.rerun()
-                elif APP_PASSWORD_OP and pwd == APP_PASSWORD_OP:
+                elif not _target_pwd and pwd:
                     st.session_state._auth = True
-                    st.session_state._role = "operario"
+                    st.session_state._role = _target_role
                     st.rerun()
                 else:
                     st.error("Contrasena incorrecta")
@@ -336,6 +425,9 @@ if APP_PASSWORD or APP_PASSWORD_OP:
         st.stop()
 elif not st.session_state.get("_role"):
     st.session_state._role = "admin"
+
+if "_theme" not in st.session_state:
+    st.session_state._theme = "dark"
 
 role = st.session_state.get("_role", "admin")
 
@@ -425,11 +517,11 @@ st.sidebar.markdown(
 )
 
 if role == "admin":
-    MODULOS = ["Inicio", "Registro", "Gastos", "Roles", "Metricas", "Empleados"]
+    MODULOS = ["Inicio", "Registro", "Catalogo", "Costos", "Roles", "Metricas", "Empleados"]
     DEFAULT_PAGE = "Inicio"
     GRUPOS_SIDEBAR = [
         (None, ["Inicio"]),
-        ("Produccion", ["Registro", "Gastos"]),
+        ("Produccion", ["Registro", "Catalogo", "Costos"]),
         ("Personal", ["Roles", "Metricas"]),
         ("Configuracion", ["Empleados"]),
     ]
@@ -459,8 +551,82 @@ for grupo_label, grupo_items in GRUPOS_SIDEBAR:
             st.rerun()
 
 st.sidebar.divider()
+
+_theme_cur = st.session_state.get("_theme", "dark")
+_tc1, _tc2 = st.sidebar.columns(2)
+if _tc1.button("Oscuro", use_container_width=True,
+               type="primary" if _theme_cur == "dark" else "secondary",
+               key="theme_dark"):
+    st.session_state._theme = "dark"
+    st.rerun()
+if _tc2.button("Claro", use_container_width=True,
+               type="primary" if _theme_cur == "light" else "secondary",
+               key="theme_light"):
+    st.session_state._theme = "light"
+    st.rerun()
+
 st.sidebar.caption(f"v{APP_VERSION} · {role}")
 pagina = st.session_state.pagina
+
+
+def _illus_vaso(size=56, color="var(--accent-hi)"):
+    s = size
+    return (
+        f'<svg width="{s}" height="{s}" viewBox="0 0 64 64" fill="none" '
+        f'stroke="{color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'
+        f'<path d="M16 14 L18 54 Q18 56 20 56 L44 56 Q46 56 46 54 L48 14"/>'
+        f'<ellipse cx="32" cy="14" rx="16" ry="3.5"/>'
+        f'<ellipse cx="32" cy="54" rx="13" ry="1.5" opacity="0.4"/>'
+        f'<path d="M22 24 L28 24" opacity="0.5"/>'
+        f'<path d="M22 32 L30 32" opacity="0.5"/>'
+        f'<path d="M22 40 L28 40" opacity="0.5"/>'
+        f'<path d="M22 48 L30 48" opacity="0.5"/>'
+        f'</svg>'
+    )
+
+def _illus_jeringa(size=56, color="var(--accent-hi)"):
+    s = size
+    return (
+        f'<svg width="{s}" height="{s}" viewBox="0 0 64 64" fill="none" '
+        f'stroke="{color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'
+        f'<path d="M4 22 L8 22 L8 42 L4 42"/>'
+        f'<path d="M8 28 L14 28 L14 36 L8 36"/>'
+        f'<path d="M14 22 L48 22 L48 42 L14 42 Z"/>'
+        f'<path d="M48 26 L54 30 L54 34 L48 38"/>'
+        f'<path d="M54 31 L60 31 L60 33 L54 33"/>'
+        f'<path d="M20 25 L20 28" opacity="0.5"/>'
+        f'<path d="M26 25 L26 28" opacity="0.5"/>'
+        f'<path d="M32 25 L32 28" opacity="0.5"/>'
+        f'<path d="M38 25 L38 28" opacity="0.5"/>'
+        f'<path d="M44 25 L44 28" opacity="0.5"/>'
+        f'</svg>'
+    )
+
+def _illus_gotero(size=56, color="var(--accent-hi)"):
+    s = size
+    return (
+        f'<svg width="{s}" height="{s}" viewBox="0 0 64 64" fill="none" '
+        f'stroke="{color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'
+        f'<path d="M22 6 Q22 4 24 4 L40 4 Q42 4 42 6 L42 14 Q42 18 38 20 L26 20 Q22 18 22 14 Z"/>'
+        f'<path d="M24 20 L40 20 L40 24 L24 24 Z"/>'
+        f'<path d="M28 24 L28 48 Q28 50 30 50 L34 50 Q36 50 36 48 L36 24"/>'
+        f'<path d="M30 30 L34 30" opacity="0.4"/>'
+        f'<path d="M30 36 L34 36" opacity="0.4"/>'
+        f'<path d="M30 42 L34 42" opacity="0.4"/>'
+        f'<path d="M30 50 L34 50 L32 58 Z"/>'
+        f'</svg>'
+    )
+
+def _illus_cuchara(size=56, color="var(--accent-hi)"):
+    s = size
+    return (
+        f'<svg width="{s}" height="{s}" viewBox="0 0 64 64" fill="none" '
+        f'stroke="{color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'
+        f'<path d="M8 30 L8 34 L28 36 L28 28 Z"/>'
+        f'<path d="M28 30 Q32 18 46 18 Q58 18 58 32 Q58 46 46 46 Q32 46 28 34 Z"/>'
+        f'<path d="M32 32 Q36 24 46 24 Q54 24 54 32 Q54 40 46 40 Q36 40 32 34" opacity="0.5"/>'
+        f'</svg>'
+    )
 
 
 # SVG icons (shared entre home y page headers)
@@ -477,6 +643,12 @@ _SVG = {
         'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
         '<rect x="2" y="3" width="20" height="14" rx="2"/>'
         '<line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>'
+    ),
+    "costos": (
+        '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hi)" '
+        'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+        '<line x1="12" y1="1" x2="12" y2="23"/>'
+        '<path d="M17 5H9.5a3.5 3.5 0 1 0 0 7h5a3.5 3.5 0 1 1 0 7H6"/></svg>'
     ),
     "roles": (
         '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-hi)" '
@@ -503,12 +675,40 @@ _SVG = {
 # ── Pagina: Inicio ────────────────────────────────────────────
 if pagina == "Inicio":
     _today_str = date.today().strftime("%-d de %B de %Y")
+    _belt_items = [
+        ("vaso",    1.4, 0),
+        ("jeringa", 1.2, 1),
+        ("cuchara", 1.3, 2),
+        ("gotero",  1.3, 3),
+        ("vaso",    1.2, 4),
+        ("jeringa", 1.4, 5),
+        ("cuchara", 1.1, 6),
+        ("gotero",  1.2, 7),
+    ]
+    _illus_map = {"vaso": _illus_vaso, "jeringa": _illus_jeringa, "gotero": _illus_gotero, "cuchara": _illus_cuchara}
+    _dur = 28
+    _belt_html = "".join(
+        f'<div class="hr-item" style="animation-delay:-{(i * _dur) // 8}s;">'
+        f'<span class="hr-float" style="animation-delay:-{i * 0.4:.1f}s;transform:scale({scale});">'
+        f'{_illus_map[kind](size=48)}</span></div>'
+        for kind, scale, i in _belt_items
+    )
+    _particles_html = "".join(
+        f'<span class="hr-p" style="left:{15 + i * 11}%;top:{30 + (i % 3) * 25}%;animation-delay:-{i * 0.7:.1f}s;"></span>'
+        for i in range(8)
+    )
     st.markdown(
         f'<div class="hero">'
         f'<div class="hero-eyebrow">{_today_str}</div>'
         f'<h1 class="hero-title">sol<em>plast</em></h1>'
         f'<p class="hero-sub">Soluciones Plasticas del Ecuador &nbsp;&middot;&nbsp; Sistema de gestion</p>'
         f'<span class="hero-badge">v{APP_VERSION}</span>'
+        f'</div>'
+        f'<div class="hero-ribbon">'
+        f'<div class="hr-glow"></div>'
+        f'<div class="hr-surface"></div>'
+        f'<div class="hr-stream">{_belt_html}</div>'
+        f'<div class="hr-particles">{_particles_html}</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -541,21 +741,22 @@ if pagina == "Inicio":
     )
 
     _HOME_CARDS = [
-        ("Registro",  "Registro Diario",  "Operario",     "Cierre de jornada: material, desechos y produccion del dia.", "registro"),
-        ("Gastos",    "Gastos y Costos",   "Configuracion","Materiales, productos, empaques y costo unitario.", "gastos"),
-        ("Roles",     "Roles y Nomina",    "3 pasos",      "Procesamiento de horas NGTeco y calculo de sueldos.", "roles"),
-        ("Metricas",  "Metricas",          "Analisis",     "Indicadores historicos de nomina, horas y produccion.", "metricas"),
-        ("Empleados", "Empleados",         "8 activos",    "Configuracion de salarios, transporte y datos del personal.", "empleados"),
+        ("Roles",     "Roles y Nomina",    "3 pasos",      "Procesar horas NGTeco y calcular sueldos del mes.",           "roles",     _illus_jeringa),
+        ("Registro",  "Registro Diario",   "Operario",     "Cierre de jornada: material, desechos y produccion del dia.", "registro",  _illus_vaso),
+        ("Catalogo",  "Catalogo",          "Configuracion","Materiales, productos, empaques y gastos fijos.",             "gastos",    _illus_gotero),
+        ("Costos",    "Costos",            "Calculo",      "Costo unitario con material, empaque, nomina y gastos.",      "costos",    _illus_cuchara),
+        ("Metricas",  "Metricas",          "Analisis",     "Historico de nomina, horas extras y evolucion de costos.",   "metricas",  _illus_jeringa),
+        ("Empleados", "Empleados",         "8 activos",    "Salarios, transporte, IESS y fondos de reserva.",            "empleados", _illus_vaso),
     ]
 
     _cards_html = '<div class="module-grid">'
-    for _hkey, _htitle, _hmeta, _hdesc, _hsvgkey in _HOME_CARDS:
+    for _hkey, _htitle, _hmeta, _hdesc, _hsvgkey, _hillus in _HOME_CARDS:
         _cards_html += (
-            f'<div class="module-card" onclick="void(0)">'
+            f'<div class="module-card">'
             f'<div class="mc-meta">{_hmeta}</div>'
             f'<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">'
             f'<div class="mc-title">{_htitle}</div>'
-            f'<div style="flex-shrink:0;opacity:0.7">{_SVG[_hsvgkey]}</div>'
+            f'<div style="flex-shrink:0;opacity:0.75">{_hillus(size=48)}</div>'
             f'</div>'
             f'<div class="mc-desc">{_hdesc}</div>'
             f'</div>'
@@ -564,10 +765,10 @@ if pagina == "Inicio":
     st.markdown(_cards_html, unsafe_allow_html=True)
 
     st.markdown('<div style="height:14px"></div>', unsafe_allow_html=True)
-    _hcols = st.columns(5)
-    for _hi, (_hkey, _htitle, _hmeta, _hdesc, _hsvgkey) in enumerate(_HOME_CARDS):
+    _hcols = st.columns(len(_HOME_CARDS))
+    for _hi, (_hkey, _htitle, _hmeta, _hdesc, _hsvgkey, _hillus) in enumerate(_HOME_CARDS):
         with _hcols[_hi]:
-            if st.button(f"Abrir {_htitle.split()[0]}", key=f"home_{_hkey}", use_container_width=True):
+            if st.button(f"Abrir", key=f"home_{_hkey}", use_container_width=True):
                 st.session_state.pagina = _hkey
                 st.rerun()
 
@@ -1425,10 +1626,10 @@ def _periodo_label(pid):
         return pid
 
 
-if pagina == "Gastos" and role == "admin":
-    _page_header(_SVG["gastos"], "Gastos y Costos", "Materiales, productos, empaques y costos de produccion")
+if pagina == "Catalogo" and role == "admin":
+    _page_header(_SVG["gastos"], "Catalogo", "Materiales, productos, empaques y gastos fijos")
 
-    SUB_OPTS = ["Materiales", "Productos", "Empaques", "Gastos fijos", "Costos"]
+    SUB_OPTS = ["Materiales", "Productos", "Empaques", "Gastos fijos"]
 
     nav_cols = st.columns(len(SUB_OPTS))
     for i, opt in enumerate(SUB_OPTS):
@@ -1744,210 +1945,210 @@ if pagina == "Gastos" and role == "admin":
                     save_gastos_fijos(periodo, gastos_edit)
                     st.rerun()
 
-    # ── Costos calculados ────────────────────────────────
-    if sub_g == "Costos":
-        st.subheader("Costos de produccion")
 
-        periodos = _ultimos_periodos(12)
-        per_c = st.selectbox(
-            "Mes a calcular", periodos,
-            format_func=_periodo_label,
-            key="costos_periodo",
-        )
+# ── Pagina: Costos ───────────────────────────────────────────
+if pagina == "Costos" and role == "admin":
+    _page_header(_SVG["costos"], "Costos", "Costo unitario por producto")
 
-        mats = load_materiales()
-        productos = load_productos()
-        empaques = load_empaques()
-        gastos_mes = load_gastos_fijos(per_c)
-        registros_mes = list_registros_diarios(per_c)
+    periodos = _ultimos_periodos(12)
+    per_c = st.selectbox(
+        "Mes a calcular", periodos,
+        format_func=_periodo_label,
+        key="costos_periodo",
+    )
 
-        merma_pcts = calcular_merma_por_material(registros_mes, productos, mats) if registros_mes else {}
+    mats = load_materiales()
+    productos = load_productos()
+    empaques = load_empaques()
+    gastos_mes = load_gastos_fijos(per_c)
+    registros_mes = list_registros_diarios(per_c)
 
-        cajas_prod = sumar_produccion_mensual(registros_mes)
-        produccion_units = {}
-        for pid, cajas in cajas_prod.items():
-            u_caja = productos.get(pid, {}).get("unidades_caja", 1) or 1
-            produccion_units[pid] = cajas * u_caja
+    merma_pcts = calcular_merma_por_material(registros_mes, productos, mats) if registros_mes else {}
 
-        resumenes = load_all_nomina_resumenes()
-        nomina_total = 0.0
-        if per_c in resumenes:
-            nomina_total = float(resumenes[per_c].get("total_transferido", 0))
+    cajas_prod = sumar_produccion_mensual(registros_mes)
+    produccion_units = {}
+    for pid, cajas in cajas_prod.items():
+        u_caja = productos.get(pid, {}).get("unidades_caja", 1) or 1
+        produccion_units[pid] = cajas * u_caja
 
-        gastos_fijos_total = sumar_gastos_fijos(gastos_mes)
+    resumenes = load_all_nomina_resumenes()
+    nomina_total = 0.0
+    if per_c in resumenes:
+        nomina_total = float(resumenes[per_c].get("total_transferido", 0))
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Nomina del mes", f"${nomina_total:,.2f}",
-                  help="Calculada en Roles > Sueldos")
-        c2.metric("Gastos fijos", f"${gastos_fijos_total:,.2f}")
-        c3.metric("Registros del mes", len(registros_mes))
-        c4.metric("Unidades producidas", f"{int(sum(produccion_units.values())):,}")
+    gastos_fijos_total = sumar_gastos_fijos(gastos_mes)
 
-        if not merma_pcts:
-            st.info(f"Sin registros diarios este mes. Se usa merma default de {MERMA_DEFAULT_PCT}% para todos los materiales.")
-        else:
-            with st.expander("Merma calculada por material"):
-                merma_rows = [
-                    {"Material": mats.get(mid, {}).get("nombre", mid),
-                     "Merma calculada": f"{pct}%"}
-                    for mid, pct in merma_pcts.items()
-                ]
-                st.dataframe(pd.DataFrame(merma_rows), hide_index=True, use_container_width=True)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Nomina del mes", f"${nomina_total:,.2f}",
+              help="Calculada en Roles > Sueldos")
+    c2.metric("Gastos fijos", f"${gastos_fijos_total:,.2f}")
+    c3.metric("Registros del mes", len(registros_mes))
+    c4.metric("Unidades producidas", f"{int(sum(produccion_units.values())):,}")
 
-        st.divider()
+    if not merma_pcts:
+        st.info(f"Sin registros diarios este mes. Se usa merma default de {MERMA_DEFAULT_PCT}% para todos los materiales.")
+    else:
+        with st.expander("Merma calculada por material"):
+            merma_rows = [
+                {"Material": mats.get(mid, {}).get("nombre", mid),
+                 "Merma calculada": f"{pct}%"}
+                for mid, pct in merma_pcts.items()
+            ]
+            st.dataframe(pd.DataFrame(merma_rows), hide_index=True, use_container_width=True)
 
-        costos = calcular_costos(
-            productos, mats, empaques,
-            gastos_fijos_total=gastos_fijos_total,
-            nomina_total=nomina_total,
-            produccion_unidades=produccion_units,
-            merma_pcts=merma_pcts,
-        )
+    st.divider()
 
-        save_costos_snapshot(per_c, {
-            "periodo_label": _periodo_label(per_c),
-            "costos": costos,
-            "nomina_total": nomina_total,
-            "gastos_fijos_total": gastos_fijos_total,
-        })
+    costos = calcular_costos(
+        productos, mats, empaques,
+        gastos_fijos_total=gastos_fijos_total,
+        nomina_total=nomina_total,
+        produccion_unidades=produccion_units,
+        merma_pcts=merma_pcts,
+    )
 
-        df_costos = pd.DataFrame([
-            {
+    save_costos_snapshot(per_c, {
+        "periodo_label": _periodo_label(per_c),
+        "costos": costos,
+        "nomina_total": nomina_total,
+        "gastos_fijos_total": gastos_fijos_total,
+    })
+
+    df_costos = pd.DataFrame([
+        {
+            "Producto": c["nombre"],
+            "Material": c["material"],
+            "Empaque": c["empaque"],
+            "Nomina": c["nomina"],
+            "Gastos ind.": c["gastos_ind"],
+            "Costo unitario": c["total"],
+            "Costo por caja": c["por_caja"],
+            "Unidades mes": c["unidades"],
+        }
+        for c in costos.values()
+    ]).sort_values("Costo unitario", ascending=False)
+
+    st.dataframe(
+        df_costos,
+        column_config={
+            "Material": st.column_config.NumberColumn(format="$%.4f"),
+            "Empaque": st.column_config.NumberColumn(format="$%.4f"),
+            "Nomina": st.column_config.NumberColumn(format="$%.4f"),
+            "Gastos ind.": st.column_config.NumberColumn(format="$%.4f"),
+            "Costo unitario": st.column_config.NumberColumn(format="$%.4f"),
+            "Costo por caja": st.column_config.NumberColumn(format="$%.2f"),
+            "Unidades mes": st.column_config.NumberColumn(format="%d"),
+        },
+        hide_index=True,
+        use_container_width=True,
+    )
+
+    st.divider()
+
+    st.subheader("Desglose por producto")
+    breakdown_rows = []
+    for c in costos.values():
+        for comp_key, label in [("material", "Material"),
+                                 ("empaque", "Empaque"),
+                                 ("nomina", "Nomina"),
+                                 ("gastos_ind", "Gastos indirectos")]:
+            breakdown_rows.append({
                 "Producto": c["nombre"],
-                "Material": c["material"],
-                "Empaque": c["empaque"],
-                "Nomina": c["nomina"],
-                "Gastos ind.": c["gastos_ind"],
-                "Costo unitario": c["total"],
-                "Costo por caja": c["por_caja"],
-                "Unidades mes": c["unidades"],
-            }
-            for c in costos.values()
-        ]).sort_values("Costo unitario", ascending=False)
+                "Componente": label,
+                "Costo": c[comp_key],
+            })
 
-        st.dataframe(
-            df_costos,
-            column_config={
-                "Material": st.column_config.NumberColumn(format="$%.4f"),
-                "Empaque": st.column_config.NumberColumn(format="$%.4f"),
-                "Nomina": st.column_config.NumberColumn(format="$%.4f"),
-                "Gastos ind.": st.column_config.NumberColumn(format="$%.4f"),
-                "Costo unitario": st.column_config.NumberColumn(format="$%.4f"),
-                "Costo por caja": st.column_config.NumberColumn(format="$%.2f"),
-                "Unidades mes": st.column_config.NumberColumn(format="%d"),
-            },
-            hide_index=True,
-            use_container_width=True,
-        )
-
-        st.divider()
-
-        st.subheader("Desglose por producto")
-        breakdown_rows = []
-        for c in costos.values():
-            for comp_key, label in [("material", "Material"),
-                                     ("empaque", "Empaque"),
-                                     ("nomina", "Nomina"),
-                                     ("gastos_ind", "Gastos indirectos")]:
-                breakdown_rows.append({
-                    "Producto": c["nombre"],
-                    "Componente": label,
-                    "Costo": c[comp_key],
-                })
-
-        df_bd = pd.DataFrame(breakdown_rows)
-        bd_chart = (
-            alt.Chart(df_bd)
-            .mark_bar()
-            .encode(
-                y=alt.Y("Producto:N", sort="-x", axis=alt.Axis(title="")),
-                x=alt.X("Costo:Q",
-                        axis=alt.Axis(title="Costo unitario ($)", format="$,.3f"),
-                        stack="zero"),
-                color=alt.Color(
-                    "Componente:N",
-                    scale=alt.Scale(
-                        domain=["Material", "Empaque", "Nomina", "Gastos indirectos"],
-                        range=["#6d28d9", "#a78bfa", "#fbbf24", "#34d399"],
-                    ),
-                    legend=alt.Legend(title="", orient="top"),
+    df_bd = pd.DataFrame(breakdown_rows)
+    bd_chart = (
+        alt.Chart(df_bd)
+        .mark_bar()
+        .encode(
+            y=alt.Y("Producto:N", sort="-x", axis=alt.Axis(title="")),
+            x=alt.X("Costo:Q",
+                    axis=alt.Axis(title="Costo unitario ($)", format="$,.3f"),
+                    stack="zero"),
+            color=alt.Color(
+                "Componente:N",
+                scale=alt.Scale(
+                    domain=["Material", "Empaque", "Nomina", "Gastos indirectos"],
+                    range=["#6d28d9", "#a78bfa", "#fbbf24", "#34d399"],
                 ),
-                tooltip=[
-                    alt.Tooltip("Producto:N"),
-                    alt.Tooltip("Componente:N"),
-                    alt.Tooltip("Costo:Q", format="$.4f"),
-                ],
-            )
-            .properties(height=max(240, len(costos) * 30))
-            .configure_view(fill="transparent", strokeWidth=0)
-            .configure_axis(grid=False, labelColor="#7b7986", titleColor="#7b7986",
-                            domainColor="#272734", tickColor="#272734")
-            .configure_legend(labelColor="#b5b3bc", titleColor="#7b7986")
+                legend=alt.Legend(title="", orient="top"),
+            ),
+            tooltip=[
+                alt.Tooltip("Producto:N"),
+                alt.Tooltip("Componente:N"),
+                alt.Tooltip("Costo:Q", format="$.4f"),
+            ],
         )
-        st.altair_chart(bd_chart, use_container_width=True)
+        .properties(height=max(240, len(costos) * 30))
+        .configure_view(fill="transparent", strokeWidth=0)
+        .configure_axis(grid=False, labelColor="#7b7986", titleColor="#7b7986",
+                        domainColor="#272734", tickColor="#272734")
+        .configure_legend(labelColor="#b5b3bc", titleColor="#7b7986")
+    )
+    st.altair_chart(bd_chart, use_container_width=True)
 
-        # Evolucion temporal
-        st.divider()
-        st.subheader("Evolucion del costo unitario")
+    st.divider()
+    st.subheader("Evolucion del costo unitario")
 
-        snapshots = load_all_costos_snapshots()
-        if len(snapshots) >= 2:
-            sorted_pers = sorted(snapshots.keys())
-            all_prods = set()
-            for snap in snapshots.values():
-                all_prods.update(snap.get("costos", {}).keys())
+    snapshots = load_all_costos_snapshots()
+    if len(snapshots) >= 2:
+        sorted_pers = sorted(snapshots.keys())
+        all_prods = set()
+        for snap in snapshots.values():
+            all_prods.update(snap.get("costos", {}).keys())
 
-            prod_nombres = {pid: productos.get(pid, {}).get("nombre", pid) for pid in all_prods}
+        prod_nombres = {pid: productos.get(pid, {}).get("nombre", pid) for pid in all_prods}
 
-            seleccion = st.multiselect(
-                "Productos a comparar",
-                options=sorted(all_prods, key=lambda x: prod_nombres[x]),
-                default=sorted(all_prods, key=lambda x: prod_nombres[x])[:5],
-                format_func=lambda x: prod_nombres[x],
-                key="costos_evo_select",
-            )
+        seleccion = st.multiselect(
+            "Productos a comparar",
+            options=sorted(all_prods, key=lambda x: prod_nombres[x]),
+            default=sorted(all_prods, key=lambda x: prod_nombres[x])[:5],
+            format_func=lambda x: prod_nombres[x],
+            key="costos_evo_select",
+        )
 
-            if seleccion:
-                evo_rows = []
-                for per in sorted_pers:
-                    snap = snapshots[per]
-                    lab = snap.get("periodo_label", per)
-                    for pid in seleccion:
-                        c_snap = snap.get("costos", {}).get(pid)
-                        if c_snap:
-                            evo_rows.append({
-                                "Mes": lab,
-                                "Producto": prod_nombres[pid],
-                                "Costo unitario": c_snap.get("total", 0),
-                            })
+        if seleccion:
+            evo_rows = []
+            for per in sorted_pers:
+                snap = snapshots[per]
+                lab = snap.get("periodo_label", per)
+                for pid in seleccion:
+                    c_snap = snap.get("costos", {}).get(pid)
+                    if c_snap:
+                        evo_rows.append({
+                            "Mes": lab,
+                            "Producto": prod_nombres[pid],
+                            "Costo unitario": c_snap.get("total", 0),
+                        })
 
-                if evo_rows:
-                    df_evo = pd.DataFrame(evo_rows)
-                    evo_chart = (
-                        alt.Chart(df_evo)
-                        .mark_line(point=alt.OverlayMarkDef(size=60), strokeWidth=2)
-                        .encode(
-                            x=alt.X("Mes:N", sort=None,
-                                    axis=alt.Axis(title="", labelAngle=-20)),
-                            y=alt.Y("Costo unitario:Q",
-                                    axis=alt.Axis(title="Costo unitario ($)", format="$,.4f")),
-                            color=alt.Color("Producto:N",
-                                            legend=alt.Legend(orient="right", title="")),
-                            tooltip=[
-                                alt.Tooltip("Producto:N"),
-                                alt.Tooltip("Mes:N"),
-                                alt.Tooltip("Costo unitario:Q", format="$.4f"),
-                            ],
-                        )
-                        .properties(height=300)
-                        .configure_view(fill="transparent", strokeWidth=0)
-                        .configure_axis(grid=False, labelColor="#7b7986", titleColor="#7b7986",
-                                        domainColor="#272734", tickColor="#272734")
-                        .configure_legend(labelColor="#b5b3bc", titleColor="#7b7986")
+            if evo_rows:
+                df_evo = pd.DataFrame(evo_rows)
+                evo_chart = (
+                    alt.Chart(df_evo)
+                    .mark_line(point=alt.OverlayMarkDef(size=60), strokeWidth=2)
+                    .encode(
+                        x=alt.X("Mes:N", sort=None,
+                                axis=alt.Axis(title="", labelAngle=-20)),
+                        y=alt.Y("Costo unitario:Q",
+                                axis=alt.Axis(title="Costo unitario ($)", format="$,.4f")),
+                        color=alt.Color("Producto:N",
+                                        legend=alt.Legend(orient="right", title="")),
+                        tooltip=[
+                            alt.Tooltip("Producto:N"),
+                            alt.Tooltip("Mes:N"),
+                            alt.Tooltip("Costo unitario:Q", format="$.4f"),
+                        ],
                     )
-                    st.altair_chart(evo_chart, use_container_width=True)
-        else:
-            st.caption("Calcula costos en al menos 2 meses distintos para ver la evolucion temporal.")
+                    .properties(height=300)
+                    .configure_view(fill="transparent", strokeWidth=0)
+                    .configure_axis(grid=False, labelColor="#7b7986", titleColor="#7b7986",
+                                    domainColor="#272734", tickColor="#272734")
+                    .configure_legend(labelColor="#b5b3bc", titleColor="#7b7986")
+                )
+                st.altair_chart(evo_chart, use_container_width=True)
+    else:
+        st.caption("Calcula costos en al menos 2 meses distintos para ver la evolucion temporal.")
 
 
 # ── Pagina: Registro Diario ──────────────────────────────────
