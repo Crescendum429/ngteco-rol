@@ -108,6 +108,50 @@ def _prod_to_js(key, prod):
     }
 
 
+def _calc_nomina_ultimo(emp_db):
+    """Recalculate per-employee nomina from the last saved report."""
+    reps = list_reportes()
+    if not reps:
+        return []
+    last_rep = reps[0]  # already ordered desc
+    try:
+        data_r, cls_r = load_reporte(last_rep["id"])
+        if not data_r or not cls_r:
+            return []
+        matched_r, _, _ = match_empleados(data_r, emp_db)
+        arrastre_r = load_arrastre(last_rep["id"]) or {}
+        result = []
+        for emp_full, days, nid in data_r:
+            name = emp_name(emp_full)
+            dk = matched_r.get(name)
+            cfg = emp_db.get(dk, {}) if dk else {}
+            if not cfg.get("salario"):
+                continue
+            hrs = calcular_horas_clasificadas(cls_r.get(name, {}), cfg.get("horas_base", 8))
+            cfg_c = dict(cfg)
+            cfg_c["horas_comp_anterior"] = arrastre_r.get(name, 0)
+            nom = calcular_nomina(hrs, cfg_c, {})
+            result.append({
+                "id": dk or name,
+                "nombre": name,
+                "dias": hrs["dias"],
+                "horas": round(hrs["horas_total"], 1),
+                "h50": round(hrs["horas_50"], 2),
+                "h100": round(hrs["horas_100"], 2),
+                "quincena": round(nom["quincena"], 2),
+                "extras": round(nom["horas_extras"], 2),
+                "transporte": round(nom["transporte"], 2),
+                "ingresos": round(nom["total_ingresos"], 2),
+                "iess": round(nom["iess"], 2),
+                "neto": round(nom["valor_recibir"], 2),
+                "fondos": round(nom["fondos_reserva"], 2),
+                "total": round(nom["total_transferido"], 2),
+            })
+        return result
+    except Exception:
+        return []
+
+
 def _build_data_jsx():
     emp_db = load_empleados()
     empleados_js = [_emp_to_js(k, v, i) for i, (k, v) in enumerate(emp_db.items()) if not v.get("ocultar")]
@@ -192,13 +236,7 @@ def _build_data_jsx():
         "mantenimiento": float(gastos_raw.get("mantenimiento", 80)),
     }
 
-    nomina_ultimo = []
-    if resumenes:
-        last_id = max(resumenes.keys())
-        last_r = resumenes[last_id]
-        emp_field = last_r.get("empleados", [])
-        if isinstance(emp_field, list):
-            nomina_ultimo = emp_field
+    nomina_ultimo = _calc_nomina_ultimo(emp_db)
 
     return f"""
 // Datos reales inyectados por el servidor — v{APP_VERSION}
