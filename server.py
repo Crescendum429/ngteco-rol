@@ -479,6 +479,22 @@ def _build_login_patch():
       });
       return r.ok;
     },
+    fetchEmpleados: async () => {
+      const r = await fetch('/api/empleados', { credentials: 'same-origin' });
+      return r.ok ? r.json() : [];
+    },
+    fetchProductos: async () => {
+      const r = await fetch('/api/productos', { credentials: 'same-origin' });
+      return r.ok ? r.json() : [];
+    },
+    fetchMateriales: async () => {
+      const r = await fetch('/api/materiales', { credentials: 'same-origin' });
+      return r.ok ? r.json() : [];
+    },
+    fetchEmpaques: async () => {
+      const r = await fetch('/api/empaques', { credentials: 'same-origin' });
+      return r.ok ? r.json() : [];
+    },
     setGastoDesactivado: async (period, key, desactivado) => {
       const r = await fetch(`/api/gastos_fijos/${encodeURIComponent(period)}/desactivar`, {
         method: 'POST',

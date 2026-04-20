@@ -3010,6 +3010,15 @@ function TabProductos({ nuevoTick }) {
     }
   }, [nuevoTick]);
 
+  async function refreshProductos() {
+    const fresh = await window._api?.fetchProductos();
+    if (Array.isArray(fresh)) {
+      setItems(fresh);
+      PRODUCTOS_MOCK.length = 0;
+      PRODUCTOS_MOCK.push(...fresh);
+    }
+  }
+
   async function handleSave() {
     if (!form || !sel) return;
     setSaving(true);
@@ -3019,7 +3028,8 @@ function TabProductos({ nuevoTick }) {
       await window._api?.saveProducto(sel.id, form);
     }
     setSaving(false);
-    location.reload();
+    await refreshProductos();
+    setSel(null); setForm(null);
   }
 
   async function handleToggleDesactivado() {
@@ -3141,13 +3151,23 @@ function TabMateriales({ nuevoTick }) {
     }
   }, [nuevoTick]);
 
+  async function refreshMateriales() {
+    const fresh = await window._api?.fetchMateriales();
+    if (Array.isArray(fresh)) {
+      setItems(fresh);
+      MATERIALES_MOCK.length = 0;
+      MATERIALES_MOCK.push(...fresh);
+    }
+  }
+
   async function handleSave() {
     if (!form || !sel) return;
     if (sel.isNew && !form.id) { alert('Código interno requerido'); return; }
     setSaving(true);
     await window._api?.saveMaterial(sel.isNew ? form.id : sel.id, form);
     setSaving(false);
-    location.reload();
+    await refreshMateriales();
+    setSel(null); setForm(null);
   }
 
   async function handleToggleDesactivado() {
@@ -3238,13 +3258,23 @@ function TabEmpaques({ nuevoTick }) {
     }
   }, [nuevoTick]);
 
+  async function refreshEmpaques() {
+    const fresh = await window._api?.fetchEmpaques();
+    if (Array.isArray(fresh)) {
+      setItems(fresh);
+      EMPAQUES_MOCK.length = 0;
+      EMPAQUES_MOCK.push(...fresh);
+    }
+  }
+
   async function handleSave() {
     if (!form || !sel) return;
     if (sel.isNew && !form.id) { alert('Código interno requerido'); return; }
     setSaving(true);
     await window._api?.saveEmpaque(sel.isNew ? form.id : sel.id, form);
     setSaving(false);
-    location.reload();
+    await refreshEmpaques();
+    setSel(null); setForm(null);
   }
 
   async function handleToggleDesactivado() {
@@ -3732,13 +3762,24 @@ const EMPTY_EMP = {
 };
 
 function Empleados() {
+  const [allItems, setAllItems] = useState(() => EMPLEADOS_MOCK.map(e => ({ ...e })));
   const [sel, setSel] = useState(null);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState('');
-  const items = EMPLEADOS_MOCK.filter(e => e.nombre.toLowerCase().includes(q.toLowerCase()));
+  const items = allItems.filter(e => e.nombre.toLowerCase().includes(q.toLowerCase()));
 
   function openEmp(e) { setSel(e); setForm({ ...e }); }
+
+  async function refresh() {
+    const fresh = await window._api?.fetchEmpleados();
+    if (Array.isArray(fresh)) {
+      const visibles = fresh.filter(e => !e.ocultar);
+      setAllItems(visibles);
+      EMPLEADOS_MOCK.length = 0;
+      EMPLEADOS_MOCK.push(...visibles);
+    }
+  }
 
   async function handleSave() {
     if (!form) return;
@@ -3750,14 +3791,20 @@ function Empleados() {
       ok = await window._api?.saveEmpleado(sel.id, form);
     }
     setSaving(false);
-    if (ok !== false) location.reload();
+    if (ok !== false) {
+      await refresh();
+      setSel(null); setForm(null);
+    } else {
+      alert('Error guardando.');
+    }
   }
 
   async function handleDelete() {
     if (!sel || sel.isNew) return;
     if (!confirm(`¿Desactivar a ${sel.nombre}? Se eliminará de la nómina.`)) return;
     await window._api?.deleteEmpleado(sel.id);
-    location.reload();
+    await refresh();
+    setSel(null); setForm(null);
   }
 
   return (
