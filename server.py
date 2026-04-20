@@ -393,11 +393,16 @@ def _build_login_patch():
       });
       return r.ok;
     },
-    uploadNomina: async (file) => {
+    uploadNomina: async (file, force) => {
       const fd = new FormData();
       fd.append('file', file);
-      const r = await fetch('/api/nomina/upload', { method: 'POST', body: fd, credentials: 'same-origin' });
-      try { return await r.json(); } catch { return { error: 'Respuesta invalida del servidor' }; }
+      const url = '/api/nomina/upload' + (force ? '?force=1' : '');
+      const r = await fetch(url, { method: 'POST', body: fd, credentials: 'same-origin' });
+      try {
+        const json = await r.json();
+        if (r.status === 409) json.conflict = true;
+        return json;
+      } catch { return { error: 'Respuesta invalida del servidor' }; }
     },
     saveMaterial: async (id, data) => {
       const r = await fetch('/api/materiales/' + encodeURIComponent(id), {
@@ -813,6 +818,17 @@ def nomina_upload():
     if not periodo_id:
         return jsonify({"error": "No se pudo determinar el periodo del reporte"}), 422
 
+    force = request.args.get("force", "").lower() in ("1", "true", "yes")
+    if not force:
+        existing_data, _ = load_reporte(periodo_id)
+        if existing_data:
+            return jsonify({
+                "conflict": True,
+                "periodo_id": periodo_id,
+                "periodo_label": periodo_label,
+                "empleados": len(data),
+            }), 409
+
     save_reporte(periodo_id, periodo_label, data, cls)
 
     existing = load_all_nomina_resumenes().get(periodo_id) or {}
@@ -882,13 +898,19 @@ def nomina_corregir():
         cls_emp = cls.setdefault(name, {})
         for ds, vals in dias.items():
             day = cls_emp.setdefault(ds, {"h1": None, "h2": None, "h3": None, "h4": None, "flags": []})
+            solo_flag = bool(vals.get("_flag")) and not any(k in vals for k in ("h1", "h2", "h3", "h4"))
             solo_verificar = bool(vals.get("_verify")) and not any(k in vals for k in ("h1", "h2", "h3", "h4"))
             if "h1" in vals: day["h1"] = hhmm_to_min(vals["h1"])
             if "h2" in vals: day["h2"] = hhmm_to_min(vals["h2"])
             if "h3" in vals: day["h3"] = hhmm_to_min(vals["h3"])
             if "h4" in vals: day["h4"] = hhmm_to_min(vals["h4"])
-            nuevo_flag = "VERIFICADO" if solo_verificar else "CORREGIDO MANUALMENTE"
-            day["flags"] = [nuevo_flag]
+            if solo_flag:
+                nuevo_flag = str(vals["_flag"])
+            elif solo_verificar:
+                nuevo_flag = "VERIFICADO"
+            else:
+                nuevo_flag = "CORREGIDO MANUALMENTE"
+            day["flags"] = [nuevo_flag] if nuevo_flag else []
             n_updates += 1
 
     y, m = periodo_id.split('-')

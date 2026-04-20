@@ -1871,6 +1871,8 @@ function Nomina({ setPage }) {
 
 function NomStepSubir({ periodoId, onNext, onSelectPeriodo }) {
   const [uploading, setUploading] = useState(false);
+  const [pendingFile, setPendingFile] = useState(null);
+  const [conflictInfo, setConflictInfo] = useState(null);
   const [justUploaded, setJustUploaded] = useState(() => {
     try {
       const s = sessionStorage.getItem('solplast.justUploaded');
@@ -1882,10 +1884,15 @@ function NomStepSubir({ periodoId, onNext, onSelectPeriodo }) {
     return null;
   });
 
-  async function handleFile(file) {
-    if (!file) return;
+  async function doUpload(file, force) {
     setUploading(true);
-    const result = await window._api?.uploadNomina(file);
+    const result = await window._api?.uploadNomina(file, force);
+    if (result && result.conflict) {
+      setUploading(false);
+      setPendingFile(file);
+      setConflictInfo(result);
+      return;
+    }
     if (result && !result.error) {
       try {
         sessionStorage.setItem('solplast.justUploaded', JSON.stringify({
@@ -1900,6 +1907,23 @@ function NomStepSubir({ periodoId, onNext, onSelectPeriodo }) {
     }
     setUploading(false);
     alert((result && result.error) || 'Error subiendo el archivo.');
+  }
+
+  function handleFile(file) {
+    if (!file) return;
+    doUpload(file, false);
+  }
+
+  function confirmarSobreescribir() {
+    if (!pendingFile) return;
+    setConflictInfo(null);
+    doUpload(pendingFile, true);
+    setPendingFile(null);
+  }
+
+  function cancelarSobreescribir() {
+    setConflictInfo(null);
+    setPendingFile(null);
   }
 
   const periodos = NOMINA_HISTORICA.slice().reverse();
@@ -1955,19 +1979,47 @@ function NomStepSubir({ periodoId, onNext, onSelectPeriodo }) {
           );
         })}
       </div>
+
+      <Modal open={!!conflictInfo} onClose={cancelarSobreescribir} title="¿Sobrescribir reporte?"
+        footer={<><Btn onClick={cancelarSobreescribir}>Cancelar</Btn><Btn variant="primary" onClick={confirmarSobreescribir}><Icon name="check" size={14}/> Sí, sobrescribir</Btn></>}>
+        {conflictInfo && (
+          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'color-mix(in oklab, var(--warn) 18%, transparent)', color: 'var(--warn)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Icon name="alert" size={20}/>
+            </div>
+            <div>
+              <div style={{ fontSize: 14, marginBottom: 8 }}>Ya existe un reporte guardado para <strong>{conflictInfo.periodo_label}</strong>.</div>
+              <div className="small mute">Si continúas, se reemplazará con el archivo nuevo ({conflictInfo.empleados} empleados). Las horas corregidas manualmente de este período se perderán.</div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
 
 function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
-  const horasPeriodo = HORAS_POR_PERIODO[periodoId] || {};
+  const cloneHoras = (pid) => {
+    const src = HORAS_POR_PERIODO[pid] || {};
+    const copy = {};
+    for (const k of Object.keys(src)) copy[k] = src[k].map(d => ({ ...d }));
+    return copy;
+  };
+
+  const [horasPeriodo, setHorasPeriodo] = useState(() => cloneHoras(periodoId));
   const empIds = Object.keys(horasPeriodo);
   const firstId = empIds[0] || EMPLEADOS_MOCK[0]?.id || '';
   const [sel, setSel] = useState(firstId);
   const [edits, setEdits] = useState({});
   const [saving, setSaving] = useState(false);
 
-  React.useEffect(() => { if (empIds.length > 0 && !empIds.includes(sel)) setSel(empIds[0]); }, [periodoId]);
+  React.useEffect(() => {
+    const nuevo = cloneHoras(periodoId);
+    setHorasPeriodo(nuevo);
+    setEdits({});
+    const ids = Object.keys(nuevo);
+    if (ids.length > 0 && !ids.includes(sel)) setSel(ids[0]);
+  }, [periodoId]);
 
   const baseDays = horasPeriodo[sel] || [];
   const days = baseDays.map((d, i) => {
@@ -1984,15 +2036,26 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
 
   const hayCambios = Object.keys(edits).some(k => Object.keys(edits[k] || {}).length > 0);
 
-  async function verificarDia(idx) {
+  function applyFlagLocal(empKey, idx, nuevoFlag) {
+    setHorasPeriodo(h => ({
+      ...h,
+      [empKey]: h[empKey].map((d, i) => i === idx ? { ...d, flag: nuevoFlag } : d),
+    }));
+  }
+
+  async function cambiarFlag(idx, nuevoFlag) {
     const row = baseDays[idx];
     if (!row || saving) return;
     setSaving(true);
-    const ediciones = { [sel]: { [row.fecha]: { _verify: true } } };
+    const ediciones = { [sel]: { [row.fecha]: { _flag: nuevoFlag } } };
     const ok = await window._api?.corregirNomina(periodoId, ediciones);
     setSaving(false);
-    if (ok) location.reload();
-    else alert('Error marcando como verificado.');
+    if (ok) {
+      applyFlagLocal(sel, idx, nuevoFlag);
+      if (HORAS_POR_PERIODO[periodoId]?.[sel]?.[idx]) HORAS_POR_PERIODO[periodoId][sel][idx].flag = nuevoFlag;
+    } else {
+      alert('Error actualizando observación.');
+    }
   }
 
   async function guardarCorrecciones() {
@@ -2011,8 +2074,27 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
     }
     const ok = await window._api?.corregirNomina(periodoId, ediciones);
     setSaving(false);
-    if (ok) location.reload();
-    else alert('Error guardando correcciones.');
+    if (ok) {
+      setHorasPeriodo(h => {
+        const nuevo = { ...h };
+        for (const empKey of Object.keys(edits)) {
+          nuevo[empKey] = (nuevo[empKey] || []).map((d, i) => {
+            const ov = edits[empKey]?.[i];
+            if (!ov) return d;
+            const nd = { ...d, ...ov, flag: 'CORREGIDO MANUALMENTE' };
+            nd.total = computeTotal(nd.h1, nd.h2, nd.h3, nd.h4);
+            return nd;
+          });
+          if (HORAS_POR_PERIODO[periodoId]?.[empKey]) {
+            HORAS_POR_PERIODO[periodoId][empKey] = nuevo[empKey].map(d => ({ ...d }));
+          }
+        }
+        return nuevo;
+      });
+      setEdits({});
+    } else {
+      alert('Error guardando correcciones.');
+    }
   }
 
   const horasTotal = Object.values(horasPeriodo).flat().reduce((a, d) => a + (d.total || 0), 0);
@@ -2101,10 +2183,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
                       <td><input className="input" type="time" value={d.h4 || ''} onChange={e => updateCell(i, 'h4', e.target.value)} style={{ padding: '4px 6px', fontSize: 13, width: 90 }} /></td>
                       <td className="num mono">{d.total.toFixed(1)}</td>
                       <td>
-                        {d.flag && <div className="row" style={{ gap: 6 }}>
-                          <Chip tone={flagged ? 'warn' : 'good'}>{d.flag}</Chip>
-                          {flagged && <button onClick={() => verificarDia(i)} disabled={saving} title="Marcar como verificado" style={{ background: 'transparent', border: '1px solid var(--line)', borderRadius: 6, padding: '2px 6px', cursor: 'pointer', color: 'var(--good)', display: 'inline-flex', alignItems: 'center' }}><Icon name="check" size={12} strokeWidth={3}/></button>}
-                        </div>}
+                        <ObsDropdown value={d.flag} onChange={(v) => cambiarFlag(i, v)} disabled={saving} />
                       </td>
                     </tr>
                   );
@@ -2129,6 +2208,83 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
     </div>
   );
 }
+
+function ObsDropdown({ value, onChange, disabled }) {
+  const [open, setOpen] = useState(false);
+  const [custom, setCustom] = useState('');
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open]);
+
+  const esRevisar = value && value.startsWith('REVISAR');
+  const tone = !value ? null : esRevisar ? 'warn' : 'good';
+
+  const opciones = [
+    { v: 'VERIFICADO', tone: 'good' },
+    { v: 'CORREGIDO MANUALMENTE', tone: 'good' },
+    { v: 'REVISAR: verificar horarios', tone: 'warn' },
+    { v: 'REVISAR: salida tarde no registrada', tone: 'warn' },
+    { v: 'REVISAR: hora de salida inusual', tone: 'warn' },
+    { v: 'REVISAR: verificar manualmente', tone: 'warn' },
+  ];
+
+  return (
+    <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        onClick={() => !disabled && setOpen(o => !o)}
+        disabled={disabled}
+        style={{
+          border: 0, padding: 0, background: 'transparent',
+          cursor: disabled ? 'default' : 'pointer',
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+        }}
+      >
+        {value ? <Chip tone={tone}>{value}</Chip> : <Chip>Sin observación</Chip>}
+        <Icon name="chev_d" size={11} className="mute" />
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', right: 0,
+          background: 'var(--bg-raised)', border: '1px solid var(--line)',
+          borderRadius: 'var(--radius-md)', padding: 6, minWidth: 260,
+          zIndex: 100, boxShadow: '0 8px 28px rgba(0,0,0,0.35)',
+        }}>
+          <button onClick={() => { onChange(''); setOpen(false); }} style={dropItemStyle}>
+            <span className="mute xs">Quitar observación</span>
+          </button>
+          <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
+          {opciones.map(o => (
+            <button key={o.v} onClick={() => { onChange(o.v); setOpen(false); }} style={{ ...dropItemStyle, background: value === o.v ? 'var(--bg-hover)' : 'transparent' }}>
+              <Chip tone={o.tone}>{o.v}</Chip>
+            </button>
+          ))}
+          <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
+          <div style={{ padding: 6 }}>
+            <input
+              className="input"
+              value={custom}
+              onChange={e => setCustom(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && custom.trim()) { onChange(custom.trim()); setCustom(''); setOpen(false); } }}
+              placeholder="Otra observación… (Enter)"
+              style={{ fontSize: 12, padding: '6px 8px' }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const dropItemStyle = {
+  display: 'block', width: '100%', textAlign: 'left',
+  background: 'transparent', border: 0, cursor: 'pointer',
+  padding: '6px 8px', borderRadius: 6,
+  color: 'var(--text)',
+};
 
 function computeTotal(h1, h2, h3, h4) {
   const toMin = (t) => {
