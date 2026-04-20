@@ -882,14 +882,13 @@ def nomina_corregir():
         cls_emp = cls.setdefault(name, {})
         for ds, vals in dias.items():
             day = cls_emp.setdefault(ds, {"h1": None, "h2": None, "h3": None, "h4": None, "flags": []})
+            solo_verificar = bool(vals.get("_verify")) and not any(k in vals for k in ("h1", "h2", "h3", "h4"))
             if "h1" in vals: day["h1"] = hhmm_to_min(vals["h1"])
             if "h2" in vals: day["h2"] = hhmm_to_min(vals["h2"])
             if "h3" in vals: day["h3"] = hhmm_to_min(vals["h3"])
             if "h4" in vals: day["h4"] = hhmm_to_min(vals["h4"])
-            flags = [f for f in (day.get("flags") or []) if f and f.startswith("CORREG")]
-            flags = [f for f in flags if f != "CORREGIDO MANUALMENTE"]
-            flags.append("CORREGIDO MANUALMENTE")
-            day["flags"] = flags
+            nuevo_flag = "VERIFICADO" if solo_verificar else "CORREGIDO MANUALMENTE"
+            day["flags"] = [nuevo_flag]
             n_updates += 1
 
     y, m = periodo_id.split('-')

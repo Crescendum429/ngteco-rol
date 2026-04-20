@@ -1984,6 +1984,17 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
 
   const hayCambios = Object.keys(edits).some(k => Object.keys(edits[k] || {}).length > 0);
 
+  async function verificarDia(idx) {
+    const row = baseDays[idx];
+    if (!row || saving) return;
+    setSaving(true);
+    const ediciones = { [sel]: { [row.fecha]: { _verify: true } } };
+    const ok = await window._api?.corregirNomina(periodoId, ediciones);
+    setSaving(false);
+    if (ok) location.reload();
+    else alert('Error marcando como verificado.');
+  }
+
   async function guardarCorrecciones() {
     if (!hayCambios) return;
     setSaving(true);
@@ -2080,7 +2091,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
               </thead>
               <tbody>
                 {days.map((d, i) => {
-                  const flagged = d.flag && !d.flag.startsWith('CORREG');
+                  const flagged = d.flag && d.flag.startsWith('REVISAR');
                   return (
                     <tr key={i} style={flagged ? { background: 'color-mix(in oklab, var(--warn-soft) 20%, transparent)' } : {}}>
                       <td>{fechaFmt(d.fecha)} <span className="mute xs">{dow(d.fecha)}</span></td>
@@ -2089,7 +2100,12 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
                       <td><input className="input" type="time" value={d.h3 || ''} onChange={e => updateCell(i, 'h3', e.target.value)} style={{ padding: '4px 6px', fontSize: 13, width: 90 }} /></td>
                       <td><input className="input" type="time" value={d.h4 || ''} onChange={e => updateCell(i, 'h4', e.target.value)} style={{ padding: '4px 6px', fontSize: 13, width: 90 }} /></td>
                       <td className="num mono">{d.total.toFixed(1)}</td>
-                      <td>{d.flag && <Chip tone={flagged ? 'warn' : 'good'}>{d.flag}</Chip>}</td>
+                      <td>
+                        {d.flag && <div className="row" style={{ gap: 6 }}>
+                          <Chip tone={flagged ? 'warn' : 'good'}>{d.flag}</Chip>
+                          {flagged && <button onClick={() => verificarDia(i)} disabled={saving} title="Marcar como verificado" style={{ background: 'transparent', border: '1px solid var(--line)', borderRadius: 6, padding: '2px 6px', cursor: 'pointer', color: 'var(--good)', display: 'inline-flex', alignItems: 'center' }}><Icon name="check" size={12} strokeWidth={3}/></button>}
+                        </div>}
+                      </td>
                     </tr>
                   );
                 })}
