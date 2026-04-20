@@ -1514,7 +1514,7 @@ const NAV_ITEMS = [
 // Items exposed in mobile bottom nav (limit to 5)
 const MBNAV = ['home', 'nomina', 'registro', 'costos', 'metricas'];
 
-function Sidebar({ page, setPage, role, open, onClose, theme, setTheme }) {
+function Sidebar({ page, setPage, role, open, onClose, theme, setTheme, onLogout }) {
   const items = role === 'operario'
     ? NAV_ITEMS.filter(i => i.key === 'registro')
     : NAV_ITEMS;
@@ -1571,7 +1571,7 @@ function Sidebar({ page, setPage, role, open, onClose, theme, setTheme }) {
               <div style={{ fontSize: 12.5, fontWeight: 600 }}>{role === 'operario' ? 'Operario' : 'Admin Solplast'}</div>
               <div className="xs mute">v4.0 · Demo</div>
             </div>
-            <Btn variant="ghost" size="sm" title="Cerrar sesión"><Icon name="logout" size={14} /></Btn>
+            <Btn variant="ghost" size="sm" title="Cerrar sesión" onClick={onLogout}><Icon name="logout" size={14} /></Btn>
           </div>
         </div>
       </aside>
@@ -1680,15 +1680,15 @@ Object.assign(window, { Login });
 
 <script type="text/babel" data-file="home.jsx">
 function Home({ setPage, role }) {
-  const ultimo = NOMINA_HISTORICA[NOMINA_HISTORICA.length - 1];
-  const prev   = NOMINA_HISTORICA[NOMINA_HISTORICA.length - 2];
-  const deltaNom = ((ultimo.total - prev.total) / prev.total) * 100;
-  const costoProm = PRODUCTOS_MOCK.reduce((a, p) => a + p.costo_unit, 0) / PRODUCTOS_MOCK.length;
+  const ultimo = NOMINA_HISTORICA[NOMINA_HISTORICA.length - 1] || { total: 0, h50: 0, h100: 0, label: '—' };
+  const prev   = NOMINA_HISTORICA[NOMINA_HISTORICA.length - 2] || { total: 0 };
+  const deltaNom = prev.total > 0 ? ((ultimo.total - prev.total) / prev.total) * 100 : 0;
+  const costoProm = PRODUCTOS_MOCK.length > 0 ? PRODUCTOS_MOCK.reduce((a, p) => a + p.costo_unit, 0) / PRODUCTOS_MOCK.length : 0;
   const unidadesMes = PRODUCCION_MES.reduce((a, p) => a + p.unidades, 0);
   const alertas = [
     { tone: 'warn', icon: 'alert', ttl: '4 anomalías en el reporte de horas',      cap: 'Abril 2026 · revisar en Nómina', go: 'nomina' },
     { tone: 'info', icon: 'flame', ttl: 'Merma PVC subió a 5.1% (meta 3%)',        cap: 'Materias primas · últimos 30 días', go: 'catalogo' },
-    { tone: 'good', icon: 'check', ttl: 'Nómina de abril lista para transferir',   cap: `${fmtMoney(ultimo.total)} — 8 empleados`, go: 'nomina' },
+    { tone: 'good', icon: 'check', ttl: 'Nómina lista para transferir',             cap: `${fmtMoney(ultimo.total)} — ${EMPLEADOS_MOCK.length} empleados`, go: 'nomina' },
   ];
 
   const modules = [
@@ -1824,14 +1824,19 @@ Object.assign(window, { Home });
 
 function Nomina({ setPage }) {
   const [step, setStep] = useState(0);
-  const [uploaded, setUploaded] = useState(true);  // demo: already uploaded
-  const [periodo] = useState('Abril 2026');
+  const [uploaded, setUploaded] = useState(NOMINA_HISTORICA.some(r => r.total > 0));
+  const [periodo, setPeriodo] = useState(NOMINA_HISTORICA[NOMINA_HISTORICA.length - 1]?.label || 'Sin datos');
 
   const steps = [
     { label: 'Subir reporte', sub: 'Archivo XLS del reloj NGTeco' },
     { label: 'Revisar horas', sub: 'Corregir anomalías antes de calcular' },
     { label: 'Calcular sueldos', sub: 'Nómina final con extras y descuentos' },
   ];
+
+  function selectPeriodo(label) {
+    setPeriodo(label);
+    setStep(2);
+  }
 
   return (
     <div className="fadein">
@@ -1853,33 +1858,46 @@ function Nomina({ setPage }) {
         ))}
       </div>
 
-      {step === 0 && <NomStepSubir periodo={periodo} uploaded={uploaded} onUploaded={() => { setUploaded(true); setStep(1); }} onNext={() => setStep(1)} />}
+      {step === 0 && <NomStepSubir periodo={periodo} uploaded={uploaded} onUploaded={() => setUploaded(true)} onNext={() => setStep(1)} onSelectPeriodo={selectPeriodo} />}
       {step === 1 && <NomStepRevisar onNext={() => setStep(2)} onBack={() => setStep(0)} />}
       {step === 2 && <NomStepSueldos periodo={periodo} onBack={() => setStep(1)} />}
     </div>
   );
 }
 
-function NomStepSubir({ periodo, uploaded, onUploaded, onNext }) {
-  const reportes = [
-    { id: '2026-04', label: 'Abril 2026', count: 8, anom: 4, current: true },
-    { id: '2026-03', label: 'Marzo 2026', count: 8, anom: 0 },
-    { id: '2026-02', label: 'Febrero 2026', count: 8, anom: 1 },
-    { id: '2026-01', label: 'Enero 2026', count: 8, anom: 2 },
-  ];
+function NomStepSubir({ periodo, uploaded, onUploaded, onNext, onSelectPeriodo }) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadInfo, setUploadInfo] = useState(null);
+
+  async function handleFile(file) {
+    if (!file) return;
+    setUploading(true);
+    const result = await window._api?.uploadNomina(file);
+    setUploading(false);
+    if (result) {
+      setUploadInfo(result);
+      onUploaded();
+    }
+  }
+
+  const periodos = NOMINA_HISTORICA.slice().reverse();
 
   return (
     <div className="cols-2">
       <div className="panel">
         <PanelHead title="Subir reporte del reloj" sub="XLS exportado del NGTeco · hasta 10MB" />
-        <div style={{
-          border: '2px dashed var(--line-hi)', borderRadius: 'var(--radius-lg)',
-          padding: '40px 20px', textAlign: 'center', background: 'var(--bg-raised)',
-        }}>
+        <div
+          style={{ border: '2px dashed var(--line-hi)', borderRadius: 'var(--radius-lg)', padding: '40px 20px', textAlign: 'center', background: 'var(--bg-raised)' }}
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
+        >
           <div style={{ color: 'var(--accent)', margin: '0 auto 12px' }}><Icon name="upload" size={28} /></div>
           <div style={{ fontFamily: 'var(--serif)', fontSize: 22, marginBottom: 4 }}>Arrastra el archivo aquí</div>
           <div className="small mute" style={{ marginBottom: 16 }}>o selecciona desde tu computadora</div>
-          <Btn variant="primary" onClick={onUploaded}>Elegir archivo XLS</Btn>
+          <label className="btn primary" style={{ cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.4 : 1 }}>
+            {uploading ? 'Procesando…' : 'Elegir archivo XLS'}
+            <input type="file" accept=".xls,.xlsx" disabled={uploading} style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; }} />
+          </label>
           <div className="xs mute" style={{ marginTop: 16 }}>El sistema detecta entradas faltantes, salidas sin fichar y fechas cruzadas.</div>
         </div>
         {uploaded && (
@@ -1887,7 +1905,7 @@ function NomStepSubir({ periodo, uploaded, onUploaded, onNext }) {
             <div className="icon"><Icon name="check" size={16}/></div>
             <div className="body">
               <div className="title">Reporte cargado: {periodo}</div>
-              <div className="msg">8 empleados detectados · 4 anomalías para revisar</div>
+              <div className="msg">{uploadInfo ? `${uploadInfo.empleados} empleados · ${uploadInfo.anomalias} anomalías` : `${EMPLEADOS_MOCK.length} empleados detectados`}</div>
             </div>
             <Btn variant="primary" size="sm" onClick={onNext}>Revisar <Icon name="arrow_r" size={12}/></Btn>
           </div>
@@ -1898,17 +1916,18 @@ function NomStepSubir({ periodo, uploaded, onUploaded, onNext }) {
         <div style={{ padding: '18px', borderBottom: '1px solid var(--line)' }}>
           <PanelHead title="Períodos guardados" sub="Puedes volver a cualquier mes anterior" />
         </div>
-        {reportes.map(r => (
-          <div key={r.id} className="list-row">
-            <div className="ico" style={{ background: r.current ? 'var(--accent-soft)' : 'var(--bg-hover)', color: r.current ? 'var(--accent-hi)' : 'var(--text-dim)' }}>
+        {periodos.length === 0 && <div className="xs mute" style={{ padding: 18 }}>Sin reportes guardados.</div>}
+        {periodos.map((r, i) => (
+          <button key={r.id} className="list-row" onClick={() => onSelectPeriodo(r.label)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text)' }}>
+            <div className="ico" style={{ background: i === 0 ? 'var(--accent-soft)' : 'var(--bg-hover)', color: i === 0 ? 'var(--accent-hi)' : 'var(--text-dim)' }}>
               <Icon name="calendar" size={16} />
             </div>
             <div className="body">
-              <div className="ttl">{r.label}{r.current && <Chip tone="accent" style={{ marginLeft: 8 }}>actual</Chip>}</div>
-              <div className="cap">{r.count} empleados{r.anom > 0 ? ` · ${r.anom} anomalías` : ' · sin anomalías'}</div>
+              <div className="ttl">{r.label}{i === 0 && <Chip tone="accent" style={{ marginLeft: 8 }}>actual</Chip>}</div>
+              <div className="cap">{r.empleados} empleados · {fmtMoney(r.total)}</div>
             </div>
-            <Btn variant="ghost" size="sm"><Icon name="eye" size={14}/></Btn>
-          </div>
+            <Icon name="arrow_r" size={14} className="mute" />
+          </button>
         ))}
       </div>
     </div>
@@ -1916,30 +1935,45 @@ function NomStepSubir({ periodo, uploaded, onUploaded, onNext }) {
 }
 
 function NomStepRevisar({ onNext, onBack }) {
-  const [sel, setSel] = useState(EMPLEADOS_MOCK[0].id);
-  const emp = EMPLEADOS_MOCK.find(e => e.id === sel);
-  const anoms = ANOMALIAS_MOCK;
+  const empIds = Object.keys(HORAS_DETALLE);
+  const firstId = empIds[0] || EMPLEADOS_MOCK[0]?.id || '';
+  const [sel, setSel] = useState(firstId);
+  const [edits, setEdits] = useState({});
 
-  // Mock days data
-  const days = useMemo(() => {
-    const rows = [];
-    for (let d = 1; d <= 22; d++) {
-      const dow = (d + 2) % 7;
-      const isWeekend = dow === 0 || dow === 6;
-      if (isWeekend && d !== 19) continue;
-      const anom = anoms.find(a => a.emp === emp.nombre && Number(a.fecha.split('/')[0]) === d);
-      rows.push({
-        day: d,
-        h1: anom?.issue === 'entrada faltante' ? null : '07:' + (d % 3 === 0 ? '05' : '00'),
-        h2: '12:00',
-        h3: '13:00',
-        h4: anom?.issue === 'missing OUT' ? null : (d === 19 ? '15:30' : '16:' + (d % 2 === 0 ? '02' : '00')),
-        total: isWeekend ? 7.5 : 8,
-        flag: anom ? anom.issue : (d % 5 === 0 ? 'CORREGIDO' : ''),
-      });
-    }
-    return rows;
-  }, [sel]);
+  const baseDays = HORAS_DETALLE[sel] || [];
+  const days = baseDays.map((d, i) => {
+    const override = edits[sel]?.[i] || {};
+    const h1 = override.h1 !== undefined ? override.h1 : d.h1;
+    const h2 = override.h2 !== undefined ? override.h2 : d.h2;
+    const h3 = override.h3 !== undefined ? override.h3 : d.h3;
+    const h4 = override.h4 !== undefined ? override.h4 : d.h4;
+    const total = computeTotal(h1, h2, h3, h4);
+    return { ...d, h1, h2, h3, h4, total };
+  });
+
+  const horasTotal = Object.values(HORAS_DETALLE).flat().reduce((a, d) => a + (d.total || 0), 0);
+  const anomsTotal = Object.values(HORAS_DETALLE).flat().filter(d => d.flag && !d.flag.startsWith('CORREG')).length;
+  const empOptions = empIds.map(id => {
+    const emp = EMPLEADOS_MOCK.find(e => e.id === id);
+    return { value: id, label: emp?.nombre || id };
+  });
+
+  function updateCell(idx, field, value) {
+    setEdits(e => ({
+      ...e,
+      [sel]: { ...(e[sel] || {}), [idx]: { ...((e[sel] || {})[idx] || {}), [field]: value } }
+    }));
+  }
+
+  const fechaFmt = (ds) => {
+    const [y, m, d] = (ds || '').split('-');
+    return d ? `${d}/${m}` : ds;
+  };
+  const dow = (ds) => {
+    if (!ds) return '';
+    const d = new Date(ds + 'T00:00:00');
+    return ['dom','lun','mar','mié','jue','vie','sáb'][d.getDay()] || '';
+  };
 
   return (
     <div>
@@ -1947,47 +1981,25 @@ function NomStepRevisar({ onNext, onBack }) {
         <div className="panel">
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <Eyebrow>Empleados</Eyebrow>
-            <span className="num-big">{EMPLEADOS_MOCK.length}</span>
+            <span className="num-big">{empIds.length || EMPLEADOS_MOCK.length}</span>
           </div>
           <div className="small mute" style={{ marginTop: 6 }}>detectados en el reporte</div>
         </div>
         <div className="panel">
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <Eyebrow>Anomalías</Eyebrow>
-            <span className="num-big" style={{ color: 'var(--warn)' }}>{anoms.length}</span>
+            <span className="num-big" style={{ color: 'var(--warn)' }}>{anomsTotal}</span>
           </div>
           <div className="small mute" style={{ marginTop: 6 }}>requieren revisión manual</div>
         </div>
         <div className="panel">
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <Eyebrow>Horas totales</Eyebrow>
-            <span className="num-big">1,397.5</span>
+            <span className="num-big">{horasTotal.toFixed(1)}</span>
           </div>
           <div className="small mute" style={{ marginTop: 6 }}>en el período</div>
         </div>
       </div>
-
-      {anoms.length > 0 && (
-        <div className="panel" style={{ marginBottom: 16 }}>
-          <PanelHead
-            title="Anomalías pendientes"
-            sub="Selecciona una para ir directo al día con problema"
-            right={<Chip tone="warn">{anoms.length}</Chip>}
-          />
-          <div>
-            {anoms.map((a, i) => (
-              <div key={i} className="anom warn">
-                <div className="dot" />
-                <div style={{ flex: 1 }}>
-                  <strong>{a.emp}</strong> <span className="mute">· {a.fecha} ·</span> <span style={{ color: 'var(--warn)' }}>{a.issue}</span>
-                  <div className="xs mute" style={{ marginTop: 2 }}>{a.detalle}</div>
-                </div>
-                <Btn size="sm" onClick={() => setSel(EMPLEADOS_MOCK.find(e => e.nombre === a.emp)?.id || sel)}>Revisar</Btn>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="panel">
         <div className="panel-head">
@@ -1995,49 +2007,63 @@ function NomStepRevisar({ onNext, onBack }) {
             <h3 className="panel-title">Hoja de horas editable</h3>
             <div className="panel-sub">Corrige manualmente antes de calcular los sueldos</div>
           </div>
-          <Select
-            value={sel}
-            onChange={setSel}
-            options={EMPLEADOS_MOCK.map(e => ({ value: e.id, label: e.nombre }))}
-          />
+          {empOptions.length > 0 && (
+            <Select value={sel} onChange={setSel} options={empOptions} />
+          )}
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Fecha</th><th>Entrada</th><th>Almuerzo</th><th>Regreso</th><th>Salida</th><th className="num">Total</th><th>Obs.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {days.map((d, i) => {
-                const flagged = d.flag && !d.flag.startsWith('CORREG');
-                return (
-                  <tr key={i} style={flagged ? { background: 'color-mix(in oklab, var(--warn-soft) 20%, transparent)' } : {}}>
-                    <td>{String(d.day).padStart(2, '0')}/04 <span className="mute xs">mié</span></td>
-                    <td className="num">{d.h1 || <span style={{color:'var(--warn)'}}>—</span>}</td>
-                    <td className="num">{d.h2}</td>
-                    <td className="num">{d.h3}</td>
-                    <td className="num">{d.h4 || <span style={{color:'var(--warn)'}}>—</span>}</td>
-                    <td className="num">{d.total}</td>
-                    <td>{d.flag && <Chip tone={flagged ? 'warn' : 'good'}>{d.flag}</Chip>}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        {days.length === 0 ? (
+          <div className="xs mute" style={{ padding: 20 }}>No hay datos de horas. Sube un reporte XLS primero.</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Fecha</th><th>Entrada</th><th>Almuerzo</th><th>Regreso</th><th>Salida</th><th className="num">Total</th><th>Obs.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {days.map((d, i) => {
+                  const flagged = d.flag && !d.flag.startsWith('CORREG');
+                  return (
+                    <tr key={i} style={flagged ? { background: 'color-mix(in oklab, var(--warn-soft) 20%, transparent)' } : {}}>
+                      <td>{fechaFmt(d.fecha)} <span className="mute xs">{dow(d.fecha)}</span></td>
+                      <td><input className="input" type="time" value={d.h1 || ''} onChange={e => updateCell(i, 'h1', e.target.value)} style={{ padding: '4px 6px', fontSize: 13, width: 90 }} /></td>
+                      <td><input className="input" type="time" value={d.h2 || ''} onChange={e => updateCell(i, 'h2', e.target.value)} style={{ padding: '4px 6px', fontSize: 13, width: 90 }} /></td>
+                      <td><input className="input" type="time" value={d.h3 || ''} onChange={e => updateCell(i, 'h3', e.target.value)} style={{ padding: '4px 6px', fontSize: 13, width: 90 }} /></td>
+                      <td><input className="input" type="time" value={d.h4 || ''} onChange={e => updateCell(i, 'h4', e.target.value)} style={{ padding: '4px 6px', fontSize: 13, width: 90 }} /></td>
+                      <td className="num mono">{d.total.toFixed(1)}</td>
+                      <td>{d.flag && <Chip tone={flagged ? 'warn' : 'good'}>{d.flag}</Chip>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div className="row" style={{ justifyContent: 'space-between', marginTop: 18 }}>
           <Btn onClick={onBack}><Icon name="arrow_l" size={14}/> Volver</Btn>
           <div className="row">
-            <Btn><Icon name="download" size={14}/> Descargar horas (XLSX)</Btn>
             <Btn variant="primary" onClick={onNext}>Calcular sueldos <Icon name="arrow_r" size={14}/></Btn>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function computeTotal(h1, h2, h3, h4) {
+  const toMin = (t) => {
+    if (!t) return null;
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  };
+  let total = 0;
+  const m1 = toMin(h1), m2 = toMin(h2), m3 = toMin(h3), m4 = toMin(h4);
+  if (m1 != null && m2 != null) total += m2 - m1;
+  if (m3 != null && m4 != null) total += m4 - m3;
+  return total / 60;
 }
 
 function NomStepSueldos({ periodo, onBack }) {
@@ -2189,7 +2215,10 @@ function RegistroDiario({ role }) {
   const [step, setStep] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [date, setDate] = useState('2026-04-18');
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  });
 
   // Producción: { [prod_id]: cajas }
   const [prod, setProd] = useState({ v_life: 12, v_solplast: 6, cuchara_5ml: 5, j_life: 3 });
@@ -2344,6 +2373,9 @@ function RegistroDiario({ role }) {
 }
 
 function RegStepDia({ date, setDate }) {
+  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const hoy = fmt(new Date());
+  const ayer = fmt(new Date(Date.now() - 86400000));
   return (
     <div style={{ maxWidth: 540, margin: '20px auto', textAlign: 'center' }}>
       <div style={{ color: 'var(--accent)', margin: '0 auto 16px' }}><Icon name="calendar" size={32}/></div>
@@ -2351,8 +2383,8 @@ function RegStepDia({ date, setDate }) {
       <div className="small mute" style={{ marginBottom: 24 }}>Usualmente hoy, pero puedes registrar un día pasado si se te olvidó.</div>
       <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" style={{ fontSize: 20, padding: '14px 18px', textAlign: 'center', fontFamily: 'var(--serif)' }} />
       <div className="row wrap" style={{ justifyContent: 'center', marginTop: 14 }}>
-        <Btn size="sm" onClick={() => setDate('2026-04-18')}>Hoy</Btn>
-        <Btn size="sm" onClick={() => setDate('2026-04-17')}>Ayer</Btn>
+        <Btn size="sm" onClick={() => setDate(hoy)}>Hoy</Btn>
+        <Btn size="sm" onClick={() => setDate(ayer)}>Ayer</Btn>
       </div>
     </div>
   );
@@ -2715,9 +2747,21 @@ function Catalogo() {
 
 function TabProductos() {
   const [sel, setSel] = useState(null);
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
   const groups = {};
   PRODUCTOS_MOCK.forEach(p => { (groups[p.kind] = groups[p.kind] || []).push(p); });
   const kindLabel = { vaso: 'Vasos', cuchara: 'Cucharas', gotero: 'Goteros', jeringa: 'Jeringas' };
+
+  function openProd(p) { setSel(p); setForm({ ...p }); }
+
+  async function handleSave() {
+    if (!form || !sel) return;
+    setSaving(true);
+    await window._api?.saveProducto(sel.id, form);
+    setSaving(false);
+    location.reload();
+  }
 
   return (
     <>
@@ -2726,7 +2770,7 @@ function TabProductos() {
           <Eyebrow>{kindLabel[kind] || kind}</Eyebrow>
           <div className="prod-grid">
             {items.map(p => (
-              <button key={p.id} className="prod-card static" onClick={() => setSel(p)}>
+              <button key={p.id} className="prod-card static" onClick={() => openProd(p)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                   <ProductIllus kind={p.kind} size={42} />
                   <Chip>{fmtNum(p.unidades_caja)} u/caja</Chip>
@@ -2742,40 +2786,40 @@ function TabProductos() {
           </div>
         </div>
       ))}
-      <Drawer open={!!sel} onClose={() => setSel(null)} title={sel?.nombre}
-        footer={<div className="row" style={{ justifyContent: 'flex-end' }}><Btn variant="ghost">Eliminar</Btn><Btn variant="primary">Guardar</Btn></div>}>
-        {sel && <ProductEditor p={sel} />}
+      <Drawer open={!!sel} onClose={() => { setSel(null); setForm(null); }} title={sel?.nombre}
+        footer={<div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+          <Btn onClick={() => { setSel(null); setForm(null); }}>Cancelar</Btn>
+          <Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Btn>
+        </div>}>
+        {sel && form && <ProductEditor form={form} setForm={setForm} sel={sel} />}
       </Drawer>
     </>
   );
 }
 
-function ProductEditor({ p }) {
+function ProductEditor({ form, setForm, sel }) {
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   return (
     <div>
       <div style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'center' }}>
         <div style={{ padding: 16, background: 'var(--bg-raised)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)' }}>
-          <ProductIllus kind={p.kind} size={64} />
+          <ProductIllus kind={sel.kind} size={64} />
         </div>
         <div>
           <Eyebrow>Producto</Eyebrow>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{p.nombre}</div>
-          <div className="xs mute">{p.material}</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{form.nombre}</div>
+          <div className="xs mute">{sel.material}</div>
         </div>
       </div>
       <div className="cols-2">
-        <Input label="Nombre" defaultValue={p.nombre} />
-        <Input label="Unidades por caja" type="number" defaultValue={p.unidades_caja} />
-        <Input label="Peso por unidad (g)" type="number" step="0.001" defaultValue={p.peso_g} />
-        <Input label="Factor de mano de obra" type="number" step="0.1" defaultValue={p.factor} hint="Jeringas pesan más que vasos en tiempo-máquina" />
+        <Input label="Nombre" value={form.nombre} onChange={e => set('nombre', e.target.value)} />
+        <Input label="Unidades por caja" type="number" value={form.unidades_caja} onChange={e => set('unidades_caja', parseInt(e.target.value) || 0)} />
+        <Input label="Peso por unidad (g)" type="number" step="0.001" value={form.peso_g} onChange={e => set('peso_g', parseFloat(e.target.value) || 0)} />
+        <Input label="Factor de mano de obra" type="number" step="0.1" value={form.factor} onChange={e => set('factor', parseFloat(e.target.value) || 1)} hint="Jeringas pesan más que vasos en tiempo-máquina" />
       </div>
-      <Eyebrow style={{ marginTop: 24 }}>Empaques incluidos</Eyebrow>
-      {EMPAQUES_MOCK.slice(0, 4).map(e => (
-        <Check key={e.id} checked={['caja','funda_exterior_simple'].includes(e.id)} onChange={()=>{}}>{e.nombre} <span className="mute xs">· {fmtMoney(e.costo, 3)}/{e.unidad}</span></Check>
-      ))}
       <Eyebrow style={{ marginTop: 24 }}>Composición de costo (calculada)</Eyebrow>
       <div style={{ background: 'var(--bg-raised)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-        <CostBreakdownBar p={p} />
+        <CostBreakdownBar p={sel} />
       </div>
     </div>
   );
@@ -2810,6 +2854,19 @@ function CostBreakdownBar({ p }) {
 
 function TabMateriales() {
   const [sel, setSel] = useState(null);
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  function openMat(m) { setSel(m); setForm({ ...m }); }
+
+  async function handleSave() {
+    if (!form || !sel) return;
+    setSaving(true);
+    await window._api?.saveMaterial(sel.id, form);
+    setSaving(false);
+    location.reload();
+  }
+
   return (
     <>
       <div className="panel panel-flush">
@@ -2819,7 +2876,7 @@ function TabMateriales() {
           </thead>
           <tbody>
             {MATERIALES_MOCK.map(m => (
-              <tr key={m.id} style={{ cursor: 'pointer' }} onClick={() => setSel(m)}>
+              <tr key={m.id} style={{ cursor: 'pointer' }} onClick={() => openMat(m)}>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 28, height: 28, borderRadius: 8, background: m.color, opacity: 0.25, border: `1px solid ${m.color}` }} />
@@ -2829,41 +2886,39 @@ function TabMateriales() {
                 <td className="num mono">{fmtMoney(m.costo_kg, 2)}</td>
                 <td className="num"><Chip tone={m.merma > 4 ? 'warn' : 'good'}>{m.merma}%</Chip></td>
                 <td className="small mute">{m.id === 'pvc' ? 'Goteros (PVC cortado)' : 'Inyección / extrusión'}</td>
-                <td><Btn variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setSel(m); }}><Icon name="edit" size={13}/></Btn></td>
+                <td><Btn variant="ghost" size="sm" onClick={e => { e.stopPropagation(); openMat(m); }}><Icon name="edit" size={13}/></Btn></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <Drawer open={!!sel} onClose={() => setSel(null)} title={sel?.nombre}
-        footer={<div className="row" style={{ justifyContent: 'flex-end', width: '100%', gap: 10 }}><Btn onClick={() => setSel(null)}>Cancelar</Btn><Btn variant="primary">Guardar</Btn></div>}>
-        {sel && <MaterialEditor m={sel} />}
+      <Drawer open={!!sel} onClose={() => { setSel(null); setForm(null); }} title={sel?.nombre}
+        footer={<div className="row" style={{ justifyContent: 'flex-end', width: '100%', gap: 10 }}>
+          <Btn onClick={() => { setSel(null); setForm(null); }}>Cancelar</Btn>
+          <Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Btn>
+        </div>}>
+        {sel && form && <MaterialEditor form={form} setForm={setForm} sel={sel} />}
       </Drawer>
     </>
   );
 }
 
-function MaterialEditor({ m }) {
+function MaterialEditor({ form, setForm, sel }) {
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   return (
     <div>
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 22 }}>
-        <div style={{ width: 56, height: 56, borderRadius: 12, background: m.color, opacity: 0.35, border: `1.5px solid ${m.color}` }} />
+        <div style={{ width: 56, height: 56, borderRadius: 12, background: sel.color, opacity: 0.35, border: `1.5px solid ${sel.color}` }} />
         <div>
           <Eyebrow>Material</Eyebrow>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{m.nombre}</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{sel.nombre}</div>
         </div>
       </div>
       <div className="cols-2">
-        <Input label="Nombre" defaultValue={m.nombre} />
-        <Input label="Costo por kg ($)" type="number" step="0.01" defaultValue={m.costo_kg} />
-        <Input label="Merma típica (%)" type="number" step="0.1" defaultValue={m.merma} hint="Para alertas en el registro diario" />
-        <Input label="Código interno" defaultValue={m.id} />
-      </div>
-      <Eyebrow style={{ marginTop: 20 }}>Uso</Eyebrow>
-      <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-        <Check checked={m.id !== 'pvc'} onChange={()=>{}}>Inyección</Check>
-        <Check checked={m.id === 'pvc'} onChange={()=>{}}>Extrusión / corte (PVC)</Check>
-        <Check checked={true} onChange={()=>{}}>Disponible en bodega</Check>
+        <Input label="Nombre" value={form.nombre} onChange={e => set('nombre', e.target.value)} />
+        <Input label="Costo por kg ($)" type="number" step="0.01" value={form.costo_kg} onChange={e => set('costo_kg', parseFloat(e.target.value) || 0)} />
+        <Input label="Merma típica (%)" type="number" step="0.1" value={form.merma} onChange={e => set('merma', parseFloat(e.target.value) || 0)} hint="Para alertas en el registro diario" />
+        <Input label="Código interno" value={form.id} onChange={() => {}} />
       </div>
     </div>
   );
@@ -2871,11 +2926,25 @@ function MaterialEditor({ m }) {
 
 function TabEmpaques() {
   const [sel, setSel] = useState(null);
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  function openEmp(e) { setSel(e); setForm({ ...e }); }
+
+  async function handleSave() {
+    if (!form || !sel) return;
+    setSaving(true);
+    await window._api?.saveEmpaque(sel.id, form);
+    setSaving(false);
+    location.reload();
+  }
+
   return (
     <>
       <div className="empaque-grid">
         {EMPAQUES_MOCK.map(e => (
-          <button key={e.id} className="empaque-card" onClick={() => setSel(e)} style={{ textAlign: 'left', border: '1px solid var(--line)', cursor: 'pointer', color: 'var(--text)' }}>
+          <button key={e.id} className="empaque-card" onClick={() => openEmp(e)} style={{ textAlign: 'left', border: '1px solid var(--line)', cursor: 'pointer', color: 'var(--text)' }}>
             <div className="ico" style={{ background: 'var(--accent-soft)', color: 'var(--accent-hi)' }}>
               <Icon name="package" size={16}/>
             </div>
@@ -2887,9 +2956,12 @@ function TabEmpaques() {
           </button>
         ))}
       </div>
-      <Drawer open={!!sel} onClose={() => setSel(null)} title={sel?.nombre}
-        footer={<div className="row" style={{ justifyContent: 'flex-end', width: '100%', gap: 10 }}><Btn onClick={() => setSel(null)}>Cancelar</Btn><Btn variant="primary">Guardar</Btn></div>}>
-        {sel && (
+      <Drawer open={!!sel} onClose={() => { setSel(null); setForm(null); }} title={sel?.nombre}
+        footer={<div className="row" style={{ justifyContent: 'flex-end', width: '100%', gap: 10 }}>
+          <Btn onClick={() => { setSel(null); setForm(null); }}>Cancelar</Btn>
+          <Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Btn>
+        </div>}>
+        {sel && form && (
           <div>
             <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 22 }}>
               <div style={{ width: 56, height: 56, borderRadius: 12, background: 'var(--accent-soft)', color: 'var(--accent-hi)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -2901,10 +2973,10 @@ function TabEmpaques() {
               </div>
             </div>
             <div className="cols-2">
-              <Input label="Nombre" defaultValue={sel.nombre} />
-              <Input label="Costo ($)" type="number" step="0.001" defaultValue={sel.costo} />
-              <Select label="Unidad de consumo" value={sel.unidad} onChange={()=>{}} options={['unidad', 'caja', 'docena', 'kg']} />
-              <Input label="Código interno" defaultValue={sel.id} />
+              <Input label="Nombre" value={form.nombre} onChange={e => set('nombre', e.target.value)} />
+              <Input label="Costo ($)" type="number" step="0.001" value={form.costo} onChange={e => set('costo', parseFloat(e.target.value) || 0)} />
+              <Select label="Unidad de consumo" value={form.unidad} onChange={v => set('unidad', v)} options={['unidad', 'caja', 'docena', 'kg']} />
+              <Input label="Código interno" value={form.id} onChange={() => {}} />
             </div>
             <Eyebrow style={{ marginTop: 20 }}>Productos que lo usan</Eyebrow>
             <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -2918,7 +2990,9 @@ function TabEmpaques() {
 }
 
 function TabGastos() {
-  const total = Object.values(GASTOS_FIJOS_MOCK).reduce((a,b)=>a+b,0);
+  const [gastos, setGastos] = useState({ ...GASTOS_FIJOS_MOCK });
+  const [saving, setSaving] = useState(false);
+  const total = Object.values(gastos).reduce((a, b) => a + b, 0);
   const items = [
     { k: 'electricidad',  l: 'Electricidad',  icon: 'flame' },
     { k: 'agua',          l: 'Agua',          icon: 'flask' },
@@ -2928,6 +3002,14 @@ function TabGastos() {
     { k: 'transporte',    l: 'Transporte',    icon: 'box' },
     { k: 'mantenimiento', l: 'Mantenimiento', icon: 'settings' },
   ];
+
+  async function handleSave() {
+    setSaving(true);
+    const period = new Date().toISOString().slice(0, 7);
+    await window._api?.saveGastos(period, gastos);
+    setSaving(false);
+  }
+
   return (
     <>
       <div className="panel" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -2935,14 +3017,17 @@ function TabGastos() {
           <Eyebrow>Total mensual</Eyebrow>
           <div style={{ fontFamily: 'var(--serif)', fontSize: 40, letterSpacing: '-0.02em' }}>{fmtMoney(total)}</div>
         </div>
-        <div className="xs mute" style={{ maxWidth: 280, textAlign: 'right' }}>Estos gastos se prorratean entre todas las unidades producidas para obtener el componente "gastos fijos" del costo unitario.</div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+          <div className="xs mute" style={{ maxWidth: 280, textAlign: 'right' }}>Estos gastos se prorratean entre todas las unidades producidas para obtener el componente "gastos fijos" del costo unitario.</div>
+          <Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : 'Guardar gastos'}</Btn>
+        </div>
       </div>
       <div className="gasto-grid">
         {items.map(it => (
           <div key={it.k} className="gasto-card">
             <div className="ico"><Icon name={it.icon} size={14}/></div>
             <div style={{ flex: 1 }}>{it.l}</div>
-            <input className="input num-input" type="number" defaultValue={GASTOS_FIJOS_MOCK[it.k]} />
+            <input className="input num-input" type="number" value={gastos[it.k]} onChange={e => setGastos(g => ({ ...g, [it.k]: parseFloat(e.target.value) || 0 }))} />
             <span className="unit">/mes</span>
           </div>
         ))}
@@ -2962,7 +3047,7 @@ function Costos() {
   const [view, setView] = useState('detalle');
   const prod = PRODUCTOS_MOCK.find(p => p.id === sel);
 
-  const nominaMes = NOMINA_HISTORICA[NOMINA_HISTORICA.length - 1].total;
+  const nominaMes = (NOMINA_HISTORICA[NOMINA_HISTORICA.length - 1]?.total) || 0;
   const gastosFijos = Object.values(GASTOS_FIJOS_MOCK).reduce((a, b) => a + b, 0);
   const totalUnits = PRODUCCION_MES.reduce((a, p) => a + p.unidades, 0);
 
@@ -2985,6 +3070,9 @@ function Costos() {
 }
 
 function VistaDetalle({ prod, sel, setSel, nominaMes, gastosFijos, totalUnits }) {
+  const [inclNomina, setInclNomina] = useState(true);
+  const [inclGastos, setInclGastos] = useState(true);
+  const [usarMermaReal, setUsarMermaReal] = useState(false);
   const matCost = prod.costo_unit * 0.55;
   const empCost = prod.costo_unit * 0.15;
   const nomCost = prod.costo_unit * 0.22;
@@ -3076,9 +3164,9 @@ function VistaDetalle({ prod, sel, setSel, nominaMes, gastosFijos, totalUnits })
                 </div>
               </div>
             </div>
-            <Check checked onChange={()=>{}}>Incluir nómina en el prorrateo</Check>
-            <Check checked onChange={()=>{}}>Incluir gastos fijos</Check>
-            <Check onChange={()=>{}}>Usar merma real del mes (en vez de la típica)</Check>
+            <Check checked={inclNomina} onChange={setInclNomina}>Incluir nómina en el prorrateo</Check>
+            <Check checked={inclGastos} onChange={setInclGastos}>Incluir gastos fijos</Check>
+            <Check checked={usarMermaReal} onChange={setUsarMermaReal}>Usar merma real del mes (en vez de la típica)</Check>
           </div>
         </div>
       </div>
@@ -3206,7 +3294,7 @@ function Metricas() {
   const totalAnual  = NOMINA_HISTORICA.reduce((a, m) => a + m.total, 0);
   const h50Total    = NOMINA_HISTORICA.reduce((a, m) => a + m.h50, 0);
   const h100Total   = NOMINA_HISTORICA.reduce((a, m) => a + m.h100, 0);
-  const mesMax      = NOMINA_HISTORICA.reduce((a, m) => (m.total > a.total ? m : a));
+  const mesMax      = NOMINA_HISTORICA.length > 0 ? NOMINA_HISTORICA.reduce((a, m) => (m.total > a.total ? m : a)) : { label: '—', total: 0 };
 
   return (
     <div className="fadein">
@@ -3290,8 +3378,32 @@ const EMPTY_EMP = {
 
 function Empleados() {
   const [sel, setSel] = useState(null);
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [q, setQ] = useState('');
   const items = EMPLEADOS_MOCK.filter(e => e.nombre.toLowerCase().includes(q.toLowerCase()));
+
+  function openEmp(e) { setSel(e); setForm({ ...e }); }
+
+  async function handleSave() {
+    if (!form) return;
+    setSaving(true);
+    let ok;
+    if (form.isNew) {
+      ok = await window._api?.createEmpleado(form);
+    } else {
+      ok = await window._api?.saveEmpleado(sel.id, form);
+    }
+    setSaving(false);
+    if (ok !== false) location.reload();
+  }
+
+  async function handleDelete() {
+    if (!sel || sel.isNew) return;
+    if (!confirm(`¿Desactivar a ${sel.nombre}? Se eliminará de la nómina.`)) return;
+    await window._api?.deleteEmpleado(sel.id);
+    location.reload();
+  }
 
   return (
     <div className="fadein">
@@ -3308,13 +3420,13 @@ function Empleados() {
               <input className="input" style={{ paddingLeft: 32 }} placeholder="Buscar..." value={q} onChange={e => setQ(e.target.value)} />
             </div>
           </div>
-          <Btn variant="primary" onClick={() => setSel(EMPTY_EMP)}><Icon name="plus" size={14}/> Nuevo empleado</Btn>
+          <Btn variant="primary" onClick={() => openEmp(EMPTY_EMP)}><Icon name="plus" size={14}/> Nuevo empleado</Btn>
         </div>
       </div>
 
       <div className="emp-grid">
         {items.map(e => (
-          <button key={e.id} className="emp-card" onClick={() => setSel(e)}>
+          <button key={e.id} className="emp-card" onClick={() => openEmp(e)}>
             <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 14 }}>
               <div className="avatar" style={{ background: e.color, width: 44, height: 44, fontSize: 14 }}>{e.iniciales}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -3336,63 +3448,72 @@ function Empleados() {
         ))}
       </div>
 
-      <Drawer open={!!sel} onClose={() => setSel(null)} title={sel?.isNew ? 'Nuevo empleado' : sel?.nombre}
-        footer={<div className="row" style={{ justifyContent: 'space-between', width: '100%' }}>{!sel?.isNew && <Btn variant="ghost" className="danger">Desactivar</Btn>}<div className="row" style={{ marginLeft: 'auto' }}><Btn onClick={() => setSel(null)}>Cancelar</Btn><Btn variant="primary">{sel?.isNew ? 'Crear empleado' : 'Guardar'}</Btn></div></div>}>
-        {sel && <EmpEditor e={sel} />}
+      <Drawer open={!!sel} onClose={() => { setSel(null); setForm(null); }} title={sel?.isNew ? 'Nuevo empleado' : sel?.nombre}
+        footer={<div className="row" style={{ justifyContent: 'space-between', width: '100%' }}>
+          {!sel?.isNew && <Btn variant="ghost" className="danger" onClick={handleDelete}>Desactivar</Btn>}
+          <div className="row" style={{ marginLeft: 'auto' }}>
+            <Btn onClick={() => { setSel(null); setForm(null); }}>Cancelar</Btn>
+            <Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : sel?.isNew ? 'Crear empleado' : 'Guardar'}</Btn>
+          </div>
+        </div>}>
+        {sel && form && <EmpEditor form={form} setForm={setForm} sel={sel} />}
       </Drawer>
     </div>
   );
 }
 
-function EmpEditor({ e }) {
+function EmpEditor({ form, setForm, sel }) {
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const empData = sel.isNew ? null : NOMINA_ULTIMO.find(n => n.id === sel.id);
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
-        <div className="avatar" style={{ background: e.color, width: 56, height: 56, fontSize: 18 }}>{e.iniciales}</div>
+        <div className="avatar" style={{ background: sel.color, width: 56, height: 56, fontSize: 18 }}>{sel.iniciales}</div>
         <div>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{e.isNew ? 'Empleado nuevo' : e.nombre}</div>
-          <div className="xs mute">{e.isNew ? 'Completa los datos para agregarlo a nómina' : e.cargo}</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{form.isNew ? 'Empleado nuevo' : form.nombre}</div>
+          <div className="xs mute">{form.isNew ? 'Completa los datos para agregarlo a nómina' : sel.cargo}</div>
         </div>
       </div>
 
       <Eyebrow>Datos básicos</Eyebrow>
       <div className="cols-2">
-        <Input label="Nombre completo" defaultValue={e.nombre} placeholder={e.isNew ? 'Ej: Juan Pérez' : ''} />
-        <Input label="Cargo" defaultValue={e.cargo} placeholder={e.isNew ? 'Ej: Operario de línea' : ''} />
+        <Input label="Nombre completo" value={form.nombre} onChange={e => set('nombre', e.target.value)} placeholder={form.isNew ? 'Ej: Juan Pérez' : ''} />
+        <Input label="Cargo" value={form.cargo} onChange={e => set('cargo', e.target.value)} placeholder={form.isNew ? 'Ej: Operario de línea' : ''} />
       </div>
 
       <Eyebrow style={{ marginTop: 20 }}>Compensación</Eyebrow>
       <div className="cols-2">
-        <Input label="Salario base mensual" type="number" defaultValue={e.salario} hint={`Mín. legal 2026: $${SBU_2026}`} />
-        <Input label="Transporte por día" type="number" step="0.5" defaultValue={e.transporte} />
-        <Input label="Horas base diarias" type="number" defaultValue={e.horas_base} />
-        <Select label="Región (para 14to)" value={e.region} onChange={()=>{}} options={['Sierra/Amazonia', 'Costa/Galápagos']} />
+        <Input label="Salario base mensual" type="number" value={form.salario} onChange={e => set('salario', parseFloat(e.target.value) || 0)} hint={`Mín. legal 2026: $${SBU_2026}`} />
+        <Input label="Transporte por día" type="number" step="0.5" value={form.transporte} onChange={e => set('transporte', parseFloat(e.target.value) || 0)} />
+        <Input label="Horas base diarias" type="number" value={form.horas_base} onChange={e => set('horas_base', parseInt(e.target.value) || 8)} />
+        <Select label="Región (para 14to)" value={form.region} onChange={v => set('region', v)} options={['Sierra/Amazonia', 'Costa/Galápagos']} />
       </div>
 
       <Eyebrow style={{ marginTop: 20 }}>Beneficios y descuentos</Eyebrow>
       <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-        <Check checked={e.fondos_reserva} onChange={()=>{}}>Recibe fondos de reserva (8.33%) <span className="mute xs">· Después del primer año</span></Check>
+        <Check checked={form.fondos_reserva} onChange={v => set('fondos_reserva', v)}>Recibe fondos de reserva (8.33%) <span className="mute xs">· Después del primer año</span></Check>
         <div className="field" style={{ marginTop: 12 }}>
           <label>Préstamo IESS (descuento mensual)</label>
-          <input className="input" type="number" step="0.01" defaultValue={e.prestamo_iess} />
+          <input className="input" type="number" step="0.01" value={form.prestamo_iess} onChange={e => set('prestamo_iess', parseFloat(e.target.value) || 0)} />
           <div className="xs mute">Dejar en 0 si no hay préstamo activo.</div>
         </div>
       </div>
 
-      {!e.isNew && <>
-      <Eyebrow style={{ marginTop: 20 }}>Resumen último mes (Abril 2026)</Eyebrow>
+      {!form.isNew && <>
+      <Eyebrow style={{ marginTop: 20 }}>Resumen último mes</Eyebrow>
       <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
         <div>
           <div className="xs mute">Horas trabajadas</div>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 20 }}>179.5h</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 20 }}>{empData ? `${empData.horas}h` : '—'}</div>
         </div>
         <div>
           <div className="xs mute">Horas extras</div>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 20, color: 'var(--warn)' }}>7h</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 20, color: 'var(--warn)' }}>{empData ? `${empData.h50 + empData.h100}h` : '—'}</div>
         </div>
         <div>
           <div className="xs mute">Total cobrado</div>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 20, color: 'var(--accent-hi)' }}>{fmtMoney(564.82)}</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 20, color: 'var(--accent-hi)' }}>{empData ? fmtMoney(empData.total) : '—'}</div>
         </div>
       </div>
       </>}
@@ -3474,7 +3595,7 @@ function App() {
     <>
       <Topbar onOpenNav={() => setNavOpen(true)} page={page} />
       <div className="app" data-screen-label={`app-${page}`}>
-        <Sidebar page={page} setPage={setPage} role={role} open={navOpen} onClose={() => setNavOpen(false)} theme={tw.theme} setTheme={(t) => setTweak('theme', t)} />
+        <Sidebar page={page} setPage={setPage} role={role} open={navOpen} onClose={() => setNavOpen(false)} theme={tw.theme} setTheme={(t) => setTweak('theme', t)} onLogout={async () => { await window._api?.logout(); setLogged(null); }} />
         <main className="content-wrap" style={{ marginLeft: window.innerWidth > 960 ? 0 : 0 }}>
           <div className="content">
             {page === 'home' && <Home setPage={setPage} role={role} />}

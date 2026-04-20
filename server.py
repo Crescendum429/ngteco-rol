@@ -108,6 +108,55 @@ def _prod_to_js(key, prod):
     }
 
 
+def _min_to_hhmm(mins):
+    if mins is None:
+        return ""
+    try:
+        m = int(mins)
+        return f"{m // 60:02d}:{m % 60:02d}"
+    except Exception:
+        return ""
+
+
+def _build_horas_detalle(emp_db):
+    reps = list_reportes()
+    if not reps:
+        return {}
+    last_rep = reps[0]
+    try:
+        data_r, cls_r = load_reporte(last_rep["id"])
+        if not data_r or not cls_r:
+            return {}
+        matched_r, _, _ = match_empleados(data_r, emp_db)
+        result = {}
+        for emp_full, days, _ in data_r:
+            name = emp_name(emp_full)
+            dk = matched_r.get(name, name)
+            emp_days = []
+            cls_emp = cls_r.get(name, {})
+            for ds in sorted(cls_emp.keys()):
+                d = cls_emp[ds]
+                total_m = 0
+                if d.get("h1") is not None and d.get("h2") is not None:
+                    total_m += d["h2"] - d["h1"]
+                if d.get("h3") is not None and d.get("h4") is not None:
+                    total_m += d["h4"] - d["h3"]
+                flags = d.get("flags") or []
+                emp_days.append({
+                    "fecha": ds,
+                    "h1": _min_to_hhmm(d.get("h1")),
+                    "h2": _min_to_hhmm(d.get("h2")),
+                    "h3": _min_to_hhmm(d.get("h3")),
+                    "h4": _min_to_hhmm(d.get("h4")),
+                    "total": round(total_m / 60, 1),
+                    "flag": flags[0] if flags else "",
+                })
+            result[dk] = emp_days
+        return result
+    except Exception:
+        return {}
+
+
 def _calc_nomina_ultimo(emp_db):
     """Recalculate per-employee nomina from the last saved report."""
     reps = list_reportes()
@@ -237,6 +286,7 @@ def _build_data_jsx():
     }
 
     nomina_ultimo = _calc_nomina_ultimo(emp_db)
+    horas_detalle = _build_horas_detalle(emp_db)
 
     return f"""
 // Datos reales inyectados por el servidor — v{APP_VERSION}
@@ -250,6 +300,7 @@ const PRODUCTOS_MOCK = {json.dumps(productos_js, ensure_ascii=False)};
 const GASTOS_FIJOS_MOCK = {json.dumps(gastos_fijos_js, ensure_ascii=False)};
 const NOMINA_HISTORICA = {json.dumps(nomina_historica, ensure_ascii=False)};
 const NOMINA_ULTIMO = {json.dumps(nomina_ultimo, ensure_ascii=False)};
+const HORAS_DETALLE = {json.dumps(horas_detalle, ensure_ascii=False)};
 const ANOMALIAS_MOCK = [];
 const REGISTROS_RECIENTES = {json.dumps(registros, ensure_ascii=False)};
 const COSTOS_EVOLUCION = {{}};
@@ -269,7 +320,7 @@ const fmtNum = (n, d = 0) =>
 Object.assign(window, {{
   MESES, SBU_2026,
   EMPLEADOS_MOCK, MATERIALES_MOCK, EMPAQUES_MOCK, PRODUCTOS_MOCK,
-  GASTOS_FIJOS_MOCK, NOMINA_HISTORICA, NOMINA_ULTIMO, ANOMALIAS_MOCK,
+  GASTOS_FIJOS_MOCK, NOMINA_HISTORICA, NOMINA_ULTIMO, HORAS_DETALLE, ANOMALIAS_MOCK,
   REGISTROS_RECIENTES, COSTOS_EVOLUCION, COSTOS_EVOLUCION_MESES, PRODUCCION_MES,
   fmtMoney, fmtMoneyShort, fmtNum,
 }});
@@ -281,6 +332,9 @@ def _build_login_patch():
 // Auth patch — injected by server
 (function() {
   window._api = {
+    logout: async () => {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    },
     login: async (role, password) => {
       const r = await fetch('/api/auth/login', {
         method: 'POST',
@@ -330,6 +384,42 @@ def _build_login_patch():
       const r = await fetch('/api/nomina/upload', { method: 'POST', body: fd, credentials: 'same-origin' });
       if (r.ok) return r.json();
       return null;
+    },
+    saveMaterial: async (id, data) => {
+      const r = await fetch('/api/materiales/' + encodeURIComponent(id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    saveEmpaque: async (id, data) => {
+      const r = await fetch('/api/empaques/' + encodeURIComponent(id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    saveGastos: async (period, data) => {
+      const r = await fetch('/api/gastos_fijos/' + encodeURIComponent(period), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    saveProducto: async (id, data) => {
+      const r = await fetch('/api/productos/' + encodeURIComponent(id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok;
     },
   };
 })();
@@ -523,6 +613,22 @@ def get_productos():
     return jsonify([_prod_to_js(k, v) for k, v in prods.items()])
 
 
+@app.route("/api/productos/<prod_id>", methods=["PUT"])
+@require_auth
+def update_producto(prod_id):
+    data = request.get_json(force=True) or {}
+    prods = load_productos()
+    if prod_id not in prods:
+        return jsonify({"error": "No encontrado"}), 404
+    p = prods[prod_id]
+    p["nombre"] = data.get("nombre", p.get("nombre", prod_id))
+    p["unidades_caja"] = int(data.get("unidades_caja", p.get("unidades_caja", 1000)))
+    p["peso_g"] = float(data.get("peso_g", p.get("peso_g", 0)))
+    p["factor_complejidad"] = float(data.get("factor", p.get("factor_complejidad", 1.0)))
+    save_productos(prods)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/empaques", methods=["GET"])
 @require_auth
 def get_empaques():
@@ -531,6 +637,22 @@ def get_empaques():
         {"id": k, "nombre": v.get("nombre", k), "costo": float(v.get("costo", 0)), "unidad": v.get("unidad", "unidad")}
         for k, v in empaques.items()
     ])
+
+
+@app.route("/api/empaques/<emp_id>", methods=["PUT"])
+@require_auth
+def update_empaque(emp_id):
+    data = request.get_json(force=True) or {}
+    empaques = load_empaques()
+    if emp_id not in empaques:
+        empaques[emp_id] = {}
+    empaques[emp_id].update({
+        "nombre": data.get("nombre", empaques[emp_id].get("nombre", emp_id)),
+        "costo": float(data.get("costo", empaques[emp_id].get("costo", 0))),
+        "unidad": data.get("unidad", empaques[emp_id].get("unidad", "unidad")),
+    })
+    save_empaques(empaques)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/gastos_fijos/<period>", methods=["GET"])
