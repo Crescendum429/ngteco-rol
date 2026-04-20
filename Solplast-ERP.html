@@ -2104,7 +2104,27 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
     return { value: id, label: emp?.nombre || id };
   });
   const empSel = EMPLEADOS_MOCK.find(e => e.id === sel);
-  const bancoEmp = BANCO_POR_EMP[sel] || 0;
+  const baseH = empSel?.horas_base || 8;
+
+  const bancoEmp = React.useMemo(() => {
+    let bal = 0;
+    const pids = Object.keys(HORAS_POR_PERIODO);
+    for (const pid of pids) {
+      const fuente = pid === periodoId ? horasPeriodo : HORAS_POR_PERIODO[pid];
+      const days = (fuente || {})[sel] || [];
+      for (const d of days) {
+        const horas = d.total || 0;
+        if (d.es_finde && horas > 0) {
+          if (d.modo_extra !== 'pagar') bal += horas;
+        } else if (!d.es_finde) {
+          const exc = Math.max(0, horas - baseH);
+          if (exc > 0 && d.modo_extra !== 'pagar') bal += exc;
+          else if (horas < baseH && d.cubrir_banco) bal -= (baseH - horas);
+        }
+      }
+    }
+    return bal;
+  }, [horasPeriodo, periodoId, sel, baseH]);
 
   async function toggleModo(idx) {
     const row = baseDays[idx];

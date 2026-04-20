@@ -72,12 +72,10 @@ def parse_xls(path):
             cur_day = None
 
         elif emp and row[0] in WEEKDAYS and row[1]:
-            # NGTeco asigna cada registro al dia anterior; corregir +1
             raw_date = str(row[1])
             try:
                 p = raw_date.split('-')
-                corrected = date(2000 + int(p[0]), int(p[1]), int(p[2])) + timedelta(days=1)
-                cur_day = corrected.strftime('%y-%m-%d')
+                cur_day = date(2000 + int(p[0]), int(p[1]), int(p[2])).strftime('%y-%m-%d')
             except Exception:
                 cur_day = raw_date
             in_t = to_mins(row[2])
@@ -586,6 +584,66 @@ def write_excel_nomina(nomina_data, periodo, dest):
             r += 1
             ws.cell(r, 1, 'Arrastre sugerido proximo mes').font = BOLD
             ws.cell(r, 2, n['h_50_arrastre']).number_format = '0.00'
+
+        # Detalle de dias
+        dias = item.get('dias') or []
+        if dias:
+            r += 3
+            ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=8)
+            for ci in range(1, 9):
+                ws.cell(r, ci).fill = HDR_BG
+                ws.cell(r, ci).font = HDR_FT
+            ws.cell(r, 1, 'DETALLE DE HORAS POR DIA').alignment = Alignment(horizontal='center')
+            r += 1
+
+            headers_d = ['Fecha', 'Entrada', 'Almuerzo', 'Regreso', 'Salida', 'Total', 'Modo/Banco', 'Observacion']
+            for ci, h in enumerate(headers_d, 1):
+                cell = ws.cell(r, ci, h)
+                cell.font = BOLD
+                cell.fill = PatternFill('solid', fgColor='D9E1F2')
+                cell.alignment = Alignment(horizontal='center')
+            r += 1
+
+            widths = [14, 12, 12, 12, 12, 10, 18, 30]
+            for ci, w in enumerate(widths, 1):
+                if ws.column_dimensions[get_column_letter(ci)].width < w:
+                    ws.column_dimensions[get_column_letter(ci)].width = w
+
+            DOWS = ['lun','mar','mie','jue','vie','sab','dom']
+            for d in dias:
+                fecha_raw = d.get('fecha', '')
+                try:
+                    p = fecha_raw.split('-')
+                    ddate = date(2000 + int(p[0]), int(p[1]), int(p[2]))
+                    fecha_fmt = ddate.strftime('%d/%m') + ' ' + DOWS[ddate.weekday()]
+                except Exception:
+                    fecha_fmt = fecha_raw
+
+                ws.cell(r, 1, fecha_fmt)
+                ws.cell(r, 2, d.get('h1') or '—').alignment = Alignment(horizontal='center')
+                ws.cell(r, 3, d.get('h2') or '—').alignment = Alignment(horizontal='center')
+                ws.cell(r, 4, d.get('h3') or '—').alignment = Alignment(horizontal='center')
+                ws.cell(r, 5, d.get('h4') or '—').alignment = Alignment(horizontal='center')
+                ws.cell(r, 6, d.get('total', 0)).number_format = '0.0'
+                ws.cell(r, 6).alignment = Alignment(horizontal='right')
+
+                excedente = d.get('excedente', 0) or 0
+                deficit = d.get('deficit', 0) or 0
+                es_finde = d.get('es_finde', False)
+                modo = d.get('modo_extra', 'banco')
+                cubrir = d.get('cubrir_banco', False)
+                if es_finde and (d.get('total') or 0) > 0:
+                    modo_txt = f"Extras (+{d['total']:.1f}h)" if modo == 'pagar' else f"Banco (+{d['total']:.1f}h)"
+                elif excedente > 0:
+                    modo_txt = f"Extras (+{excedente:.1f}h)" if modo == 'pagar' else f"Banco (+{excedente:.1f}h)"
+                elif deficit > 0:
+                    modo_txt = f"Cubre -{deficit:.1f}h" if cubrir else f"Falta -{deficit:.1f}h"
+                else:
+                    modo_txt = '—'
+                ws.cell(r, 7, modo_txt)
+
+                ws.cell(r, 8, d.get('flag') or '')
+                r += 1
 
     wb.save(dest)
 

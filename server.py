@@ -1145,7 +1145,6 @@ def _compute_nomina_for_periodo(periodo_id, extras_config=None):
         return None, None
     emp_db = load_empleados()
     matched, _, _ = match_empleados(data, emp_db)
-    arrastre = load_arrastre(periodo_id) or {}
 
     nomina_list = []
     total = 0.0
@@ -1157,14 +1156,44 @@ def _compute_nomina_for_periodo(periodo_id, extras_config=None):
         cfg = emp_db.get(dk, {}) if dk else {}
         if not cfg.get("salario"):
             continue
-        hrs = calcular_horas_clasificadas(cls.get(name, {}), cfg.get("horas_base", 8))
+        base_h = cfg.get("horas_base", 8)
+        hrs_detail = _calc_horas_periodo(cls.get(name, {}), base_h)
+        hrs_for_nomina = {
+            "dias": hrs_detail["dias"],
+            "horas_total": hrs_detail["horas_total"],
+            "horas_50": hrs_detail["horas_50"],
+            "horas_100": hrs_detail["horas_100"],
+            "horas_regular": hrs_detail["horas_regular"],
+        }
         cfg_c = dict(cfg)
-        cfg_c["horas_comp_anterior"] = arrastre.get(name, 0)
-        nom = calcular_nomina(hrs, cfg_c, extras_config)
-        nomina_list.append({"name": name, "nomina": nom})
+        cfg_c["horas_comp_anterior"] = 0
+        nom = calcular_nomina(hrs_for_nomina, cfg_c, extras_config)
+        dias_detalle = []
+        cls_emp = cls.get(name, {})
+        for ds in sorted(cls_emp.keys()):
+            d = cls_emp[ds]
+            horas = _horas_dia_dict(d)
+            flags = d.get("flags") or []
+            finde = _es_finde_ds(ds)
+            base_dia = 0 if finde else base_h
+            dias_detalle.append({
+                "fecha": ds,
+                "h1": _min_to_hhmm(d.get("h1")),
+                "h2": _min_to_hhmm(d.get("h2")),
+                "h3": _min_to_hhmm(d.get("h3")),
+                "h4": _min_to_hhmm(d.get("h4")),
+                "total": round(horas, 1),
+                "flag": flags[0] if flags else "",
+                "modo_extra": d.get("modo_extra", "banco"),
+                "cubrir_banco": bool(d.get("cubrir_banco", False)),
+                "es_finde": finde,
+                "excedente": round(max(0.0, horas - base_dia) if horas > 0 else 0, 2),
+                "deficit": round(max(0.0, base_dia - horas) if not finde else 0, 2),
+            })
+        nomina_list.append({"name": name, "nomina": nom, "dias": dias_detalle})
         total += nom.get("total_transferido", 0)
-        h50 += hrs.get("horas_50", 0)
-        h100 += hrs.get("horas_100", 0)
+        h50 += hrs_detail.get("horas_50", 0)
+        h100 += hrs_detail.get("horas_100", 0)
 
     y, m = periodo_id.split('-')
     label = f"{_MES_NAMES[int(m)-1]} {y}"
