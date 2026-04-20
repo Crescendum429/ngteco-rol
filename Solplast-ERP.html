@@ -2098,11 +2098,45 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
   }
 
   const horasTotal = Object.values(horasPeriodo).flat().reduce((a, d) => a + (d.total || 0), 0);
-  const anomsTotal = Object.values(horasPeriodo).flat().filter(d => d.flag && !d.flag.startsWith('CORREG')).length;
+  const anomsTotal = Object.values(horasPeriodo).flat().filter(d => d.flag && d.flag.startsWith('REVISAR')).length;
   const empOptions = empIds.map(id => {
     const emp = EMPLEADOS_MOCK.find(e => e.id === id);
     return { value: id, label: emp?.nombre || id };
   });
+  const empSel = EMPLEADOS_MOCK.find(e => e.id === sel);
+  const bancoEmp = BANCO_POR_EMP[sel] || 0;
+
+  async function toggleModo(idx) {
+    const row = baseDays[idx];
+    if (!row || saving) return;
+    const nuevoModo = row.modo_extra === 'pagar' ? 'banco' : 'pagar';
+    setSaving(true);
+    const ok = await window._api?.corregirNomina(periodoId, { [sel]: { [row.fecha]: { _modo: nuevoModo } } });
+    setSaving(false);
+    if (ok) {
+      setHorasPeriodo(h => ({
+        ...h,
+        [sel]: h[sel].map((d, i) => i === idx ? { ...d, modo_extra: nuevoModo } : d),
+      }));
+      if (HORAS_POR_PERIODO[periodoId]?.[sel]?.[idx]) HORAS_POR_PERIODO[periodoId][sel][idx].modo_extra = nuevoModo;
+    } else { alert('Error.'); }
+  }
+
+  async function toggleCubrir(idx) {
+    const row = baseDays[idx];
+    if (!row || saving) return;
+    const nuevo = !row.cubrir_banco;
+    setSaving(true);
+    const ok = await window._api?.corregirNomina(periodoId, { [sel]: { [row.fecha]: { _cubrir: nuevo } } });
+    setSaving(false);
+    if (ok) {
+      setHorasPeriodo(h => ({
+        ...h,
+        [sel]: h[sel].map((d, i) => i === idx ? { ...d, cubrir_banco: nuevo } : d),
+      }));
+      if (HORAS_POR_PERIODO[periodoId]?.[sel]?.[idx]) HORAS_POR_PERIODO[periodoId][sel][idx].cubrir_banco = nuevo;
+    } else { alert('Error.'); }
+  }
 
   function updateCell(idx, field, value) {
     setEdits(e => ({
@@ -2154,11 +2188,17 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
         <div className="panel-head">
           <div>
             <h3 className="panel-title">Hoja de horas editable</h3>
-            <div className="panel-sub">Corrige manualmente antes de calcular los sueldos</div>
+            <div className="panel-sub">Horas extras van al banco por defecto (compensatorias). Toggle para pagarlas como extras.</div>
           </div>
-          {empOptions.length > 0 && (
-            <Select value={sel} onChange={setSel} options={empOptions} />
-          )}
+          <div className="row" style={{ gap: 12, alignItems: 'center' }}>
+            <div style={{ textAlign: 'right' }}>
+              <div className="xs mute">Banco del empleado</div>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 18, color: bancoEmp >= 0 ? 'var(--good)' : 'var(--bad)' }}>{bancoEmp.toFixed(1)}h</div>
+            </div>
+            {empOptions.length > 0 && (
+              <Select value={sel} onChange={setSel} options={empOptions} />
+            )}
+          </div>
         </div>
 
         {days.length === 0 ? (
@@ -2168,20 +2208,50 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>Fecha</th><th>Entrada</th><th>Almuerzo</th><th>Regreso</th><th>Salida</th><th className="num">Total</th><th>Obs.</th>
+                  <th>Fecha</th><th>Entrada</th><th>Almuerzo</th><th>Regreso</th><th>Salida</th><th className="num">Total</th><th>Horas</th><th>Obs.</th>
                 </tr>
               </thead>
               <tbody>
                 {days.map((d, i) => {
                   const flagged = d.flag && d.flag.startsWith('REVISAR');
+                  const tieneExcedente = (d.excedente || 0) > 0 || (d.es_finde && d.total > 0);
+                  const tieneDeficit = !d.es_finde && (d.deficit || 0) > 0;
+                  const modoPagar = d.modo_extra === 'pagar';
+                  const cubierto = !!d.cubrir_banco;
                   return (
-                    <tr key={i} style={flagged ? { background: 'color-mix(in oklab, var(--warn-soft) 20%, transparent)' } : {}}>
+                    <tr key={i} style={flagged ? { background: 'color-mix(in oklab, var(--warn-soft) 20%, transparent)' } : (cubierto ? { background: 'color-mix(in oklab, var(--good-soft) 15%, transparent)' } : {})}>
                       <td>{fechaFmt(d.fecha)} <span className="mute xs">{dow(d.fecha)}</span></td>
                       <td><input className="input" type="time" value={d.h1 || ''} onChange={e => updateCell(i, 'h1', e.target.value)} style={{ padding: '4px 6px', fontSize: 13, width: 90 }} /></td>
                       <td><input className="input" type="time" value={d.h2 || ''} onChange={e => updateCell(i, 'h2', e.target.value)} style={{ padding: '4px 6px', fontSize: 13, width: 90 }} /></td>
                       <td><input className="input" type="time" value={d.h3 || ''} onChange={e => updateCell(i, 'h3', e.target.value)} style={{ padding: '4px 6px', fontSize: 13, width: 90 }} /></td>
                       <td><input className="input" type="time" value={d.h4 || ''} onChange={e => updateCell(i, 'h4', e.target.value)} style={{ padding: '4px 6px', fontSize: 13, width: 90 }} /></td>
                       <td className="num mono">{d.total.toFixed(1)}</td>
+                      <td>
+                        {tieneExcedente && (
+                          <button
+                            onClick={() => toggleModo(i)}
+                            disabled={saving}
+                            title={modoPagar ? 'Click para enviar al banco' : 'Click para pagar como extras'}
+                            style={{ background: 'transparent', border: '1px solid var(--line)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 12 }}
+                          >
+                            {modoPagar
+                              ? <Chip tone="warn">Extras +{(d.excedente || (d.es_finde ? d.total : 0)).toFixed(1)}h</Chip>
+                              : <Chip tone="good">Banco +{(d.excedente || (d.es_finde ? d.total : 0)).toFixed(1)}h</Chip>}
+                          </button>
+                        )}
+                        {tieneDeficit && (
+                          <button
+                            onClick={() => toggleCubrir(i)}
+                            disabled={saving}
+                            title={cubierto ? 'Click para no cubrir con banco' : 'Click para cubrir con banco'}
+                            style={{ background: 'transparent', border: '1px solid var(--line)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', color: 'var(--text-dim)', fontSize: 12 }}
+                          >
+                            {cubierto
+                              ? <Chip tone="good">Cubre {d.deficit.toFixed(1)}h</Chip>
+                              : <Chip tone="warn">Falta {d.deficit.toFixed(1)}h</Chip>}
+                          </button>
+                        )}
+                      </td>
                       <td>
                         <ObsDropdown value={d.flag} onChange={(v) => cambiarFlag(i, v)} disabled={saving} />
                       </td>
@@ -3907,14 +3977,18 @@ function EmpEditor({ form, setForm, sel }) {
 
       {!form.isNew && <>
       <Eyebrow style={{ marginTop: 20 }}>Resumen último mes</Eyebrow>
-      <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+      <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
         <div>
           <div className="xs mute">Horas trabajadas</div>
           <div style={{ fontFamily: 'var(--serif)', fontSize: 20 }}>{empData ? `${empData.horas}h` : '—'}</div>
         </div>
         <div>
-          <div className="xs mute">Horas extras</div>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 20, color: 'var(--warn)' }}>{empData ? `${empData.h50 + empData.h100}h` : '—'}</div>
+          <div className="xs mute">Horas extras pagadas</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 20, color: 'var(--warn)' }}>{empData ? `${(empData.h50 + empData.h100).toFixed(1)}h` : '—'}</div>
+        </div>
+        <div>
+          <div className="xs mute">Banco compensatorias</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 20, color: (BANCO_POR_EMP[sel.id] || 0) >= 0 ? 'var(--good)' : 'var(--bad)' }}>{((BANCO_POR_EMP[sel.id] || 0)).toFixed(1)}h</div>
         </div>
         <div>
           <div className="xs mute">Total cobrado</div>

@@ -120,6 +120,25 @@ def _min_to_hhmm(mins):
         return ""
 
 
+def _es_finde_ds(ds):
+    try:
+        parts = ds.split("-")
+        y = int(parts[0])
+        y_full = 2000 + y if y < 100 else y
+        return date(y_full, int(parts[1]), int(parts[2])).weekday() >= 5
+    except Exception:
+        return False
+
+
+def _horas_dia_dict(d):
+    horas = 0.0
+    if d.get("h1") is not None and d.get("h2") is not None:
+        horas += (d["h2"] - d["h1"]) / 60
+    if d.get("h3") is not None and d.get("h4") is not None:
+        horas += (d["h4"] - d["h3"]) / 60
+    return horas
+
+
 def _horas_detalle_one(data_r, cls_r, emp_db):
     """Retorna {emp_id: [days]} para un reporte."""
     if not data_r or not cls_r:
@@ -129,27 +148,110 @@ def _horas_detalle_one(data_r, cls_r, emp_db):
     for emp_full, days, _ in data_r:
         name = emp_name(emp_full)
         dk = matched_r.get(name, name)
+        cfg = emp_db.get(dk, {}) if dk else {}
+        base_h = cfg.get("horas_base", 8)
         emp_days = []
         cls_emp = cls_r.get(name, {})
         for ds in sorted(cls_emp.keys()):
             d = cls_emp[ds]
-            total_m = 0
-            if d.get("h1") is not None and d.get("h2") is not None:
-                total_m += d["h2"] - d["h1"]
-            if d.get("h3") is not None and d.get("h4") is not None:
-                total_m += d["h4"] - d["h3"]
+            horas = _horas_dia_dict(d)
             flags = d.get("flags") or []
+            finde = _es_finde_ds(ds)
+            base_dia = 0 if finde else base_h
+            excedente = max(0.0, horas - base_dia) if horas > 0 else 0.0
+            deficit = max(0.0, base_dia - horas) if not finde else 0.0
             emp_days.append({
                 "fecha": ds,
                 "h1": _min_to_hhmm(d.get("h1")),
                 "h2": _min_to_hhmm(d.get("h2")),
                 "h3": _min_to_hhmm(d.get("h3")),
                 "h4": _min_to_hhmm(d.get("h4")),
-                "total": round(total_m / 60, 1),
+                "total": round(horas, 1),
                 "flag": flags[0] if flags else "",
+                "modo_extra": d.get("modo_extra", "banco"),
+                "cubrir_banco": bool(d.get("cubrir_banco", False)),
+                "es_finde": finde,
+                "base_dia": base_dia,
+                "excedente": round(excedente, 2),
+                "deficit": round(deficit, 2),
             })
         result[dk] = emp_days
     return result
+
+
+def _calc_horas_periodo(cls_emp, base_h):
+    """Calcula horas considerando modo_extra y cubrir_banco por dia."""
+    res = {
+        "dias": 0, "dias_anomalia": 0,
+        "horas_regular": 0.0, "horas_50": 0.0, "horas_100": 0.0,
+        "banco_excedente": 0.0, "horas_cubiertas": 0.0,
+        "horas_total": 0.0,
+    }
+    for ds, d in cls_emp.items():
+        horas = _horas_dia_dict(d)
+        modo = d.get("modo_extra", "banco")
+        cubrir = bool(d.get("cubrir_banco", False))
+        flags = d.get("flags") or []
+        finde = _es_finde_ds(ds)
+
+        if horas > 0:
+            res["dias"] += 1
+            if any(f.startswith("REVISAR:") for f in flags):
+                res["dias_anomalia"] += 1
+            res["horas_total"] += horas
+
+        if finde:
+            if horas > 0:
+                if modo == "pagar":
+                    res["horas_100"] += horas
+                else:
+                    res["banco_excedente"] += horas
+        else:
+            if horas > 0:
+                reg = min(horas, base_h)
+                res["horas_regular"] += reg
+                excedente = max(0.0, horas - base_h)
+                if excedente > 0:
+                    if modo == "pagar":
+                        res["horas_50"] += min(excedente, 4.0)
+                        res["horas_100"] += max(0.0, excedente - 4.0)
+                    else:
+                        res["banco_excedente"] += excedente
+                elif horas < base_h and cubrir:
+                    deficit = base_h - horas
+                    res["horas_regular"] += deficit
+                    res["horas_cubiertas"] += deficit
+            elif cubrir:
+                res["horas_regular"] += base_h
+                res["horas_cubiertas"] += base_h
+                res["dias"] += 1
+
+    for k in ("horas_regular", "horas_50", "horas_100", "banco_excedente", "horas_cubiertas", "horas_total"):
+        res[k] = round(res[k], 2)
+    return res
+
+
+def _banco_por_empleado(emp_db):
+    """Balance acumulado por empleado cronologicamente."""
+    balances = {k: 0.0 for k in emp_db}
+    reps = sorted([r["id"] for r in list_reportes()])
+    for rid in reps:
+        try:
+            data_r, cls_r = load_reporte(rid)
+        except Exception:
+            continue
+        if not data_r or not cls_r:
+            continue
+        matched_r, _, _ = match_empleados(data_r, emp_db)
+        for emp_full, days, _ in data_r:
+            name = emp_name(emp_full)
+            dk = matched_r.get(name)
+            if not dk or dk not in emp_db:
+                continue
+            base = emp_db[dk].get("horas_base", 8)
+            hrs = _calc_horas_periodo(cls_r.get(name, {}), base)
+            balances[dk] += hrs["banco_excedente"] - hrs["horas_cubiertas"]
+    return {k: round(v, 2) for k, v in balances.items()}
 
 
 def _build_horas_por_periodo(emp_db):
@@ -168,7 +270,6 @@ def _calc_nomina_one(periodo_id, data_r, cls_r, emp_db):
     if not data_r or not cls_r:
         return []
     matched_r, _, _ = match_empleados(data_r, emp_db)
-    arrastre_r = load_arrastre(periodo_id) or {}
     result = []
     for emp_full, days, nid in data_r:
         name = emp_name(emp_full)
@@ -176,10 +277,18 @@ def _calc_nomina_one(periodo_id, data_r, cls_r, emp_db):
         cfg = emp_db.get(dk, {}) if dk else {}
         if not cfg.get("salario"):
             continue
-        hrs = calcular_horas_clasificadas(cls_r.get(name, {}), cfg.get("horas_base", 8))
+        base_h = cfg.get("horas_base", 8)
+        hrs = _calc_horas_periodo(cls_r.get(name, {}), base_h)
+        hrs_for_nomina = {
+            "dias": hrs["dias"],
+            "horas_total": hrs["horas_total"],
+            "horas_50": hrs["horas_50"],
+            "horas_100": hrs["horas_100"],
+            "horas_regular": hrs["horas_regular"],
+        }
         cfg_c = dict(cfg)
-        cfg_c["horas_comp_anterior"] = arrastre_r.get(name, 0)
-        nom = calcular_nomina(hrs, cfg_c, {})
+        cfg_c["horas_comp_anterior"] = 0
+        nom = calcular_nomina(hrs_for_nomina, cfg_c, {})
         result.append({
             "id": dk or name,
             "nombre": name,
@@ -187,6 +296,7 @@ def _calc_nomina_one(periodo_id, data_r, cls_r, emp_db):
             "horas": round(hrs["horas_total"], 1),
             "h50": round(hrs["horas_50"], 2),
             "h100": round(hrs["horas_100"], 2),
+            "banco_delta": round(hrs["banco_excedente"] - hrs["horas_cubiertas"], 2),
             "quincena": round(nom["quincena"], 2),
             "extras": round(nom["horas_extras"], 2),
             "transporte": round(nom["transporte"], 2),
@@ -309,6 +419,7 @@ def _build_data_jsx():
     latest_id = reps_ids[0] if reps_ids else None
     horas_detalle = horas_por_periodo.get(latest_id, {}) if latest_id else {}
     nomina_ultimo = nomina_por_periodo.get(latest_id, []) if latest_id else []
+    banco_por_emp = _banco_por_empleado(emp_db)
 
     return f"""
 // Datos reales inyectados por el servidor — v{APP_VERSION}
@@ -326,6 +437,7 @@ const NOMINA_ULTIMO = {json.dumps(nomina_ultimo, ensure_ascii=False)};
 const HORAS_DETALLE = {json.dumps(horas_detalle, ensure_ascii=False)};
 const HORAS_POR_PERIODO = {json.dumps(horas_por_periodo, ensure_ascii=False)};
 const NOMINA_POR_PERIODO = {json.dumps(nomina_por_periodo, ensure_ascii=False)};
+const BANCO_POR_EMP = {json.dumps(banco_por_emp, ensure_ascii=False)};
 const LATEST_PERIODO = {json.dumps(latest_id)};
 const ANOMALIAS_MOCK = [];
 const REGISTROS_RECIENTES = {json.dumps(registros, ensure_ascii=False)};
@@ -347,7 +459,7 @@ Object.assign(window, {{
   MESES, SBU_2026,
   EMPLEADOS_MOCK, MATERIALES_MOCK, EMPAQUES_MOCK, PRODUCTOS_MOCK,
   GASTOS_FIJOS_MOCK, GASTOS_DESACTIVADOS, NOMINA_HISTORICA, NOMINA_ULTIMO, HORAS_DETALLE,
-  HORAS_POR_PERIODO, NOMINA_POR_PERIODO, LATEST_PERIODO, ANOMALIAS_MOCK,
+  HORAS_POR_PERIODO, NOMINA_POR_PERIODO, BANCO_POR_EMP, LATEST_PERIODO, ANOMALIAS_MOCK,
   REGISTROS_RECIENTES, COSTOS_EVOLUCION, COSTOS_EVOLUCION_MESES, PRODUCCION_MES,
   fmtMoney, fmtMoneyShort, fmtNum,
 }});
@@ -999,19 +1111,24 @@ def nomina_corregir():
         cls_emp = cls.setdefault(name, {})
         for ds, vals in dias.items():
             day = cls_emp.setdefault(ds, {"h1": None, "h2": None, "h3": None, "h4": None, "flags": []})
-            solo_flag = bool(vals.get("_flag")) and not any(k in vals for k in ("h1", "h2", "h3", "h4"))
-            solo_verificar = bool(vals.get("_verify")) and not any(k in vals for k in ("h1", "h2", "h3", "h4"))
+            tiene_horas = any(k in vals for k in ("h1", "h2", "h3", "h4"))
+            solo_flag = bool(vals.get("_flag")) and not tiene_horas
+            solo_verificar = bool(vals.get("_verify")) and not tiene_horas
+            solo_modo = ("_modo" in vals or "_cubrir" in vals) and not tiene_horas and not solo_flag and not solo_verificar
             if "h1" in vals: day["h1"] = hhmm_to_min(vals["h1"])
             if "h2" in vals: day["h2"] = hhmm_to_min(vals["h2"])
             if "h3" in vals: day["h3"] = hhmm_to_min(vals["h3"])
             if "h4" in vals: day["h4"] = hhmm_to_min(vals["h4"])
+            if "_modo" in vals and vals["_modo"] in ("banco", "pagar"):
+                day["modo_extra"] = vals["_modo"]
+            if "_cubrir" in vals:
+                day["cubrir_banco"] = bool(vals["_cubrir"])
             if solo_flag:
-                nuevo_flag = str(vals["_flag"])
+                day["flags"] = [str(vals["_flag"])]
             elif solo_verificar:
-                nuevo_flag = "VERIFICADO"
-            else:
-                nuevo_flag = "CORREGIDO MANUALMENTE"
-            day["flags"] = [nuevo_flag] if nuevo_flag else []
+                day["flags"] = ["VERIFICADO"]
+            elif not solo_modo:
+                day["flags"] = ["CORREGIDO MANUALMENTE"]
             n_updates += 1
 
     y, m = periodo_id.split('-')
