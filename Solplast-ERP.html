@@ -2992,18 +2992,19 @@ function Catalogo() {
 }
 
 function TabProductos({ nuevoTick }) {
+  const [items, setItems] = useState(() => PRODUCTOS_MOCK.map(p => ({ ...p })));
   const [sel, setSel] = useState(null);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const groups = {};
-  PRODUCTOS_MOCK.forEach(p => { (groups[p.kind] = groups[p.kind] || []).push(p); });
+  items.forEach(p => { (groups[p.kind] = groups[p.kind] || []).push(p); });
   const kindLabel = { vaso: 'Vasos', cuchara: 'Cucharas', gotero: 'Goteros', jeringa: 'Jeringas' };
 
   function openProd(p) { setSel(p); setForm({ ...p }); }
 
   React.useEffect(() => {
     if (nuevoTick > 0) {
-      const empty = { id: '', kind: 'vaso', nombre: '', unidades_caja: 1000, peso_g: 0, material: '', factor: 1.0, costo_unit: 0, costo_caja: 0, isNew: true };
+      const empty = { id: '', kind: 'vaso', nombre: '', unidades_caja: 1000, peso_g: 0, material: '', factor: 1.0, costo_unit: 0, costo_caja: 0, desactivado: false, isNew: true };
       setSel(empty);
       setForm(empty);
     }
@@ -3021,6 +3022,17 @@ function TabProductos({ nuevoTick }) {
     location.reload();
   }
 
+  async function handleToggleDesactivado() {
+    if (!sel || sel.isNew) return;
+    const nuevoEstado = !sel.desactivado;
+    const ok = await window._api?.setDesactivado('productos', sel.id, nuevoEstado);
+    if (!ok) { alert('Error cambiando estado.'); return; }
+    setItems(list => list.map(p => p.id === sel.id ? { ...p, desactivado: nuevoEstado } : p));
+    const idx = PRODUCTOS_MOCK.findIndex(p => p.id === sel.id);
+    if (idx >= 0) PRODUCTOS_MOCK[idx].desactivado = nuevoEstado;
+    setSel(null); setForm(null);
+  }
+
   return (
     <>
       {Object.entries(groups).map(([kind, items]) => (
@@ -3028,10 +3040,10 @@ function TabProductos({ nuevoTick }) {
           <Eyebrow>{kindLabel[kind] || kind}</Eyebrow>
           <div className="prod-grid">
             {items.map(p => (
-              <button key={p.id} className="prod-card static" onClick={() => openProd(p)}>
+              <button key={p.id} className="prod-card static" onClick={() => openProd(p)} style={p.desactivado ? { opacity: 0.55, filter: 'grayscale(1)' } : {}}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                   <ProductIllus kind={p.kind} size={42} />
-                  <Chip>{fmtNum(p.unidades_caja)} u/caja</Chip>
+                  {p.desactivado ? <Chip tone="bad">DESACTIVADO</Chip> : <Chip>{fmtNum(p.unidades_caja)} u/caja</Chip>}
                 </div>
                 <div style={{ fontWeight: 600, marginTop: 10 }}>{p.nombre}</div>
                 <div className="xs mute" style={{ marginBottom: 12 }}>{p.peso_g} g · factor {p.factor}x</div>
@@ -3045,9 +3057,12 @@ function TabProductos({ nuevoTick }) {
         </div>
       ))}
       <Drawer open={!!sel} onClose={() => { setSel(null); setForm(null); }} title={sel?.nombre}
-        footer={<div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
-          <Btn onClick={() => { setSel(null); setForm(null); }}>Cancelar</Btn>
-          <Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Btn>
+        footer={<div className="row" style={{ justifyContent: 'space-between', width: '100%' }}>
+          {!sel?.isNew && <Btn variant="ghost" className="danger" onClick={handleToggleDesactivado}>{sel?.desactivado ? 'Reactivar' : 'Desactivar'}</Btn>}
+          <div className="row" style={{ marginLeft: 'auto', gap: 8 }}>
+            <Btn onClick={() => { setSel(null); setForm(null); }}>Cancelar</Btn>
+            <Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Btn>
+          </div>
         </div>}>
         {sel && form && <ProductEditor form={form} setForm={setForm} sel={sel} />}
       </Drawer>
@@ -3111,6 +3126,7 @@ function CostBreakdownBar({ p }) {
 }
 
 function TabMateriales({ nuevoTick }) {
+  const [items, setItems] = useState(() => MATERIALES_MOCK.map(m => ({ ...m })));
   const [sel, setSel] = useState(null);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -3119,7 +3135,7 @@ function TabMateriales({ nuevoTick }) {
 
   React.useEffect(() => {
     if (nuevoTick > 0) {
-      const empty = { id: '', nombre: '', costo_kg: 0, merma: 3, color: 'oklch(70% 0.12 220)', isNew: true };
+      const empty = { id: '', nombre: '', costo_kg: 0, merma: 3, color: 'oklch(70% 0.12 220)', desactivado: false, isNew: true };
       setSel(empty);
       setForm(empty);
     }
@@ -3134,25 +3150,36 @@ function TabMateriales({ nuevoTick }) {
     location.reload();
   }
 
+  async function handleToggleDesactivado() {
+    if (!sel || sel.isNew) return;
+    const nuevoEstado = !sel.desactivado;
+    const ok = await window._api?.setDesactivado('materiales', sel.id, nuevoEstado);
+    if (!ok) { alert('Error cambiando estado.'); return; }
+    setItems(list => list.map(m => m.id === sel.id ? { ...m, desactivado: nuevoEstado } : m));
+    const idx = MATERIALES_MOCK.findIndex(m => m.id === sel.id);
+    if (idx >= 0) MATERIALES_MOCK[idx].desactivado = nuevoEstado;
+    setSel(null); setForm(null);
+  }
+
   return (
     <>
       <div className="panel panel-flush">
         <table className="tbl">
           <thead>
-            <tr><th>Material</th><th className="num">Costo / kg</th><th className="num">Merma típica</th><th>Uso</th><th></th></tr>
+            <tr><th>Material</th><th className="num">Costo / kg</th><th className="num">Merma típica</th><th>Estado</th><th></th></tr>
           </thead>
           <tbody>
-            {MATERIALES_MOCK.map(m => (
-              <tr key={m.id} style={{ cursor: 'pointer' }} onClick={() => openMat(m)}>
+            {items.map(m => (
+              <tr key={m.id} style={{ cursor: 'pointer', ...(m.desactivado ? { opacity: 0.55 } : {}) }} onClick={() => openMat(m)}>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: m.color, opacity: 0.25, border: `1px solid ${m.color}` }} />
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: m.color, opacity: m.desactivado ? 0.1 : 0.25, border: `1px solid ${m.color}`, filter: m.desactivado ? 'grayscale(1)' : '' }} />
                     <strong>{m.nombre}</strong>
                   </div>
                 </td>
                 <td className="num mono">{fmtMoney(m.costo_kg, 2)}</td>
                 <td className="num"><Chip tone={m.merma > 4 ? 'warn' : 'good'}>{m.merma}%</Chip></td>
-                <td className="small mute">{m.id === 'pvc' ? 'Goteros (PVC cortado)' : 'Inyección / extrusión'}</td>
+                <td>{m.desactivado ? <Chip tone="bad">DESACTIVADO</Chip> : <span className="small mute">Activo</span>}</td>
                 <td><Btn variant="ghost" size="sm" onClick={e => { e.stopPropagation(); openMat(m); }}><Icon name="edit" size={13}/></Btn></td>
               </tr>
             ))}
@@ -3160,9 +3187,12 @@ function TabMateriales({ nuevoTick }) {
         </table>
       </div>
       <Drawer open={!!sel} onClose={() => { setSel(null); setForm(null); }} title={sel?.nombre}
-        footer={<div className="row" style={{ justifyContent: 'flex-end', width: '100%', gap: 10 }}>
-          <Btn onClick={() => { setSel(null); setForm(null); }}>Cancelar</Btn>
-          <Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Btn>
+        footer={<div className="row" style={{ justifyContent: 'space-between', width: '100%' }}>
+          {!sel?.isNew && <Btn variant="ghost" className="danger" onClick={handleToggleDesactivado}>{sel?.desactivado ? 'Reactivar' : 'Desactivar'}</Btn>}
+          <div className="row" style={{ marginLeft: 'auto', gap: 10 }}>
+            <Btn onClick={() => { setSel(null); setForm(null); }}>Cancelar</Btn>
+            <Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Btn>
+          </div>
         </div>}>
         {sel && form && <MaterialEditor form={form} setForm={setForm} sel={sel} />}
       </Drawer>
@@ -3192,6 +3222,7 @@ function MaterialEditor({ form, setForm, sel }) {
 }
 
 function TabEmpaques({ nuevoTick }) {
+  const [items, setItems] = useState(() => EMPAQUES_MOCK.map(e => ({ ...e })));
   const [sel, setSel] = useState(null);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -3201,7 +3232,7 @@ function TabEmpaques({ nuevoTick }) {
 
   React.useEffect(() => {
     if (nuevoTick > 0) {
-      const empty = { id: '', nombre: '', costo: 0, unidad: 'unidad', isNew: true };
+      const empty = { id: '', nombre: '', costo: 0, unidad: 'unidad', desactivado: false, isNew: true };
       setSel(empty);
       setForm(empty);
     }
@@ -3216,11 +3247,22 @@ function TabEmpaques({ nuevoTick }) {
     location.reload();
   }
 
+  async function handleToggleDesactivado() {
+    if (!sel || sel.isNew) return;
+    const nuevoEstado = !sel.desactivado;
+    const ok = await window._api?.setDesactivado('empaques', sel.id, nuevoEstado);
+    if (!ok) { alert('Error cambiando estado.'); return; }
+    setItems(list => list.map(e => e.id === sel.id ? { ...e, desactivado: nuevoEstado } : e));
+    const idx = EMPAQUES_MOCK.findIndex(e => e.id === sel.id);
+    if (idx >= 0) EMPAQUES_MOCK[idx].desactivado = nuevoEstado;
+    setSel(null); setForm(null);
+  }
+
   return (
     <>
       <div className="empaque-grid">
-        {EMPAQUES_MOCK.map(e => (
-          <button key={e.id} className="empaque-card" onClick={() => openEmp(e)} style={{ textAlign: 'left', border: '1px solid var(--line)', cursor: 'pointer', color: 'var(--text)' }}>
+        {items.map(e => (
+          <button key={e.id} className="empaque-card" onClick={() => openEmp(e)} style={{ textAlign: 'left', border: '1px solid var(--line)', cursor: 'pointer', color: 'var(--text)', position: 'relative', ...(e.desactivado ? { opacity: 0.55, filter: 'grayscale(1)' } : {}) }}>
             <div className="ico" style={{ background: 'var(--accent-soft)', color: 'var(--accent-hi)' }}>
               <Icon name="package" size={16}/>
             </div>
@@ -3228,14 +3270,17 @@ function TabEmpaques({ nuevoTick }) {
               <div style={{ fontWeight: 600 }}>{e.nombre}</div>
               <div className="xs mute">por {e.unidad}</div>
             </div>
-            <div style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>{fmtMoney(e.costo, 3)}</div>
+            {e.desactivado ? <Chip tone="bad">DESACTIVADO</Chip> : <div style={{ fontFamily: 'var(--serif)', fontSize: 18 }}>{fmtMoney(e.costo, 3)}</div>}
           </button>
         ))}
       </div>
       <Drawer open={!!sel} onClose={() => { setSel(null); setForm(null); }} title={sel?.nombre}
-        footer={<div className="row" style={{ justifyContent: 'flex-end', width: '100%', gap: 10 }}>
-          <Btn onClick={() => { setSel(null); setForm(null); }}>Cancelar</Btn>
-          <Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Btn>
+        footer={<div className="row" style={{ justifyContent: 'space-between', width: '100%' }}>
+          {!sel?.isNew && <Btn variant="ghost" className="danger" onClick={handleToggleDesactivado}>{sel?.desactivado ? 'Reactivar' : 'Desactivar'}</Btn>}
+          <div className="row" style={{ marginLeft: 'auto', gap: 10 }}>
+            <Btn onClick={() => { setSel(null); setForm(null); }}>Cancelar</Btn>
+            <Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Btn>
+          </div>
         </div>}>
         {sel && form && (
           <div>
@@ -3267,8 +3312,10 @@ function TabEmpaques({ nuevoTick }) {
 
 function TabGastos() {
   const [gastos, setGastos] = useState({ ...GASTOS_FIJOS_MOCK });
+  const [desactivados, setDesactivados] = useState(() => new Set(GASTOS_DESACTIVADOS));
   const [saving, setSaving] = useState(false);
-  const total = Object.values(gastos).reduce((a, b) => a + b, 0);
+  const period = new Date().toISOString().slice(0, 7);
+
   const items = [
     { k: 'electricidad',  l: 'Electricidad',  icon: 'flame' },
     { k: 'agua',          l: 'Agua',          icon: 'flask' },
@@ -3279,18 +3326,30 @@ function TabGastos() {
     { k: 'mantenimiento', l: 'Mantenimiento', icon: 'settings' },
   ];
 
+  const total = items.reduce((a, it) => desactivados.has(it.k) ? a : a + (gastos[it.k] || 0), 0);
+
   async function handleSave() {
     setSaving(true);
-    const period = new Date().toISOString().slice(0, 7);
     await window._api?.saveGastos(period, gastos);
     setSaving(false);
+  }
+
+  async function toggleDesact(key) {
+    const nuevo = !desactivados.has(key);
+    const ok = await window._api?.setGastoDesactivado(period, key, nuevo);
+    if (!ok) { alert('Error cambiando estado.'); return; }
+    setDesactivados(s => {
+      const ns = new Set(s);
+      if (nuevo) ns.add(key); else ns.delete(key);
+      return ns;
+    });
   }
 
   return (
     <>
       <div className="panel" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <Eyebrow>Total mensual</Eyebrow>
+          <Eyebrow>Total mensual activo</Eyebrow>
           <div style={{ fontFamily: 'var(--serif)', fontSize: 40, letterSpacing: '-0.02em' }}>{fmtMoney(total)}</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
@@ -3299,14 +3358,27 @@ function TabGastos() {
         </div>
       </div>
       <div className="gasto-grid">
-        {items.map(it => (
-          <div key={it.k} className="gasto-card">
-            <div className="ico"><Icon name={it.icon} size={14}/></div>
-            <div style={{ flex: 1 }}>{it.l}</div>
-            <input className="input num-input" type="number" value={gastos[it.k]} onChange={e => setGastos(g => ({ ...g, [it.k]: parseFloat(e.target.value) || 0 }))} />
-            <span className="unit">/mes</span>
-          </div>
-        ))}
+        {items.map(it => {
+          const off = desactivados.has(it.k);
+          return (
+            <div key={it.k} className="gasto-card" style={{ position: 'relative', ...(off ? { opacity: 0.55, filter: 'grayscale(1)' } : {}) }}>
+              <div className="ico"><Icon name={it.icon} size={14}/></div>
+              <div style={{ flex: 1 }}>
+                <div>{it.l}</div>
+                {off && <Chip tone="bad" style={{ marginTop: 4 }}>DESACTIVADO</Chip>}
+              </div>
+              <input className="input num-input" type="number" value={gastos[it.k]} disabled={off} onChange={e => setGastos(g => ({ ...g, [it.k]: parseFloat(e.target.value) || 0 }))} />
+              <span className="unit">/mes</span>
+              <button
+                onClick={() => toggleDesact(it.k)}
+                title={off ? 'Reactivar' : 'Desactivar'}
+                style={{ background: 'transparent', border: '1px solid var(--line)', borderRadius: 6, padding: '4px 6px', cursor: 'pointer', color: off ? 'var(--good)' : 'var(--bad)', display: 'inline-flex', alignItems: 'center', marginLeft: 6 }}
+              >
+                <Icon name={off ? 'check' : 'x'} size={12} strokeWidth={3}/>
+              </button>
+            </div>
+          );
+        })}
       </div>
     </>
   );

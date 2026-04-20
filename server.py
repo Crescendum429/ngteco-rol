@@ -91,6 +91,7 @@ def _mat_to_js(key, mat):
         "costo_kg": float(mat.get("costo_kg", 0)),
         "merma": float(mat.get("merma_pct", 3.0)),
         "color": "oklch(70% 0.12 220)",
+        "desactivado": bool(mat.get("desactivado", False)),
     }
 
 
@@ -105,6 +106,7 @@ def _prod_to_js(key, prod):
         "factor": float(prod.get("factor_complejidad", 1.0)),
         "costo_unit": float(prod.get("costo_unit", 0)),
         "costo_caja": float(prod.get("costo_caja", 0)),
+        "desactivado": bool(prod.get("desactivado", False)),
     }
 
 
@@ -225,6 +227,7 @@ def _build_data_jsx():
             "nombre": v.get("nombre", k),
             "costo": float(v.get("costo", 0)),
             "unidad": v.get("unidad", "unidad"),
+            "desactivado": bool(v.get("desactivado", False)),
         }
         for k, v in empaques_raw.items()
     ]
@@ -300,6 +303,7 @@ def _build_data_jsx():
         "transporte": float(gastos_raw.get("transporte", 150)),
         "mantenimiento": float(gastos_raw.get("mantenimiento", 80)),
     }
+    gastos_desactivados = list(gastos_raw.get("_desactivados", []))
 
     reps_ids = [r["id"] for r in list_reportes()]
     latest_id = reps_ids[0] if reps_ids else None
@@ -316,6 +320,7 @@ const MATERIALES_MOCK = {json.dumps(materiales_js, ensure_ascii=False)};
 const EMPAQUES_MOCK = {json.dumps(empaques_js, ensure_ascii=False)};
 const PRODUCTOS_MOCK = {json.dumps(productos_js, ensure_ascii=False)};
 const GASTOS_FIJOS_MOCK = {json.dumps(gastos_fijos_js, ensure_ascii=False)};
+const GASTOS_DESACTIVADOS = {json.dumps(gastos_desactivados, ensure_ascii=False)};
 const NOMINA_HISTORICA = {json.dumps(nomina_historica, ensure_ascii=False)};
 const NOMINA_ULTIMO = {json.dumps(nomina_ultimo, ensure_ascii=False)};
 const HORAS_DETALLE = {json.dumps(horas_detalle, ensure_ascii=False)};
@@ -341,7 +346,7 @@ const fmtNum = (n, d = 0) =>
 Object.assign(window, {{
   MESES, SBU_2026,
   EMPLEADOS_MOCK, MATERIALES_MOCK, EMPAQUES_MOCK, PRODUCTOS_MOCK,
-  GASTOS_FIJOS_MOCK, NOMINA_HISTORICA, NOMINA_ULTIMO, HORAS_DETALLE,
+  GASTOS_FIJOS_MOCK, GASTOS_DESACTIVADOS, NOMINA_HISTORICA, NOMINA_ULTIMO, HORAS_DETALLE,
   HORAS_POR_PERIODO, NOMINA_POR_PERIODO, LATEST_PERIODO, ANOMALIAS_MOCK,
   REGISTROS_RECIENTES, COSTOS_EVOLUCION, COSTOS_EVOLUCION_MESES, PRODUCCION_MES,
   fmtMoney, fmtMoneyShort, fmtNum,
@@ -461,6 +466,24 @@ def _build_login_patch():
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    setDesactivado: async (kind, id, desactivado) => {
+      const r = await fetch(`/api/${kind}/${encodeURIComponent(id)}/desactivar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ desactivado }),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    setGastoDesactivado: async (period, key, desactivado) => {
+      const r = await fetch(`/api/gastos_fijos/${encodeURIComponent(period)}/desactivar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, desactivado }),
         credentials: 'same-origin',
       });
       return r.ok;
@@ -701,6 +724,60 @@ def create_producto():
     }
     save_productos(prods)
     return jsonify({"id": key})
+
+
+@app.route("/api/productos/<prod_id>/desactivar", methods=["POST"])
+@require_auth
+def toggle_producto_desactivado(prod_id):
+    data = request.get_json(force=True) or {}
+    prods = load_productos()
+    if prod_id not in prods:
+        return jsonify({"error": "No encontrado"}), 404
+    prods[prod_id]["desactivado"] = bool(data.get("desactivado", True))
+    save_productos(prods)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/materiales/<mat_id>/desactivar", methods=["POST"])
+@require_auth
+def toggle_material_desactivado(mat_id):
+    data = request.get_json(force=True) or {}
+    mats = load_materiales()
+    if mat_id not in mats:
+        return jsonify({"error": "No encontrado"}), 404
+    mats[mat_id]["desactivado"] = bool(data.get("desactivado", True))
+    save_materiales(mats)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/empaques/<emp_id>/desactivar", methods=["POST"])
+@require_auth
+def toggle_empaque_desactivado(emp_id):
+    data = request.get_json(force=True) or {}
+    empaques = load_empaques()
+    if emp_id not in empaques:
+        return jsonify({"error": "No encontrado"}), 404
+    empaques[emp_id]["desactivado"] = bool(data.get("desactivado", True))
+    save_empaques(empaques)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/gastos_fijos/<period>/desactivar", methods=["POST"])
+@require_auth
+def toggle_gasto_desactivado(period):
+    data = request.get_json(force=True) or {}
+    key = data.get("key")
+    if not key:
+        return jsonify({"error": "Key requerida"}), 400
+    gf = load_gastos_fijos(period)
+    desact = set(gf.get("_desactivados", []))
+    if bool(data.get("desactivado", True)):
+        desact.add(key)
+    else:
+        desact.discard(key)
+    gf["_desactivados"] = list(desact)
+    save_gastos_fijos(period, gf)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/empaques", methods=["GET"])
