@@ -1826,8 +1826,10 @@ Object.assign(window, { Home });
 
 function Nomina({ setPage }) {
   const [step, setStep] = useState(0);
-  const [uploaded, setUploaded] = useState(NOMINA_HISTORICA.some(r => r.total > 0));
-  const [periodo, setPeriodo] = useState(NOMINA_HISTORICA[NOMINA_HISTORICA.length - 1]?.label || 'Sin datos');
+  const [periodoId, setPeriodoId] = useState(LATEST_PERIODO || '');
+
+  const hist = NOMINA_HISTORICA.find(h => h.id === periodoId);
+  const periodoLabel = hist?.label || '—';
 
   const steps = [
     { label: 'Subir reporte', sub: 'Archivo XLS del reloj NGTeco' },
@@ -1835,16 +1837,16 @@ function Nomina({ setPage }) {
     { label: 'Calcular sueldos', sub: 'Nómina final con extras y descuentos' },
   ];
 
-  function selectPeriodo(label) {
-    setPeriodo(label);
-    setStep(2);
+  function selectPeriodo(id) {
+    setPeriodoId(id);
+    setStep(1);
   }
 
   return (
     <div className="fadein">
       <div className="page-head">
         <div>
-          <Eyebrow>Personal · Nómina · {periodo}</Eyebrow>
+          <Eyebrow>Personal · Nómina · {periodoLabel}</Eyebrow>
           <h1 className="page-title">Roles y <em>nómina</em></h1>
           <div className="page-sub">Tres pasos para cerrar el mes: importar el reporte del reloj, revisar las anomalías detectadas y calcular los sueldos según la ley ecuatoriana.</div>
         </div>
@@ -1860,22 +1862,39 @@ function Nomina({ setPage }) {
         ))}
       </div>
 
-      {step === 0 && <NomStepSubir periodo={periodo} uploaded={uploaded} onUploaded={() => setUploaded(true)} onNext={() => setStep(1)} onSelectPeriodo={selectPeriodo} />}
-      {step === 1 && <NomStepRevisar onNext={() => setStep(2)} onBack={() => setStep(0)} />}
-      {step === 2 && <NomStepSueldos periodo={periodo} onBack={() => setStep(1)} />}
+      {step === 0 && <NomStepSubir periodoId={periodoId} onNext={() => setStep(1)} onSelectPeriodo={selectPeriodo} />}
+      {step === 1 && <NomStepRevisar periodoId={periodoId} periodoLabel={periodoLabel} onNext={() => setStep(2)} onBack={() => setStep(0)} />}
+      {step === 2 && <NomStepSueldos periodoId={periodoId} periodoLabel={periodoLabel} onBack={() => setStep(1)} />}
     </div>
   );
 }
 
-function NomStepSubir({ periodo, uploaded, onUploaded, onNext, onSelectPeriodo }) {
+function NomStepSubir({ periodoId, onNext, onSelectPeriodo }) {
   const [uploading, setUploading] = useState(false);
-  const [uploadInfo, setUploadInfo] = useState(null);
+  const [justUploaded, setJustUploaded] = useState(() => {
+    try {
+      const s = sessionStorage.getItem('solplast.justUploaded');
+      if (s) {
+        sessionStorage.removeItem('solplast.justUploaded');
+        return JSON.parse(s);
+      }
+    } catch {}
+    return null;
+  });
 
   async function handleFile(file) {
     if (!file) return;
     setUploading(true);
     const result = await window._api?.uploadNomina(file);
     if (result && !result.error) {
+      try {
+        sessionStorage.setItem('solplast.justUploaded', JSON.stringify({
+          periodo_id: result.periodo_id,
+          periodo_label: result.periodo_label,
+          empleados: result.empleados,
+          anomalias: result.anomalias,
+        }));
+      } catch {}
       location.reload();
       return;
     }
@@ -1903,48 +1922,54 @@ function NomStepSubir({ periodo, uploaded, onUploaded, onNext, onSelectPeriodo }
           </label>
           <div className="xs mute" style={{ marginTop: 16 }}>El sistema detecta entradas faltantes, salidas sin fichar y fechas cruzadas.</div>
         </div>
-        {uploaded && (
+        {justUploaded && (
           <div className="alert good" style={{ marginTop: 14 }}>
             <div className="icon"><Icon name="check" size={16}/></div>
             <div className="body">
-              <div className="title">Reporte cargado: {periodo}</div>
-              <div className="msg">{uploadInfo ? `${uploadInfo.empleados} empleados · ${uploadInfo.anomalias} anomalías` : `${EMPLEADOS_MOCK.length} empleados detectados`}</div>
+              <div className="title">Reporte cargado: {justUploaded.periodo_label}</div>
+              <div className="msg">{justUploaded.empleados} empleados · {justUploaded.anomalias} anomalía{justUploaded.anomalias !== 1 ? 's' : ''}</div>
             </div>
-            <Btn variant="primary" size="sm" onClick={onNext}>Revisar <Icon name="arrow_r" size={12}/></Btn>
+            <Btn variant="primary" size="sm" onClick={() => { onSelectPeriodo(justUploaded.periodo_id); }}>Revisar <Icon name="arrow_r" size={12}/></Btn>
           </div>
         )}
       </div>
 
       <div className="panel panel-flush">
         <div style={{ padding: '18px', borderBottom: '1px solid var(--line)' }}>
-          <PanelHead title="Períodos guardados" sub="Puedes volver a cualquier mes anterior" />
+          <PanelHead title="Períodos guardados" sub="Selecciona uno para revisar o recalcular" />
         </div>
         {periodos.length === 0 && <div className="xs mute" style={{ padding: 18 }}>Sin reportes guardados.</div>}
-        {periodos.map((r, i) => (
-          <button key={r.id} className="list-row" onClick={() => onSelectPeriodo(r.label)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text)' }}>
-            <div className="ico" style={{ background: i === 0 ? 'var(--accent-soft)' : 'var(--bg-hover)', color: i === 0 ? 'var(--accent-hi)' : 'var(--text-dim)' }}>
-              <Icon name="calendar" size={16} />
-            </div>
-            <div className="body">
-              <div className="ttl">{r.label}{i === 0 && <Chip tone="accent" style={{ marginLeft: 8 }}>actual</Chip>}</div>
-              <div className="cap">{r.empleados} empleados · {fmtMoney(r.total)}</div>
-            </div>
-            <Icon name="arrow_r" size={14} className="mute" />
-          </button>
-        ))}
+        {periodos.map((r, i) => {
+          const sel = r.id === periodoId;
+          return (
+            <button key={r.id} className="list-row" onClick={() => onSelectPeriodo(r.id)} style={{ width: '100%', textAlign: 'left', background: sel ? 'var(--accent-soft)' : 'transparent', border: 0, cursor: 'pointer', color: 'var(--text)' }}>
+              <div className="ico" style={{ background: sel ? 'var(--accent)' : (i === 0 ? 'var(--accent-soft)' : 'var(--bg-hover)'), color: sel ? 'white' : (i === 0 ? 'var(--accent-hi)' : 'var(--text-dim)') }}>
+                <Icon name="calendar" size={16} />
+              </div>
+              <div className="body">
+                <div className="ttl">{r.label}{sel && <Chip tone="accent" style={{ marginLeft: 8 }}>seleccionado</Chip>}</div>
+                <div className="cap">{r.empleados} empleados · {fmtMoney(r.total)}</div>
+              </div>
+              <Icon name="arrow_r" size={14} className="mute" />
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function NomStepRevisar({ onNext, onBack }) {
-  const empIds = Object.keys(HORAS_DETALLE);
+function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
+  const horasPeriodo = HORAS_POR_PERIODO[periodoId] || {};
+  const empIds = Object.keys(horasPeriodo);
   const firstId = empIds[0] || EMPLEADOS_MOCK[0]?.id || '';
   const [sel, setSel] = useState(firstId);
   const [edits, setEdits] = useState({});
   const [saving, setSaving] = useState(false);
 
-  const baseDays = HORAS_DETALLE[sel] || [];
+  React.useEffect(() => { if (empIds.length > 0 && !empIds.includes(sel)) setSel(empIds[0]); }, [periodoId]);
+
+  const baseDays = horasPeriodo[sel] || [];
   const days = baseDays.map((d, i) => {
     const override = edits[sel]?.[i] || {};
     const edited = Object.keys(override).length > 0;
@@ -1965,7 +1990,7 @@ function NomStepRevisar({ onNext, onBack }) {
     const ediciones = {};
     for (const empKey of Object.keys(edits)) {
       const perDay = edits[empKey] || {};
-      const base = HORAS_DETALLE[empKey] || [];
+      const base = horasPeriodo[empKey] || [];
       for (const idx of Object.keys(perDay)) {
         const row = base[idx];
         if (!row) continue;
@@ -1973,14 +1998,14 @@ function NomStepRevisar({ onNext, onBack }) {
         ediciones[empKey][row.fecha] = perDay[idx];
       }
     }
-    const ok = await window._api?.corregirNomina(null, ediciones);
+    const ok = await window._api?.corregirNomina(periodoId, ediciones);
     setSaving(false);
     if (ok) location.reload();
     else alert('Error guardando correcciones.');
   }
 
-  const horasTotal = Object.values(HORAS_DETALLE).flat().reduce((a, d) => a + (d.total || 0), 0);
-  const anomsTotal = Object.values(HORAS_DETALLE).flat().filter(d => d.flag && !d.flag.startsWith('CORREG')).length;
+  const horasTotal = Object.values(horasPeriodo).flat().reduce((a, d) => a + (d.total || 0), 0);
+  const anomsTotal = Object.values(horasPeriodo).flat().filter(d => d.flag && !d.flag.startsWith('CORREG')).length;
   const empOptions = empIds.map(id => {
     const emp = EMPLEADOS_MOCK.find(e => e.id === id);
     return { value: id, label: emp?.nombre || id };
@@ -2102,26 +2127,26 @@ function computeTotal(h1, h2, h3, h4) {
   return total / 60;
 }
 
-function NomStepSueldos({ periodo, onBack }) {
+function NomStepSueldos({ periodoId, periodoLabel, onBack }) {
   const [d13, setD13] = useState(false);
   const [d14, setD14] = useState(false);
   const [expanded, setExpanded] = useState(null);
   const [guardando, setGuardando] = useState(false);
 
-  const periodoActivo = (NOMINA_HISTORICA[NOMINA_HISTORICA.length - 1]?.id) || '';
+  const nominaList = NOMINA_POR_PERIODO[periodoId] || [];
 
-  const d13Extra = d13 ? NOMINA_ULTIMO.reduce((a, e) => a + e.ingresos / 12, 0) : 0;
-  const d14Extra = d14 ? SBU_2026 * NOMINA_ULTIMO.length : 0;
+  const d13Extra = d13 ? nominaList.reduce((a, e) => a + e.ingresos / 12, 0) : 0;
+  const d14Extra = d14 ? SBU_2026 * nominaList.length : 0;
 
-  const totalIngresos = NOMINA_ULTIMO.reduce((a, e) => a + e.ingresos, 0);
-  const totalIess     = NOMINA_ULTIMO.reduce((a, e) => a + e.iess, 0);
-  const totalFondos   = NOMINA_ULTIMO.reduce((a, e) => a + e.fondos, 0);
-  const totalPagado   = NOMINA_ULTIMO.reduce((a, e) => a + e.total, 0) + d13Extra + d14Extra;
+  const totalIngresos = nominaList.reduce((a, e) => a + e.ingresos, 0);
+  const totalIess     = nominaList.reduce((a, e) => a + e.iess, 0);
+  const totalFondos   = nominaList.reduce((a, e) => a + e.fondos, 0);
+  const totalPagado   = nominaList.reduce((a, e) => a + e.total, 0) + d13Extra + d14Extra;
 
   async function guardarCalculo() {
-    if (!periodoActivo) { alert('No hay reporte cargado'); return; }
+    if (!periodoId) { alert('No hay reporte cargado'); return; }
     setGuardando(true);
-    const ok = await window._api?.calcularNomina(periodoActivo, { d13, d14 });
+    const ok = await window._api?.calcularNomina(periodoId, { d13, d14 });
     setGuardando(false);
     if (ok) alert('Nómina guardada');
     else alert('Error guardando nómina');
@@ -2158,9 +2183,9 @@ function NomStepSueldos({ periodo, onBack }) {
       </div>
 
       <Eyebrow style={{ marginBottom: 10 }}>Detalle por empleado</Eyebrow>
-      {NOMINA_ULTIMO.length === 0 && <div className="xs mute" style={{ padding: 20, textAlign: 'center' }}>No hay datos. Sube un reporte y configura salarios de empleados.</div>}
+      {nominaList.length === 0 && <div className="xs mute" style={{ padding: 20, textAlign: 'center' }}>No hay datos para este periodo. Sube un reporte y configura salarios de empleados.</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {NOMINA_ULTIMO.map(n => {
+        {nominaList.map(n => {
           const emp = EMPLEADOS_MOCK.find(e => e.id === n.id) || { color: 'var(--accent-soft)', iniciales: '··', cargo: '', transporte: 0, prestamo_iess: 0, fondos_reserva: false };
           const isOpen = expanded === n.id;
           return (
@@ -2244,8 +2269,8 @@ function NomStepSueldos({ periodo, onBack }) {
         <Btn onClick={onBack}><Icon name="arrow_l" size={14}/> Volver a horas</Btn>
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <Btn onClick={guardarCalculo} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar cálculo'}</Btn>
-          <a className="btn primary" href={periodoActivo ? `/api/nomina/descargar/${periodoActivo}` : '#'} download style={{ textDecoration: 'none' }}>
-            <Icon name="download" size={14}/> Descargar XLSX
+          <a className="btn primary" href={periodoId ? `/api/nomina/descargar/${periodoId}` : '#'} download style={{ textDecoration: 'none' }}>
+            <Icon name="download" size={14}/> Descargar XLSX {periodoLabel}
           </a>
         </div>
       </div>

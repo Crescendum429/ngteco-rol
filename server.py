@@ -118,87 +118,94 @@ def _min_to_hhmm(mins):
         return ""
 
 
-def _build_horas_detalle(emp_db):
-    reps = list_reportes()
-    if not reps:
+def _horas_detalle_one(data_r, cls_r, emp_db):
+    """Retorna {emp_id: [days]} para un reporte."""
+    if not data_r or not cls_r:
         return {}
-    last_rep = reps[0]
-    try:
-        data_r, cls_r = load_reporte(last_rep["id"])
-        if not data_r or not cls_r:
-            return {}
-        matched_r, _, _ = match_empleados(data_r, emp_db)
-        result = {}
-        for emp_full, days, _ in data_r:
-            name = emp_name(emp_full)
-            dk = matched_r.get(name, name)
-            emp_days = []
-            cls_emp = cls_r.get(name, {})
-            for ds in sorted(cls_emp.keys()):
-                d = cls_emp[ds]
-                total_m = 0
-                if d.get("h1") is not None and d.get("h2") is not None:
-                    total_m += d["h2"] - d["h1"]
-                if d.get("h3") is not None and d.get("h4") is not None:
-                    total_m += d["h4"] - d["h3"]
-                flags = d.get("flags") or []
-                emp_days.append({
-                    "fecha": ds,
-                    "h1": _min_to_hhmm(d.get("h1")),
-                    "h2": _min_to_hhmm(d.get("h2")),
-                    "h3": _min_to_hhmm(d.get("h3")),
-                    "h4": _min_to_hhmm(d.get("h4")),
-                    "total": round(total_m / 60, 1),
-                    "flag": flags[0] if flags else "",
-                })
-            result[dk] = emp_days
-        return result
-    except Exception:
-        return {}
-
-
-def _calc_nomina_ultimo(emp_db):
-    """Recalculate per-employee nomina from the last saved report."""
-    reps = list_reportes()
-    if not reps:
-        return []
-    last_rep = reps[0]  # already ordered desc
-    try:
-        data_r, cls_r = load_reporte(last_rep["id"])
-        if not data_r or not cls_r:
-            return []
-        matched_r, _, _ = match_empleados(data_r, emp_db)
-        arrastre_r = load_arrastre(last_rep["id"]) or {}
-        result = []
-        for emp_full, days, nid in data_r:
-            name = emp_name(emp_full)
-            dk = matched_r.get(name)
-            cfg = emp_db.get(dk, {}) if dk else {}
-            if not cfg.get("salario"):
-                continue
-            hrs = calcular_horas_clasificadas(cls_r.get(name, {}), cfg.get("horas_base", 8))
-            cfg_c = dict(cfg)
-            cfg_c["horas_comp_anterior"] = arrastre_r.get(name, 0)
-            nom = calcular_nomina(hrs, cfg_c, {})
-            result.append({
-                "id": dk or name,
-                "nombre": name,
-                "dias": hrs["dias"],
-                "horas": round(hrs["horas_total"], 1),
-                "h50": round(hrs["horas_50"], 2),
-                "h100": round(hrs["horas_100"], 2),
-                "quincena": round(nom["quincena"], 2),
-                "extras": round(nom["horas_extras"], 2),
-                "transporte": round(nom["transporte"], 2),
-                "ingresos": round(nom["total_ingresos"], 2),
-                "iess": round(nom["iess"], 2),
-                "neto": round(nom["valor_recibir"], 2),
-                "fondos": round(nom["fondos_reserva"], 2),
-                "total": round(nom["total_transferido"], 2),
+    matched_r, _, _ = match_empleados(data_r, emp_db)
+    result = {}
+    for emp_full, days, _ in data_r:
+        name = emp_name(emp_full)
+        dk = matched_r.get(name, name)
+        emp_days = []
+        cls_emp = cls_r.get(name, {})
+        for ds in sorted(cls_emp.keys()):
+            d = cls_emp[ds]
+            total_m = 0
+            if d.get("h1") is not None and d.get("h2") is not None:
+                total_m += d["h2"] - d["h1"]
+            if d.get("h3") is not None and d.get("h4") is not None:
+                total_m += d["h4"] - d["h3"]
+            flags = d.get("flags") or []
+            emp_days.append({
+                "fecha": ds,
+                "h1": _min_to_hhmm(d.get("h1")),
+                "h2": _min_to_hhmm(d.get("h2")),
+                "h3": _min_to_hhmm(d.get("h3")),
+                "h4": _min_to_hhmm(d.get("h4")),
+                "total": round(total_m / 60, 1),
+                "flag": flags[0] if flags else "",
             })
-        return result
-    except Exception:
+        result[dk] = emp_days
+    return result
+
+
+def _build_horas_por_periodo(emp_db):
+    """Retorna {periodo_id: {emp_id: [days]}}."""
+    result = {}
+    for rep in list_reportes():
+        try:
+            data_r, cls_r = load_reporte(rep["id"])
+            result[rep["id"]] = _horas_detalle_one(data_r, cls_r, emp_db)
+        except Exception:
+            result[rep["id"]] = {}
+    return result
+
+
+def _calc_nomina_one(periodo_id, data_r, cls_r, emp_db):
+    if not data_r or not cls_r:
         return []
+    matched_r, _, _ = match_empleados(data_r, emp_db)
+    arrastre_r = load_arrastre(periodo_id) or {}
+    result = []
+    for emp_full, days, nid in data_r:
+        name = emp_name(emp_full)
+        dk = matched_r.get(name)
+        cfg = emp_db.get(dk, {}) if dk else {}
+        if not cfg.get("salario"):
+            continue
+        hrs = calcular_horas_clasificadas(cls_r.get(name, {}), cfg.get("horas_base", 8))
+        cfg_c = dict(cfg)
+        cfg_c["horas_comp_anterior"] = arrastre_r.get(name, 0)
+        nom = calcular_nomina(hrs, cfg_c, {})
+        result.append({
+            "id": dk or name,
+            "nombre": name,
+            "dias": hrs["dias"],
+            "horas": round(hrs["horas_total"], 1),
+            "h50": round(hrs["horas_50"], 2),
+            "h100": round(hrs["horas_100"], 2),
+            "quincena": round(nom["quincena"], 2),
+            "extras": round(nom["horas_extras"], 2),
+            "transporte": round(nom["transporte"], 2),
+            "ingresos": round(nom["total_ingresos"], 2),
+            "iess": round(nom["iess"], 2),
+            "neto": round(nom["valor_recibir"], 2),
+            "fondos": round(nom["fondos_reserva"], 2),
+            "total": round(nom["total_transferido"], 2),
+        })
+    return result
+
+
+def _build_nomina_por_periodo(emp_db):
+    result = {}
+    for rep in list_reportes():
+        try:
+            data_r, cls_r = load_reporte(rep["id"])
+            result[rep["id"]] = _calc_nomina_one(rep["id"], data_r, cls_r, emp_db)
+        except Exception:
+            result[rep["id"]] = []
+    return result
 
 
 def _build_data_jsx():
@@ -285,8 +292,12 @@ def _build_data_jsx():
         "mantenimiento": float(gastos_raw.get("mantenimiento", 80)),
     }
 
-    nomina_ultimo = _calc_nomina_ultimo(emp_db)
-    horas_detalle = _build_horas_detalle(emp_db)
+    horas_por_periodo = _build_horas_por_periodo(emp_db)
+    nomina_por_periodo = _build_nomina_por_periodo(emp_db)
+    reps_ids = [r["id"] for r in list_reportes()]
+    latest_id = reps_ids[0] if reps_ids else None
+    horas_detalle = horas_por_periodo.get(latest_id, {}) if latest_id else {}
+    nomina_ultimo = nomina_por_periodo.get(latest_id, []) if latest_id else []
 
     return f"""
 // Datos reales inyectados por el servidor — v{APP_VERSION}
@@ -301,6 +312,9 @@ const GASTOS_FIJOS_MOCK = {json.dumps(gastos_fijos_js, ensure_ascii=False)};
 const NOMINA_HISTORICA = {json.dumps(nomina_historica, ensure_ascii=False)};
 const NOMINA_ULTIMO = {json.dumps(nomina_ultimo, ensure_ascii=False)};
 const HORAS_DETALLE = {json.dumps(horas_detalle, ensure_ascii=False)};
+const HORAS_POR_PERIODO = {json.dumps(horas_por_periodo, ensure_ascii=False)};
+const NOMINA_POR_PERIODO = {json.dumps(nomina_por_periodo, ensure_ascii=False)};
+const LATEST_PERIODO = {json.dumps(latest_id)};
 const ANOMALIAS_MOCK = [];
 const REGISTROS_RECIENTES = {json.dumps(registros, ensure_ascii=False)};
 const COSTOS_EVOLUCION = {{}};
@@ -320,7 +334,8 @@ const fmtNum = (n, d = 0) =>
 Object.assign(window, {{
   MESES, SBU_2026,
   EMPLEADOS_MOCK, MATERIALES_MOCK, EMPAQUES_MOCK, PRODUCTOS_MOCK,
-  GASTOS_FIJOS_MOCK, NOMINA_HISTORICA, NOMINA_ULTIMO, HORAS_DETALLE, ANOMALIAS_MOCK,
+  GASTOS_FIJOS_MOCK, NOMINA_HISTORICA, NOMINA_ULTIMO, HORAS_DETALLE,
+  HORAS_POR_PERIODO, NOMINA_POR_PERIODO, LATEST_PERIODO, ANOMALIAS_MOCK,
   REGISTROS_RECIENTES, COSTOS_EVOLUCION, COSTOS_EVOLUCION_MESES, PRODUCCION_MES,
   fmtMoney, fmtMoneyShort, fmtNum,
 }});
