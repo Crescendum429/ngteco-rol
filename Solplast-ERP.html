@@ -3847,7 +3847,10 @@ function EmpEditor({ form, setForm, sel }) {
 
       <Eyebrow style={{ marginTop: 20 }}>Beneficios y descuentos</Eyebrow>
       <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-        <Check checked={form.fondos_reserva} onChange={v => set('fondos_reserva', v)}>Recibe fondos de reserva (8.33%) <span className="mute xs">· Después del primer año</span></Check>
+        <Check checked={form.descuento_iess !== false} onChange={v => set('descuento_iess', v)}>Aporte IESS 9.45% <span className="mute xs">· Descuento obligatorio sobre ingresos</span></Check>
+        <div style={{ marginTop: 10 }}>
+          <Check checked={form.fondos_reserva} onChange={v => set('fondos_reserva', v)}>Recibe fondos de reserva (8.33%) <span className="mute xs">· Después del primer año</span></Check>
+        </div>
         <div className="field" style={{ marginTop: 12 }}>
           <label>Préstamo IESS (descuento mensual)</label>
           <input className="input" type="number" step="0.01" value={form.prestamo_iess} onChange={e => set('prestamo_iess', parseFloat(e.target.value) || 0)} />

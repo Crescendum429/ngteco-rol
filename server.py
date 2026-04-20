@@ -621,7 +621,7 @@ def create_empleado():
         "region": data.get("region", "Sierra/Amazonia"),
         "fondos_reserva": bool(data.get("fondos_reserva", False)),
         "prestamo_iess": float(data.get("prestamo_iess", 0)),
-        "descuento_iess": True,
+        "descuento_iess": bool(data.get("descuento_iess", True)),
         "ocultar": False,
     }
     save_empleados(emp_db)
@@ -644,6 +644,7 @@ def update_empleado(emp_id):
     emp["region"] = data.get("region", emp.get("region", "Sierra/Amazonia"))
     emp["fondos_reserva"] = bool(data.get("fondos_reserva", emp.get("fondos_reserva", False)))
     emp["prestamo_iess"] = float(data.get("prestamo_iess", emp.get("prestamo_iess", 0)))
+    emp["descuento_iess"] = bool(data.get("descuento_iess", emp.get("descuento_iess", True)))
     save_empleados(emp_db)
     return jsonify({"ok": True})
 
