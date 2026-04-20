@@ -1685,11 +1685,17 @@ function Home({ setPage, role }) {
   const deltaNom = prev.total > 0 ? ((ultimo.total - prev.total) / prev.total) * 100 : 0;
   const costoProm = PRODUCTOS_MOCK.length > 0 ? PRODUCTOS_MOCK.reduce((a, p) => a + p.costo_unit, 0) / PRODUCTOS_MOCK.length : 0;
   const unidadesMes = PRODUCCION_MES.reduce((a, p) => a + p.unidades, 0);
-  const alertas = [
-    { tone: 'warn', icon: 'alert', ttl: '4 anomalías en el reporte de horas',      cap: 'Abril 2026 · revisar en Nómina', go: 'nomina' },
-    { tone: 'info', icon: 'flame', ttl: 'Merma PVC subió a 5.1% (meta 3%)',        cap: 'Materias primas · últimos 30 días', go: 'catalogo' },
-    { tone: 'good', icon: 'check', ttl: 'Nómina lista para transferir',             cap: `${fmtMoney(ultimo.total)} — ${EMPLEADOS_MOCK.length} empleados`, go: 'nomina' },
-  ];
+  const anomsCount = Object.values(HORAS_DETALLE).flat().filter(d => d.flag && !d.flag.startsWith('CORREG')).length;
+  const mesesNom = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const diasNom = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const _hoy = new Date();
+  const fechaStr = `${mesesNom[_hoy.getMonth()]} ${_hoy.getFullYear()} · ${diasNom[_hoy.getDay()]} ${_hoy.getDate()}`;
+  const saludoHora = _hoy.getHours();
+  const saludo = saludoHora < 12 ? 'Buenos días' : saludoHora < 19 ? 'Buenas tardes' : 'Buenas noches';
+
+  const alertas = [];
+  if (anomsCount > 0) alertas.push({ tone: 'warn', icon: 'alert', ttl: `${anomsCount} anomalía${anomsCount !== 1 ? 's' : ''} en el reporte de horas`, cap: `${ultimo.label} · revisar en Nómina`, go: 'nomina' });
+  if (ultimo.total > 0) alertas.push({ tone: 'good', icon: 'check', ttl: 'Nómina lista para transferir', cap: `${fmtMoney(ultimo.total)} — ${EMPLEADOS_MOCK.length} empleados`, go: 'nomina' });
 
   const modules = [
     { key: 'nomina',    title: 'Nómina',           desc: 'Subir reporte del reloj, revisar horas y calcular sueldos del mes.',  meta: '3 pasos',          illus: <IllusJeringa size={56} color="var(--accent-hi)"/> },
@@ -1697,18 +1703,19 @@ function Home({ setPage, role }) {
     { key: 'catalogo',  title: 'Catálogo',         desc: 'Materiales, productos, empaques y gastos fijos en un solo lugar.',     meta: 'Configuración',    illus: <IllusGotero size={56} color="var(--accent-hi)"/> },
     { key: 'costos',    title: 'Costos',           desc: 'Costo unitario calculado con material, empaque, nómina y gastos.',     meta: 'Cálculo',          illus: <IllusCuchara size={56} color="var(--accent-hi)"/> },
     { key: 'metricas',  title: 'Métricas',         desc: 'Histórico de nómina, horas extras y evolución de costos.',             meta: 'Análisis',         illus: <IllusJeringa size={56} color="var(--accent-hi)"/> },
-    { key: 'empleados', title: 'Empleados',        desc: 'Salarios, transporte, IESS y fondos de reserva del personal.',          meta: '8 activos',        illus: <IllusVaso size={56} color="var(--accent-hi)"/> },
+    { key: 'empleados', title: 'Empleados',        desc: 'Salarios, transporte, IESS y fondos de reserva del personal.',          meta: `${EMPLEADOS_MOCK.length} activos`, illus: <IllusVaso size={56} color="var(--accent-hi)"/> },
   ];
 
   return (
     <div className="fadein">
       <div className="home-hero home-hero-stack">
         <div>
-          <Eyebrow>Abril 2026 · jueves 18</Eyebrow>
-          <h1>Buenos días, <em>Admin</em>.</h1>
+          <Eyebrow>{fechaStr}</Eyebrow>
+          <h1>{saludo}, <em>Admin</em>.</h1>
           <p className="sub">
-            Hoy tienes <strong style={{color:'var(--text)'}}>{alertas.length} cosas</strong> por revisar.
-            La nómina del mes está casi lista, falta cerrar 4 anomalías de horas.
+            {alertas.length > 0
+              ? <>Hoy tienes <strong style={{color:'var(--text)'}}>{alertas.length} cosa{alertas.length !== 1 ? 's' : ''}</strong> por revisar.{anomsCount > 0 ? ` Faltan ${anomsCount} anomalía${anomsCount !== 1 ? 's' : ''} de horas por corregir.` : ''}</>
+              : 'Todo al día. No hay pendientes.'}
           </p>
           <div className="row wrap" style={{ marginTop: 16 }}>
             <Btn variant="primary" onClick={() => setPage('nomina')}>Continuar nómina <Icon name="arrow_r" size={14}/></Btn>
@@ -1732,20 +1739,15 @@ function Home({ setPage, role }) {
         <Kpi
           label="Costo unitario promedio" icon="flask"
           value={'$' + costoProm.toFixed(4)}
-          delta="Estable"
-          deltaDir="up"
         />
         <Kpi
           label="Unidades producidas" icon="package"
-          value={fmtNum(unidadesMes / 1000, 0)}
-          unit="k"
-          delta="+8.2% vs mes anterior"
-          deltaDir="up"
+          value={unidadesMes > 0 ? fmtNum(unidadesMes / 1000, 0) : '—'}
+          unit={unidadesMes > 0 ? 'k' : ''}
         />
         <Kpi
           label="Empleados activos" icon="users"
-          value="8"
-          delta="22 días laborados"
+          value={String(EMPLEADOS_MOCK.length)}
         />
       </div>
 
@@ -2104,11 +2106,26 @@ function NomStepSueldos({ periodo, onBack }) {
   const [d13, setD13] = useState(false);
   const [d14, setD14] = useState(false);
   const [expanded, setExpanded] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+
+  const periodoActivo = (NOMINA_HISTORICA[NOMINA_HISTORICA.length - 1]?.id) || '';
+
+  const d13Extra = d13 ? NOMINA_ULTIMO.reduce((a, e) => a + e.ingresos / 12, 0) : 0;
+  const d14Extra = d14 ? SBU_2026 * NOMINA_ULTIMO.length : 0;
 
   const totalIngresos = NOMINA_ULTIMO.reduce((a, e) => a + e.ingresos, 0);
   const totalIess     = NOMINA_ULTIMO.reduce((a, e) => a + e.iess, 0);
   const totalFondos   = NOMINA_ULTIMO.reduce((a, e) => a + e.fondos, 0);
-  const totalPagado   = NOMINA_ULTIMO.reduce((a, e) => a + e.total, 0);
+  const totalPagado   = NOMINA_ULTIMO.reduce((a, e) => a + e.total, 0) + d13Extra + d14Extra;
+
+  async function guardarCalculo() {
+    if (!periodoActivo) { alert('No hay reporte cargado'); return; }
+    setGuardando(true);
+    const ok = await window._api?.calcularNomina(periodoActivo, { d13, d14 });
+    setGuardando(false);
+    if (ok) alert('Nómina guardada');
+    else alert('Error guardando nómina');
+  }
 
   return (
     <div>
@@ -2141,9 +2158,10 @@ function NomStepSueldos({ periodo, onBack }) {
       </div>
 
       <Eyebrow style={{ marginBottom: 10 }}>Detalle por empleado</Eyebrow>
+      {NOMINA_ULTIMO.length === 0 && <div className="xs mute" style={{ padding: 20, textAlign: 'center' }}>No hay datos. Sube un reporte y configura salarios de empleados.</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {NOMINA_ULTIMO.map(n => {
-          const emp = EMPLEADOS_MOCK.find(e => e.id === n.id);
+          const emp = EMPLEADOS_MOCK.find(e => e.id === n.id) || { color: 'var(--accent-soft)', iniciales: '··', cargo: '', transporte: 0, prestamo_iess: 0, fondos_reserva: false };
           const isOpen = expanded === n.id;
           return (
             <div key={n.id} className="panel" style={{ padding: 0, overflow: 'hidden' }}>
@@ -2215,11 +2233,6 @@ function NomStepSueldos({ periodo, onBack }) {
                       </div>
                     </div>
                   </div>
-                  <div className="row" style={{ marginTop: 14 }}>
-                    <Btn size="sm"><Icon name="download" size={12}/> PDF individual</Btn>
-                    <Btn size="sm" variant="ghost">Bono/ajuste</Btn>
-                    <Btn size="sm" variant="ghost">Pasar horas al próximo mes</Btn>
-                  </div>
                 </div>
               )}
             </div>
@@ -2230,8 +2243,10 @@ function NomStepSueldos({ periodo, onBack }) {
       <div className="row" style={{ justifyContent: 'space-between', marginTop: 22, flexWrap: 'wrap', gap: 10 }}>
         <Btn onClick={onBack}><Icon name="arrow_l" size={14}/> Volver a horas</Btn>
         <div className="row" style={{ flexWrap: 'wrap' }}>
-          <Btn><Icon name="download" size={14}/> PDFs todos</Btn>
-          <Btn variant="primary"><Icon name="download" size={14}/> Descargar nómina {periodo} (XLSX)</Btn>
+          <Btn onClick={guardarCalculo} disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar cálculo'}</Btn>
+          <a className="btn primary" href={periodoActivo ? `/api/nomina/descargar/${periodoActivo}` : '#'} download style={{ textDecoration: 'none' }}>
+            <Icon name="download" size={14}/> Descargar XLSX
+          </a>
         </div>
       </div>
     </div>
@@ -2397,7 +2412,6 @@ function RegistroDiario({ role }) {
                 <div className="ttl">{r.fecha}</div>
                 <div className="cap">{r.material} kg material · {r.cajas} cajas{r.obs && ` · ${r.obs}`}</div>
               </div>
-              <Btn variant="ghost" size="sm"><Icon name="edit" size={13}/></Btn>
             </div>
           ))}
         </div>
@@ -2747,6 +2761,7 @@ Object.assign(window, { RegistroDiario });
 
 function Catalogo() {
   const [tab, setTab] = useState('productos');
+  const [nuevoTick, setNuevoTick] = useState(0);
   return (
     <div className="fadein">
       <div className="page-head">
@@ -2755,7 +2770,7 @@ function Catalogo() {
           <h1 className="page-title"><em>Catálogo</em></h1>
           <div className="page-sub">Todo lo que alimenta el cálculo de costos, en un solo lugar. Cambia aquí y se actualiza en todo el sistema.</div>
         </div>
-        <Btn variant="primary"><Icon name="plus" size={14}/> Nuevo</Btn>
+        {tab !== 'gastos' && <Btn variant="primary" onClick={() => setNuevoTick(n => n + 1)}><Icon name="plus" size={14}/> Nuevo</Btn>}
       </div>
 
       <div className="tabs">
@@ -2771,15 +2786,15 @@ function Catalogo() {
         ))}
       </div>
 
-      {tab === 'productos' && <TabProductos />}
-      {tab === 'materiales' && <TabMateriales />}
-      {tab === 'empaques' && <TabEmpaques />}
+      {tab === 'productos' && <TabProductos nuevoTick={nuevoTick} />}
+      {tab === 'materiales' && <TabMateriales nuevoTick={nuevoTick} />}
+      {tab === 'empaques' && <TabEmpaques nuevoTick={nuevoTick} />}
       {tab === 'gastos' && <TabGastos />}
     </div>
   );
 }
 
-function TabProductos() {
+function TabProductos({ nuevoTick }) {
   const [sel, setSel] = useState(null);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -2789,10 +2804,22 @@ function TabProductos() {
 
   function openProd(p) { setSel(p); setForm({ ...p }); }
 
+  React.useEffect(() => {
+    if (nuevoTick > 0) {
+      const empty = { id: '', kind: 'vaso', nombre: '', unidades_caja: 1000, peso_g: 0, material: '', factor: 1.0, costo_unit: 0, costo_caja: 0, isNew: true };
+      setSel(empty);
+      setForm(empty);
+    }
+  }, [nuevoTick]);
+
   async function handleSave() {
     if (!form || !sel) return;
     setSaving(true);
-    await window._api?.saveProducto(sel.id, form);
+    if (sel.isNew) {
+      await window._api?.createProducto(form);
+    } else {
+      await window._api?.saveProducto(sel.id, form);
+    }
     setSaving(false);
     location.reload();
   }
@@ -2886,17 +2913,26 @@ function CostBreakdownBar({ p }) {
   );
 }
 
-function TabMateriales() {
+function TabMateriales({ nuevoTick }) {
   const [sel, setSel] = useState(null);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
 
   function openMat(m) { setSel(m); setForm({ ...m }); }
 
+  React.useEffect(() => {
+    if (nuevoTick > 0) {
+      const empty = { id: '', nombre: '', costo_kg: 0, merma: 3, color: 'oklch(70% 0.12 220)', isNew: true };
+      setSel(empty);
+      setForm(empty);
+    }
+  }, [nuevoTick]);
+
   async function handleSave() {
     if (!form || !sel) return;
+    if (sel.isNew && !form.id) { alert('Código interno requerido'); return; }
     setSaving(true);
-    await window._api?.saveMaterial(sel.id, form);
+    await window._api?.saveMaterial(sel.isNew ? form.id : sel.id, form);
     setSaving(false);
     location.reload();
   }
@@ -2945,20 +2981,20 @@ function MaterialEditor({ form, setForm, sel }) {
         <div style={{ width: 56, height: 56, borderRadius: 12, background: sel.color, opacity: 0.35, border: `1.5px solid ${sel.color}` }} />
         <div>
           <Eyebrow>Material</Eyebrow>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{sel.nombre}</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{sel.isNew ? 'Nuevo material' : sel.nombre}</div>
         </div>
       </div>
       <div className="cols-2">
         <Input label="Nombre" value={form.nombre} onChange={e => set('nombre', e.target.value)} />
         <Input label="Costo por kg ($)" type="number" step="0.01" value={form.costo_kg} onChange={e => set('costo_kg', parseFloat(e.target.value) || 0)} />
         <Input label="Merma típica (%)" type="number" step="0.1" value={form.merma} onChange={e => set('merma', parseFloat(e.target.value) || 0)} hint="Para alertas en el registro diario" />
-        <Input label="Código interno" value={form.id} onChange={() => {}} />
+        <Input label="Código interno" value={form.id} onChange={e => sel.isNew && set('id', e.target.value)} disabled={!sel.isNew} />
       </div>
     </div>
   );
 }
 
-function TabEmpaques() {
+function TabEmpaques({ nuevoTick }) {
   const [sel, setSel] = useState(null);
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -2966,10 +3002,19 @@ function TabEmpaques() {
 
   function openEmp(e) { setSel(e); setForm({ ...e }); }
 
+  React.useEffect(() => {
+    if (nuevoTick > 0) {
+      const empty = { id: '', nombre: '', costo: 0, unidad: 'unidad', isNew: true };
+      setSel(empty);
+      setForm(empty);
+    }
+  }, [nuevoTick]);
+
   async function handleSave() {
     if (!form || !sel) return;
+    if (sel.isNew && !form.id) { alert('Código interno requerido'); return; }
     setSaving(true);
-    await window._api?.saveEmpaque(sel.id, form);
+    await window._api?.saveEmpaque(sel.isNew ? form.id : sel.id, form);
     setSaving(false);
     location.reload();
   }
@@ -3010,7 +3055,7 @@ function TabEmpaques() {
               <Input label="Nombre" value={form.nombre} onChange={e => set('nombre', e.target.value)} />
               <Input label="Costo ($)" type="number" step="0.001" value={form.costo} onChange={e => set('costo', parseFloat(e.target.value) || 0)} />
               <Select label="Unidad de consumo" value={form.unidad} onChange={v => set('unidad', v)} options={['unidad', 'caja', 'docena', 'kg']} />
-              <Input label="Código interno" value={form.id} onChange={() => {}} />
+              <Input label="Código interno" value={form.id} onChange={e => sel.isNew && set('id', e.target.value)} disabled={!sel.isNew} />
             </div>
             <Eyebrow style={{ marginTop: 20 }}>Productos que lo usan</Eyebrow>
             <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -3325,10 +3370,17 @@ Object.assign(window, { Costos });
 function Metricas() {
   const [year, setYear] = useState('ultimos12');
 
-  const totalAnual  = NOMINA_HISTORICA.reduce((a, m) => a + m.total, 0);
-  const h50Total    = NOMINA_HISTORICA.reduce((a, m) => a + m.h50, 0);
-  const h100Total   = NOMINA_HISTORICA.reduce((a, m) => a + m.h100, 0);
-  const mesMax      = NOMINA_HISTORICA.length > 0 ? NOMINA_HISTORICA.reduce((a, m) => (m.total > a.total ? m : a)) : { label: '—', total: 0 };
+  const anios = Array.from(new Set(NOMINA_HISTORICA.map(m => (m.id || '').split('-')[0]).filter(Boolean))).sort().reverse();
+  const datos = year === 'ultimos12'
+    ? NOMINA_HISTORICA.slice(-12)
+    : NOMINA_HISTORICA.filter(m => (m.id || '').startsWith(year));
+
+  const totalAnual  = datos.reduce((a, m) => a + m.total, 0);
+  const h50Total    = datos.reduce((a, m) => a + m.h50, 0);
+  const h100Total   = datos.reduce((a, m) => a + m.h100, 0);
+  const mesMax      = datos.length > 0 ? datos.reduce((a, m) => (m.total > a.total ? m : a)) : { label: '—', total: 0 };
+
+  const yearOptions = [{ value: 'ultimos12', label: 'Últimos 12' }, ...anios.map(a => ({ value: a, label: a }))];
 
   return (
     <div className="fadein">
@@ -3338,11 +3390,11 @@ function Metricas() {
           <h1 className="page-title"><em>Métricas</em> de nómina</h1>
           <div className="page-sub">Cómo ha evolucionado el gasto de personal y las horas extras del último año.</div>
         </div>
-        <Seg options={[{ value: 'ultimos12', label: 'Últimos 12' }, { value: '2026', label: '2026' }, { value: '2025', label: '2025' }]} value={year} onChange={setYear} />
+        {yearOptions.length > 1 && <Seg options={yearOptions} value={year} onChange={setYear} />}
       </div>
 
       <div className="kpi-grid" style={{ marginBottom: 18 }}>
-        <Kpi label="Total pagado" icon="dollar" value={fmtMoneyShort(totalAnual)} delta="8 meses" />
+        <Kpi label="Total pagado" icon="dollar" value={fmtMoneyShort(totalAnual)} delta={`${datos.length} mes${datos.length !== 1 ? 'es' : ''}`} />
         <Kpi label="Horas extras 50%" icon="clock" value={h50Total.toFixed(1)} unit="h" />
         <Kpi label="Horas extras 100%" icon="flame" value={h100Total.toFixed(1)} unit="h" />
         <Kpi label="Mes más alto" icon="trend_up" value={mesMax.label} delta={fmtMoney(mesMax.total)} deltaDir="up" />
@@ -3351,8 +3403,8 @@ function Metricas() {
       <div className="panel" style={{ marginBottom: 18 }}>
         <PanelHead title="Total nómina por mes" sub="Incluye quincenas, extras, transporte y décimos" />
         <LineChart
-          series={[{ data: NOMINA_HISTORICA.map(n => n.total), color: 'var(--accent)' }]}
-          labels={NOMINA_HISTORICA.map(n => n.label.split(' ')[0])}
+          series={[{ data: datos.map(n => n.total), color: 'var(--accent)' }]}
+          labels={datos.map(n => n.label.split(' ')[0])}
           height={260}
           yFmt={fmtMoneyShort}
         />
@@ -3363,10 +3415,10 @@ function Metricas() {
           <PanelHead title="Horas extras" sub="50% y 100%" />
           <LineChart
             series={[
-              { data: NOMINA_HISTORICA.map(n => n.h50),  color: 'var(--warn)' },
-              { data: NOMINA_HISTORICA.map(n => n.h100), color: 'var(--bad)'  },
+              { data: datos.map(n => n.h50),  color: 'var(--warn)' },
+              { data: datos.map(n => n.h100), color: 'var(--bad)'  },
             ]}
-            labels={NOMINA_HISTORICA.map(n => n.label.split(' ')[0])}
+            labels={datos.map(n => n.label.split(' ')[0])}
             height={200}
             yFmt={v => v.toFixed(0) + 'h'}
           />
@@ -3380,15 +3432,15 @@ function Metricas() {
           <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--line)' }}>
             <PanelHead title="Histórico mensual" sub="Descargables individualmente" />
           </div>
-          {NOMINA_HISTORICA.slice().reverse().map(m => (
+          {datos.slice().reverse().map(m => (
             <div key={m.id} className="list-row">
               <div className="ico" style={{ background: 'var(--bg-hover)' }}><Icon name="calendar" size={13}/></div>
               <div className="body">
                 <div className="ttl">{m.label}</div>
-                <div className="cap">{m.empleados} empleados · {m.h50 + m.h100} h extras</div>
+                <div className="cap">{m.empleados} empleados · {(m.h50 + m.h100).toFixed(1)} h extras</div>
               </div>
               <div style={{ fontFamily: 'var(--serif)', fontSize: 17 }}>{fmtMoney(m.total)}</div>
-              <Btn variant="ghost" size="sm"><Icon name="download" size={13}/></Btn>
+              <a className="btn ghost sm" href={`/api/nomina/descargar/${m.id}`} download style={{ textDecoration: 'none' }}><Icon name="download" size={13}/></a>
             </div>
           ))}
         </div>

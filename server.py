@@ -429,6 +429,24 @@ def _build_login_patch():
       });
       return r.ok;
     },
+    createProducto: async (data) => {
+      const r = await fetch('/api/productos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    calcularNomina: async (periodo, extras) => {
+      const r = await fetch('/api/nomina/calcular', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ periodo, extras_config: extras || {} }),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
   };
 })();
 """
@@ -627,14 +645,35 @@ def update_producto(prod_id):
     data = request.get_json(force=True) or {}
     prods = load_productos()
     if prod_id not in prods:
-        return jsonify({"error": "No encontrado"}), 404
+        prods[prod_id] = {}
     p = prods[prod_id]
     p["nombre"] = data.get("nombre", p.get("nombre", prod_id))
+    p["kind"] = data.get("kind", p.get("kind", "vaso"))
     p["unidades_caja"] = int(data.get("unidades_caja", p.get("unidades_caja", 1000)))
     p["peso_g"] = float(data.get("peso_g", p.get("peso_g", 0)))
     p["factor_complejidad"] = float(data.get("factor", p.get("factor_complejidad", 1.0)))
     save_productos(prods)
     return jsonify({"ok": True})
+
+
+@app.route("/api/productos", methods=["POST"])
+@require_auth
+def create_producto():
+    data = request.get_json(force=True) or {}
+    nombre = (data.get("nombre") or "").strip()
+    if not nombre:
+        return jsonify({"error": "Nombre requerido"}), 400
+    prods = load_productos()
+    key = normalize(nombre).replace(' ', '_')
+    prods[key] = {
+        "nombre": nombre,
+        "kind": data.get("kind", "vaso"),
+        "unidades_caja": int(data.get("unidades_caja", 1000)),
+        "peso_g": float(data.get("peso_g", 0)),
+        "factor_complejidad": float(data.get("factor", 1.0)),
+    }
+    save_productos(prods)
+    return jsonify({"id": key})
 
 
 @app.route("/api/empaques", methods=["GET"])
@@ -844,42 +883,78 @@ def nomina_corregir():
     return jsonify({"ok": True, "updates": n_updates})
 
 
+def _compute_nomina_for_periodo(periodo_id, extras_config=None):
+    """Calcula nomina completa del periodo. Retorna (resumen, nomina_list)."""
+    extras_config = extras_config or {}
+    data, cls = load_reporte(periodo_id)
+    if not data:
+        return None, None
+    emp_db = load_empleados()
+    matched, _, _ = match_empleados(data, emp_db)
+    arrastre = load_arrastre(periodo_id) or {}
+
+    nomina_list = []
+    total = 0.0
+    h50 = 0.0
+    h100 = 0.0
+    for emp_full, days, _ in data:
+        name = emp_name(emp_full)
+        dk = matched.get(name)
+        cfg = emp_db.get(dk, {}) if dk else {}
+        if not cfg.get("salario"):
+            continue
+        hrs = calcular_horas_clasificadas(cls.get(name, {}), cfg.get("horas_base", 8))
+        cfg_c = dict(cfg)
+        cfg_c["horas_comp_anterior"] = arrastre.get(name, 0)
+        nom = calcular_nomina(hrs, cfg_c, extras_config)
+        nomina_list.append({"name": name, "nomina": nom})
+        total += nom.get("total_transferido", 0)
+        h50 += hrs.get("horas_50", 0)
+        h100 += hrs.get("horas_100", 0)
+
+    y, m = periodo_id.split('-')
+    label = f"{_MES_NAMES[int(m)-1]} {y}"
+    resumen = {
+        "periodo": periodo_id,
+        "periodo_label": label,
+        "total_transferido": total,
+        "total_h50": h50,
+        "total_h100": h100,
+        "n_empleados": len(nomina_list),
+    }
+    return resumen, nomina_list
+
+
 @app.route("/api/nomina/calcular", methods=["POST"])
 @require_auth
 def nomina_calcular():
     req = request.get_json(force=True) or {}
-    periodo = req.get("periodo", date.today().strftime("%Y-%m"))
-    emp_db = load_empleados()
-    data = session.get("_nomina_data", [])
-    cls = session.get("_nomina_cls", {})
-    matched = session.get("_nomina_matched", {})
+    periodo_id = req.get("periodo") or session.get("_nomina_periodo")
+    if not periodo_id:
+        return jsonify({"error": "No hay periodo activo"}), 400
 
-    if not data:
-        return jsonify({"error": "No hay reporte cargado en sesion"}), 400
+    resumen, nomina_list = _compute_nomina_for_periodo(periodo_id, req.get("extras_config", {}))
+    if resumen is None:
+        return jsonify({"error": "Reporte no encontrado"}), 404
 
-    resultados = []
-    total = 0.0
-    for emp_full, days, nid in data:
-        name = emp_name(emp_full)
-        db_key = matched.get(name)
-        cfg = emp_db.get(db_key, {}) if db_key else {}
-        if not cfg.get("salario"):
-            continue
-        hrs = calcular_horas_clasificadas(cls.get(name, {}), cfg.get("horas_base", 8))
-        nom = calcular_nomina(hrs, cfg, req.get("extras_config", {}))
-        nom["nombre"] = name
-        resultados.append(nom)
-        total += nom.get("transferido", 0)
-
-    resumen = {
-        "periodo": periodo,
-        "periodo_label": periodo,
-        "total_transferido": total,
-        "n_empleados": len(resultados),
-        "empleados": resultados,
-    }
-    save_nomina_resumen(periodo, resumen)
+    save_nomina_resumen(periodo_id, resumen)
     return jsonify(resumen)
+
+
+@app.route("/api/nomina/descargar/<periodo_id>", methods=["GET"])
+@require_auth
+def nomina_descargar(periodo_id):
+    resumen, nomina_list = _compute_nomina_for_periodo(periodo_id)
+    if resumen is None:
+        return jsonify({"error": "Reporte no encontrado"}), 404
+
+    tmp_path = tempfile.mkstemp(suffix=".xlsx")[1]
+    try:
+        write_excel_nomina(nomina_list, resumen["periodo_label"], tmp_path)
+        return send_file(tmp_path, as_attachment=True, download_name=f"nomina_{periodo_id}.xlsx",
+                         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    except Exception as e:
+        return jsonify({"error": f"Error generando XLSX: {e}"}), 500
 
 
 @app.route("/api/nomina/resumenes", methods=["GET"])
