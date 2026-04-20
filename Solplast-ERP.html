@@ -3673,7 +3673,11 @@ function App() {
     try { window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [k]: v } }, '*'); } catch {}
   };
 
-  if (!logged) return <Login onLogin={(role) => setLogged(role)} />;
+  useEffectA(() => {
+    if (logged === 'operario' && page !== 'registro') setPage('registro');
+  }, [logged, page]);
+
+  if (!logged) return <Login onLogin={(role) => { setLogged(role); setPage(role === 'operario' ? 'registro' : 'home'); }} />;
 
   const role = logged;
 
