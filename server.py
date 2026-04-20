@@ -229,23 +229,32 @@ def _build_data_jsx():
         for k, v in empaques_raw.items()
     ]
 
+    horas_por_periodo = _build_horas_por_periodo(emp_db)
+    nomina_por_periodo = _build_nomina_por_periodo(emp_db)
     resumenes = load_all_nomina_resumenes()
     _mes_names = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+
+    ids_all = set(resumenes.keys()) | set(nomina_por_periodo.keys())
     nomina_historica = []
-    for rid in sorted(resumenes.keys()):
-        r = resumenes[rid]
+    for rid in sorted(ids_all):
         try:
             y, m = rid.split("-")
             label = f"{_mes_names[int(m)-1]} {y}"
         except Exception:
             label = rid
+        items = nomina_por_periodo.get(rid, [])
+        total_real = sum(n["total"] for n in items)
+        h50_real = sum(n["h50"] for n in items)
+        h100_real = sum(n["h100"] for n in items)
+        r = resumenes.get(rid, {})
+        total_resumen = float(r.get("total_transferido", 0))
         nomina_historica.append({
             "id": rid,
             "label": label,
-            "total": float(r.get("total_transferido", 0)),
-            "h50": float(r.get("total_h50", r.get("h50_total", 0))),
-            "h100": float(r.get("total_h100", r.get("h100_total", 0))),
-            "empleados": len(emp_db),
+            "total": total_resumen if total_resumen > 0 else total_real,
+            "h50": h50_real,
+            "h100": h100_real,
+            "empleados": len(items) or len(emp_db),
         })
 
     # Home requires at least 2 entries to compute delta — pad if needed
@@ -292,8 +301,6 @@ def _build_data_jsx():
         "mantenimiento": float(gastos_raw.get("mantenimiento", 80)),
     }
 
-    horas_por_periodo = _build_horas_por_periodo(emp_db)
-    nomina_por_periodo = _build_nomina_por_periodo(emp_db)
     reps_ids = [r["id"] for r in list_reportes()]
     latest_id = reps_ids[0] if reps_ids else None
     horas_detalle = horas_por_periodo.get(latest_id, {}) if latest_id else {}
