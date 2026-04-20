@@ -1873,11 +1873,12 @@ function NomStepSubir({ periodo, uploaded, onUploaded, onNext, onSelectPeriodo }
     if (!file) return;
     setUploading(true);
     const result = await window._api?.uploadNomina(file);
-    setUploading(false);
-    if (result) {
-      setUploadInfo(result);
-      onUploaded();
+    if (result && !result.error) {
+      location.reload();
+      return;
     }
+    setUploading(false);
+    alert((result && result.error) || 'Error subiendo el archivo.');
   }
 
   const periodos = NOMINA_HISTORICA.slice().reverse();
@@ -1939,17 +1940,42 @@ function NomStepRevisar({ onNext, onBack }) {
   const firstId = empIds[0] || EMPLEADOS_MOCK[0]?.id || '';
   const [sel, setSel] = useState(firstId);
   const [edits, setEdits] = useState({});
+  const [saving, setSaving] = useState(false);
 
   const baseDays = HORAS_DETALLE[sel] || [];
   const days = baseDays.map((d, i) => {
     const override = edits[sel]?.[i] || {};
+    const edited = Object.keys(override).length > 0;
     const h1 = override.h1 !== undefined ? override.h1 : d.h1;
     const h2 = override.h2 !== undefined ? override.h2 : d.h2;
     const h3 = override.h3 !== undefined ? override.h3 : d.h3;
     const h4 = override.h4 !== undefined ? override.h4 : d.h4;
     const total = computeTotal(h1, h2, h3, h4);
-    return { ...d, h1, h2, h3, h4, total };
+    const flag = edited ? 'CORREGIDO MANUALMENTE' : d.flag;
+    return { ...d, h1, h2, h3, h4, total, flag };
   });
+
+  const hayCambios = Object.keys(edits).some(k => Object.keys(edits[k] || {}).length > 0);
+
+  async function guardarCorrecciones() {
+    if (!hayCambios) return;
+    setSaving(true);
+    const ediciones = {};
+    for (const empKey of Object.keys(edits)) {
+      const perDay = edits[empKey] || {};
+      const base = HORAS_DETALLE[empKey] || [];
+      for (const idx of Object.keys(perDay)) {
+        const row = base[idx];
+        if (!row) continue;
+        ediciones[empKey] = ediciones[empKey] || {};
+        ediciones[empKey][row.fecha] = perDay[idx];
+      }
+    }
+    const ok = await window._api?.corregirNomina(null, ediciones);
+    setSaving(false);
+    if (ok) location.reload();
+    else alert('Error guardando correcciones.');
+  }
 
   const horasTotal = Object.values(HORAS_DETALLE).flat().reduce((a, d) => a + (d.total || 0), 0);
   const anomsTotal = Object.values(HORAS_DETALLE).flat().filter(d => d.flag && !d.flag.startsWith('CORREG')).length;
@@ -1971,7 +1997,10 @@ function NomStepRevisar({ onNext, onBack }) {
   };
   const dow = (ds) => {
     if (!ds) return '';
-    const d = new Date(ds + 'T00:00:00');
+    const parts = ds.split('-');
+    if (parts.length !== 3) return '';
+    const y = parts[0].length === 2 ? '20' + parts[0] : parts[0];
+    const d = new Date(`${y}-${parts[1]}-${parts[2]}T00:00:00`);
     return ['dom','lun','mar','mié','jue','vie','sáb'][d.getDay()] || '';
   };
 
@@ -2045,6 +2074,11 @@ function NomStepRevisar({ onNext, onBack }) {
         <div className="row" style={{ justifyContent: 'space-between', marginTop: 18 }}>
           <Btn onClick={onBack}><Icon name="arrow_l" size={14}/> Volver</Btn>
           <div className="row">
+            {hayCambios && (
+              <Btn onClick={guardarCorrecciones} disabled={saving}>
+                {saving ? 'Guardando…' : 'Guardar correcciones'}
+              </Btn>
+            )}
             <Btn variant="primary" onClick={onNext}>Calcular sueldos <Icon name="arrow_r" size={14}/></Btn>
           </div>
         </div>

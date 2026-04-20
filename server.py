@@ -382,8 +382,7 @@ def _build_login_patch():
       const fd = new FormData();
       fd.append('file', file);
       const r = await fetch('/api/nomina/upload', { method: 'POST', body: fd, credentials: 'same-origin' });
-      if (r.ok) return r.json();
-      return null;
+      try { return await r.json(); } catch { return { error: 'Respuesta invalida del servidor' }; }
     },
     saveMaterial: async (id, data) => {
       const r = await fetch('/api/materiales/' + encodeURIComponent(id), {
@@ -408,6 +407,15 @@ def _build_login_patch():
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    corregirNomina: async (periodo_id, ediciones) => {
+      const r = await fetch('/api/nomina/corregir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ periodo_id, ediciones }),
         credentials: 'same-origin',
       });
       return r.ok;
@@ -712,6 +720,22 @@ def get_nomina_reportes():
     return jsonify(list_reportes())
 
 
+_MES_NAMES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+
+
+def _periodo_de_data(data):
+    """Extrae periodo_id 'YYYY-MM' a partir de la primera fecha."""
+    for _, days, _ in data:
+        for ds in days:
+            parts = ds.split('-')
+            if len(parts) == 3:
+                y = int(parts[0])
+                y_full = 2000 + y if y < 100 else y
+                m = int(parts[1])
+                return f"{y_full}-{m:02d}", f"{_MES_NAMES[m-1]} {y_full}"
+    return None, None
+
+
 @app.route("/api/nomina/upload", methods=["POST"])
 @require_auth
 def nomina_upload():
@@ -731,21 +755,93 @@ def nomina_upload():
     matched, nuevos, faltantes = match_empleados(data, emp_db)
     cls = clasificar_todo(data)
 
+    periodo_id, periodo_label = _periodo_de_data(data)
+    if not periodo_id:
+        return jsonify({"error": "No se pudo determinar el periodo del reporte"}), 422
+
+    save_reporte(periodo_id, periodo_label, data, cls)
+
+    existing = load_all_nomina_resumenes().get(periodo_id) or {}
+    resumen_stub = {
+        "periodo": periodo_id,
+        "periodo_label": periodo_label,
+        "total_transferido": existing.get("total_transferido", 0.0),
+        "total_h50": existing.get("total_h50", 0.0),
+        "total_h100": existing.get("total_h100", 0.0),
+        "n_empleados": len(data),
+    }
+    save_nomina_resumen(periodo_id, resumen_stub)
+
     session["_nomina_data"] = data
     session["_nomina_cls"] = cls
     session["_nomina_matched"] = matched
+    session["_nomina_periodo"] = periodo_id
 
-    n_anom = sum(
-        1 for _, days, _ in data
-        for d in days
-        if isinstance(d, dict) and d.get("flag") and d["flag"] != "CORREGIDO"
-    )
+    n_anom = 0
+    for emp_name_x, days_cls in cls.items():
+        for ds, c in days_cls.items():
+            flags = c.get("flags") or []
+            if any(f and not f.startswith("CORREG") for f in flags):
+                n_anom += 1
+
     return jsonify({
         "empleados": len(data),
         "anomalias": n_anom,
         "nuevos": nuevos,
         "faltantes": faltantes,
+        "periodo_id": periodo_id,
+        "periodo_label": periodo_label,
     })
+
+
+@app.route("/api/nomina/corregir", methods=["POST"])
+@require_auth
+def nomina_corregir():
+    """Recibe correcciones manuales y actualiza cls del reporte."""
+    req = request.get_json(force=True) or {}
+    periodo_id = req.get("periodo_id") or session.get("_nomina_periodo")
+    ediciones = req.get("ediciones") or {}
+
+    if not periodo_id:
+        return jsonify({"error": "No hay periodo activo"}), 400
+
+    data, cls = load_reporte(periodo_id)
+    if not data or cls is None:
+        return jsonify({"error": "Reporte no encontrado"}), 404
+
+    emp_db = load_empleados()
+    matched, _, _ = match_empleados(data, emp_db)
+    key_to_name = {matched.get(emp_name(e_full), emp_name(e_full)): emp_name(e_full) for e_full, _, _ in data}
+
+    def hhmm_to_min(s):
+        if not s or ':' not in s:
+            return None
+        try:
+            h, m = s.split(':')
+            return int(h) * 60 + int(m)
+        except Exception:
+            return None
+
+    n_updates = 0
+    for emp_key, dias in ediciones.items():
+        name = key_to_name.get(emp_key, emp_key)
+        cls_emp = cls.setdefault(name, {})
+        for ds, vals in dias.items():
+            day = cls_emp.setdefault(ds, {"h1": None, "h2": None, "h3": None, "h4": None, "flags": []})
+            if "h1" in vals: day["h1"] = hhmm_to_min(vals["h1"])
+            if "h2" in vals: day["h2"] = hhmm_to_min(vals["h2"])
+            if "h3" in vals: day["h3"] = hhmm_to_min(vals["h3"])
+            if "h4" in vals: day["h4"] = hhmm_to_min(vals["h4"])
+            flags = [f for f in (day.get("flags") or []) if f and f.startswith("CORREG")]
+            flags = [f for f in flags if f != "CORREGIDO MANUALMENTE"]
+            flags.append("CORREGIDO MANUALMENTE")
+            day["flags"] = flags
+            n_updates += 1
+
+    y, m = periodo_id.split('-')
+    label = f"{_MES_NAMES[int(m)-1]} {y}"
+    save_reporte(periodo_id, label, data, cls)
+    return jsonify({"ok": True, "updates": n_updates})
 
 
 @app.route("/api/nomina/calcular", methods=["POST"])
