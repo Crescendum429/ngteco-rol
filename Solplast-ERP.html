@@ -1,10 +1,7 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Solplast — Sistema de gestión</title>
-  <style>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Solplast — Sistema de gestión</title>
+<style>
+
 /* ═══════════════════════════════════════════════════════════════════
    Solplast — Sistema de gestión
    Design system
@@ -107,7 +104,7 @@ button { font-family: inherit; cursor: pointer; }
 h1, h2, h3, h4 { margin: 0; font-weight: 500; }
 a { color: var(--accent-hi); }
 
-.fadein { animation: fadein 300ms ease-out; }
+.fadein { opacity: 1; }
 @keyframes fadein {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -671,6 +668,44 @@ select.input option, select.select option { background: var(--surface); color: v
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 @keyframes popin { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
+/* ─────────── Recurrentes (nómina) ─────────── */
+.rec-applied { background: var(--bg-raised); border: 1px dashed var(--line); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; }
+.rec-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rec-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--radius-sm); font-size: 11.5px; border: 1px solid var(--line); background: var(--surface); }
+.rec-chip.neg { border-color: color-mix(in oklab, var(--bad) 40%, var(--line)); }
+.rec-chip.pos { border-color: color-mix(in oklab, var(--good) 40%, var(--line)); }
+.rec-chip-sig { width: 14px; height: 14px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px; }
+.rec-chip.neg .rec-chip-sig { background: var(--bad-soft); color: var(--bad); }
+.rec-chip.pos .rec-chip-sig { background: var(--good-soft); color: var(--good); }
+.rec-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg-raised); margin-bottom: 8px; }
+.rec-row.edit { display: block; padding: 14px; }
+.rec-row-sig { width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+.rec-row-sig.neg { background: var(--bad-soft); color: var(--bad); }
+.rec-row-sig.pos { background: var(--good-soft); color: var(--good); }
+.rec-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 600px) { .rec-edit-grid { grid-template-columns: 1fr; } }
+
+/* ─────────── Sub-componentes (piezas jeringa / gotero) ─────────── */
+.subcomp-block { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.subcomp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.subcomp-title { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-mute); }
+.subcomp-list { display: flex; flex-direction: column; gap: 4px; }
+.subcomp-row { display: flex; align-items: center; gap: 8px; }
+.subcomp-name { flex: 1; font-size: 12px; color: var(--text-dim); }
+
+/* ─────────── Detalle de registro ─────────── */
+.reg-det-row { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.reg-det-row:last-child { border-bottom: 0; }
+.reg-det-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.reg-det-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.reg-det-stat { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.reg-det-piezas { margin-top: 12px; padding: 12px; background: var(--bg-raised); border: 1px dashed var(--line); border-radius: var(--radius-sm); }
+.reg-det-piezas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.reg-det-pieza { display: flex; flex-direction: column; gap: 1px; }
+@media (max-width: 760px) {
+  .reg-det-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* ─────────── Login ─────────── */
 .login-page { min-height: 100vh; display: grid; place-items: center; padding: 20px; background:
   radial-gradient(circle at 20% 30%, var(--accent-soft) 0%, transparent 50%),
@@ -689,16 +724,569 @@ select.input option, select.select option { background: var(--surface); color: v
 .tweak-swatches button.on { border-color: var(--text); }
 @media (max-width: 760px) { .tweaks-panel { left: 10px; right: 10px; bottom: 80px; width: auto; } }
 
-  </style>
-</head>
-<body>
-  <div id="root"></div>
+  
 
-  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+/* ─────────── Pedidos / Inventario módulos ─────────── */
 
+/* Alias for .tab-bar → behaves like .tabs */
+.tab-bar { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; overflow-x: auto; }
+.tab-bar .tab { background: transparent; border: 0; padding: 10px 16px; font-size: 13.5px; font-weight: 500; color: var(--text-mute); border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; gap: 8px; align-items: center; white-space: nowrap; cursor: pointer; }
+.tab-bar .tab:hover { color: var(--text-dim); }
+.tab-bar .tab.on { color: var(--text); border-bottom-color: var(--accent); }
+
+/* Tables with row hover */
+.tbl-hover tbody tr { transition: background 100ms; }
+.tbl-hover tbody tr:hover { background: var(--bg-hover); }
+
+/* Reminder pills in pipeline */
+.reminder-pill { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 56px; padding: 6px 8px; border-radius: var(--radius-sm); font-family: var(--mono); line-height: 1.2; flex-shrink: 0; }
+.reminder-pill strong { font-size: 13px; font-weight: 600; }
+.reminder-pill .xs { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.75; }
+.reminder-pill.normal   { background: var(--bg-raised); color: var(--text-dim); }
+.reminder-pill.proximo  { background: var(--info-soft); color: var(--info); }
+.reminder-pill.urgente  { background: var(--warn-soft); color: var(--warn); }
+.reminder-pill.atraso   { background: var(--bad-soft); color: var(--bad); }
+
+/* Flow diagram */
+.flow { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.flow-node { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; min-width: 70px; }
+.flow-bubble { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-family: var(--mono); font-size: 13px; }
+.flow-label { font-size: 11px; color: var(--text-dim); text-align: center; font-weight: 500; }
+.flow-arrow { color: var(--text-mute); font-size: 18px; font-weight: 300; }
+
+/* Progress stepper (OC flow) */
+.progress-stepper { display: flex; align-items: center; padding: 18px 22px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.ps-node { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
+.ps-dot { width: 28px; height: 28px; border-radius: 50%; background: var(--bg-raised); color: var(--text-mute); display: grid; place-items: center; font-size: 11px; font-family: var(--mono); font-weight: 600; border: 1px solid var(--line); }
+.ps-lbl { font-size: 11px; color: var(--text-mute); font-weight: 500; }
+.ps-node.done .ps-dot { background: var(--good); color: var(--bg); border-color: var(--good); }
+.ps-node.done .ps-lbl { color: var(--text-dim); }
+.ps-node.current .ps-dot { background: var(--accent); color: var(--bg); border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.ps-node.current .ps-lbl { color: var(--text); font-weight: 600; }
+.ps-line { flex: 1; height: 2px; background: var(--bg-raised); margin: 0 6px; margin-bottom: 17px; }
+.ps-line.done { background: var(--good); }
+
+/* Info grid inside detail panels */
+.info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; }
+.info-grid > div { min-width: 0; }
+.info-grid .xs.mute { display: block; margin-bottom: 2px; }
+
+/* Totals rows */
+.tot-rows { display: flex; flex-direction: column; gap: 6px; }
+.tot-rows > div { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; }
+.tot-rows .tot-big { padding-top: 10px; margin-top: 4px; border-top: 1px solid var(--line); font-size: 15px; font-weight: 600; }
+.tot-rows .tot-big span:last-child { font-size: 18px; color: var(--accent-hi); }
+
+/* panel-flush table adjustments */
+.panel-flush .tbl th { padding-left: 18px; }
+.panel-flush .tbl th:last-child { padding-right: 18px; }
+.panel-flush .tbl td { padding-left: 18px; }
+.panel-flush .tbl td:last-child { padding-right: 18px; }
+
+
+/* ═══════ Clientes module ═══════ */
+
+/* Form grid for client editor */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+.form-grid .field { margin-bottom: 0; }
+.form-grid input[type=text],
+.form-grid input[type=email],
+.form-grid input[type=number],
+.form-grid input:not([type]),
+.form-grid select,
+.form-grid textarea {
+  width: 100%;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
+  font-size: 13.5px;
+  color: var(--text);
+  font-family: inherit;
+  transition: border-color .15s ease, background .15s ease;
+}
+.form-grid input.mono { font-family: var(--mono); }
+.form-grid input:focus,
+.form-grid select:focus,
+.form-grid textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.form-grid textarea { resize: vertical; min-height: 60px; line-height: 1.5; }
+
+@media (max-width: 720px) {
+  .form-grid { grid-template-columns: 1fr; }
+}
+
+/* Layout: list + detail */
+.cli-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 16px;
+  align-items: flex-start;
+}
+@media (max-width: 960px) {
+  .cli-layout { grid-template-columns: 1fr; }
+}
+
+.cli-list {
+  position: sticky;
+  top: 14px;
+  max-height: calc(100vh - 90px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cli-list-items {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.cli-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 11px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  transition: background .12s ease;
+}
+.cli-item:hover { background: var(--bg-hover); }
+.cli-item.active {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.cli-item-avatar {
+  width: 34px; height: 34px; flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--surface-hi);
+  color: var(--accent-hi);
+  font-family: var(--serif);
+  font-size: 16px;
+  font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line);
+}
+.cli-item.active .cli-item-avatar {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.cli-item-body { flex: 1; min-width: 0; }
+.cli-item-name {
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cli-item-meta {
+  font-size: 11px;
+  color: var(--text-mute);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cli-pill-warn {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 500;
+  background: var(--warn-soft);
+  color: var(--warn);
+  letter-spacing: 0.02em;
+}
+
+/* Search box (reusable) */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  transition: border-color .15s ease;
+}
+.search-box:focus-within { border-color: var(--accent); }
+.search-box svg { color: var(--text-mute); flex-shrink: 0; }
+.search-box input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--text);
+  font-family: inherit;
+}
+.search-box input::placeholder { color: var(--text-mute); }
+
+
+/* ═══════ Documentos imprimibles (RIDE, proforma, certificado) ═══════ */
+
+/* Overlay modal */
+.doc-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 9999;
+  display: flex; flex-direction: column;
+  backdrop-filter: blur(4px);
+}
+.doc-modal-chrome {
+  flex: 1;
+  display: flex; flex-direction: column;
+  background: #22222a;
+}
+.doc-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 18px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.doc-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 28px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Paper */
+.doc-page {
+  background: #fff;
+  color: #1a1a1a;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 11px;
+  line-height: 1.4;
+  box-shadow: 0 20px 60px -20px rgba(0,0,0,0.6), 0 4px 12px -4px rgba(0,0,0,0.3);
+  padding: 36px 40px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.doc-page.a4 {
+  width: 210mm;
+  min-height: 297mm;
+}
+@media (max-width: 960px) {
+  .doc-scroll { padding: 12px 0; }
+  .doc-page.a4 { width: 100%; padding: 24px 20px; min-height: 0; }
+}
+
+.doc-page b { font-weight: 600; }
+.doc-page .mono { font-family: var(--mono); }
+.doc-page .xs { font-size: 9.5px; }
+.doc-page .mute { color: #888; }
+.doc-page .num { text-align: right; }
+
+/* Editable inline fields */
+.doc-editable {
+  display: inline;
+  padding: 0 3px;
+  border-radius: 2px;
+  cursor: text;
+  transition: background 0.12s ease;
+  border-bottom: 1px dashed transparent;
+}
+.doc-editable:hover {
+  background: #fff9d6;
+  border-bottom-color: #d4b800;
+}
+.doc-placeholder { color: #aaa; font-style: italic; }
+.doc-editable-input {
+  display: inline-block;
+  padding: 0 4px;
+  border: 1px solid #5b3a8a;
+  border-radius: 2px;
+  background: #f8f2ff;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  min-width: 40px;
+  max-width: 100%;
+}
+textarea.doc-editable-input { display: block; width: 100%; resize: vertical; min-height: 48px; }
+
+/* ─── RIDE header ─── */
+.ride-header {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #222;
+}
+.ride-emisor .ride-logo { margin-bottom: 4px; }
+.ride-sri-box {
+  border: 1px solid #222;
+  padding: 10px 14px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.ride-sri-box .ride-ruc {
+  font-weight: 700;
+  font-size: 11px;
+  text-align: center;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #222;
+}
+.ride-sri-box .ride-title {
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+  margin: 6px 0;
+  letter-spacing: 0.05em;
+}
+.ride-sri-box .ride-num {
+  text-align: center;
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 12px;
+  border-top: 1px solid #222;
+  border-bottom: 1px solid #222;
+  padding: 6px 0;
+  margin-bottom: 8px;
+}
+.ride-sri-box .ride-small { font-size: 9px; line-height: 1.4; }
+.ride-sri-box .ride-small b { letter-spacing: 0.02em; }
+
+/* Comprador / data block */
+.ride-comprador {
+  padding: 10px 0;
+  border-bottom: 1px solid #222;
+  margin-bottom: 10px;
+  font-size: 10.5px;
+}
+.ride-comprador .row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 4px 0;
+}
+
+/* Tables */
+.ride-items {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5px;
+  margin-top: 6px;
+}
+.ride-items th {
+  background: #ededed;
+  border: 1px solid #222;
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+.ride-items td {
+  border: 1px solid #999;
+  padding: 6px 8px;
+  vertical-align: top;
+}
+.ride-items td.num { text-align: right; }
+.ride-items tr.filler td { height: 20px; }
+
+/* Footer RIDE */
+.ride-footer {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  margin-top: 10px;
+  font-size: 10.5px;
+}
+.ride-subtitle {
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #222;
+  margin-bottom: 4px;
+}
+.ride-info-tbl, .ride-pago-tbl, .ride-tot-tbl {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ride-info-tbl td { padding: 4px 6px; border-bottom: 1px solid #eee; }
+.ride-info-tbl td:first-child { color: #555; width: 90px; }
+.ride-pago-tbl td { border: 1px solid #999; padding: 5px 8px; }
+.ride-pago-tbl td.num { text-align: right; font-family: var(--mono); }
+.ride-tot-tbl td { padding: 5px 10px; border: 1px solid #999; font-size: 10.5px; }
+.ride-tot-tbl td.num { text-align: right; font-family: var(--mono); }
+.ride-tot-tbl tr.tot-row td { background: #f2efff; border-top: 2px solid #5b3a8a; font-size: 12px; }
+
+/* ─── Proforma / cotización ─── */
+.doc-proforma { font-family: 'Helvetica Neue', Arial, sans-serif; }
+.proforma-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.proforma-label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #888;
+  font-weight: 600;
+}
+.proforma-parties {
+  display: grid;
+  grid-template-columns: 1.3fr 1.3fr 0.8fr;
+  gap: 28px;
+  margin-bottom: 28px;
+}
+.proforma-items {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  font-size: 11px;
+}
+.proforma-items th {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid #5b3a8a;
+  padding: 10px 8px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #555;
+}
+.proforma-items td {
+  border: none;
+  border-bottom: 1px solid #eee;
+  padding: 12px 8px;
+  vertical-align: top;
+}
+.proforma-items td.num { text-align: right; }
+.proforma-totals {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.proforma-totals table {
+  min-width: 280px;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.proforma-totals td { padding: 8px 12px; }
+.proforma-totals td:first-child { color: #555; }
+.proforma-totals td.num { text-align: right; font-family: var(--mono); }
+.proforma-totals tr.tot td {
+  border-top: 2px solid #5b3a8a;
+  font-size: 14px;
+  font-weight: 700;
+  padding-top: 12px;
+  color: #1a1a1a;
+}
+
+/* ─── Certificado de calidad ─── */
+.doc-cert { font-family: 'Helvetica Neue', Arial, sans-serif; }
+.cert-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px 24px;
+  padding: 20px 0;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 24px;
+}
+.cert-label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #888;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.cert-producto { margin-top: 24px; }
+.cert-producto-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5ddf3;
+  margin-bottom: 8px;
+}
+.cert-ok-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  background: #e3f5ea;
+  color: #0d7f45;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.cert-params {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5px;
+}
+.cert-params th {
+  background: #f7f3fd;
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5b3a8a;
+  border-bottom: 1px solid #c8b5de;
+}
+.cert-params td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f0ecf5;
+  vertical-align: top;
+}
+.cert-declaracion {
+  margin-top: 28px;
+  padding: 18px 20px;
+  background: #faf7fe;
+  border-left: 3px solid #5b3a8a;
+  border-radius: 3px;
+}
+
+/* ─── Print ─── */
+@media print {
+  body * { visibility: hidden; }
+  .doc-overlay, .doc-overlay * { visibility: visible; }
+  .doc-overlay { position: static; background: #fff; backdrop-filter: none; }
+  .doc-modal-chrome { background: #fff; }
+  .doc-modal-head { display: none !important; }
+  .doc-scroll { overflow: visible; padding: 0; }
+  .doc-page { box-shadow: none; margin: 0; padding: 20mm; }
+  .doc-page.a4 { width: 100%; min-height: 0; }
+  .doc-editable:hover { background: transparent; border-bottom-color: transparent; }
+  @page { size: A4; margin: 0; }
+}
+
+</style>
+</head><body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <script type="text/babel" data-file="data.jsx">
+
 // Mock data for the Solplast redesign prototype
 // All values inspired by the real logic but hard-coded for demo
 
@@ -715,6 +1303,17 @@ const EMPLEADOS_MOCK = [
   { id: 'rv', nombre: 'Roberto Vargas',  cargo: 'Mantenimiento',       salario: 580, horas_base: 8, transporte: 2.00, region: 'Sierra/Amazonia', prestamo_iess: 0,  fondos_reserva: true,  iniciales: 'RV', color: 'oklch(72% 0.14 260)' },
   { id: 'sc', nombre: 'Sofía Castillo',  cargo: 'Operadora jeringas',  salario: 485, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 20, fondos_reserva: false, iniciales: 'SC', color: 'oklch(72% 0.14 100)' },
 ];
+
+// Beneficios / descuentos recurrentes con vigencia (desde / hasta en formato YYYY-MM, hasta null = indefinido)
+// Tipos: prestamo_iess, prestamo_empresa, transporte_bono, alimentacion, comision, otro_desc, otro_ben
+const BENEFICIOS_RECURRENTES_MOCK = [
+  { id: 'b1', empleado_id: 'jp', tipo: 'prestamo_iess',     monto: 45, desde: '2025-11', hasta: '2026-10', nota: 'Préstamo quirografario 12 cuotas' },
+  { id: 'b2', empleado_id: 'cl', tipo: 'prestamo_empresa',  monto: 30, desde: '2026-01', hasta: '2026-06', nota: 'Adelanto equipos' },
+  { id: 'b3', empleado_id: 'lm', tipo: 'prestamo_iess',     monto: 55, desde: '2025-06', hasta: '2027-05', nota: 'Préstamo hipotecario' },
+  { id: 'b4', empleado_id: 'sc', tipo: 'prestamo_iess',     monto: 20, desde: '2026-03', hasta: '2026-08', nota: '6 cuotas' },
+  { id: 'b5', empleado_id: 'mr', tipo: 'transporte_bono',   monto: 15, desde: '2026-01', hasta: null,      nota: 'Ruta extendida' },
+];
+
 
 const MATERIALES_MOCK = [
   { id: 'pp_omo',         nombre: 'PP Homopolímero',  costo_kg: 1.75, merma: 3.1, color: 'oklch(70% 0.12 220)' },
@@ -781,15 +1380,291 @@ const ANOMALIAS_MOCK = [
   { emp: 'Sofía Castillo',  fecha: '22/04', issue: 'missing OUT', detalle: 'Entrada 07:02, sin salida.' },
 ];
 
+// Sub-componentes de jeringa y gotero — se registran como hijos del producto padre
+// El producto "jeringa" agrupa cajas, pero internamente se produce N de cada pieza.
+const SUBCOMPONENTES_MOCK = {
+  // key = kind del producto padre
+  jeringa: [
+    { id: 'canula',    nombre: 'Cánula',        unidad: 'unidades' },
+    { id: 'piston',    nombre: 'Pistón',        unidad: 'unidades' },
+    { id: 'tapon',     nombre: 'Tapón',         unidad: 'unidades' },
+    { id: 'acordeon',  nombre: 'Acordeón',      unidad: 'unidades' },
+  ],
+  gotero: [
+    { id: 'gotero_b',  nombre: 'Gotero (base)', unidad: 'unidades' },
+    { id: 'capuchon',  nombre: 'Capuchón',      unidad: 'unidades' },
+  ],
+};
+
 const REGISTROS_RECIENTES = [
-  { fecha: '2026-04-17', material: 145.2, cajas: 42, obs: 'Arranque lento maquina 2' },
-  { fecha: '2026-04-16', material: 162.5, cajas: 51, obs: '' },
-  { fecha: '2026-04-15', material: 158.0, cajas: 49, obs: 'Cambio molde vaso Life' },
-  { fecha: '2026-04-14', material: 141.8, cajas: 44, obs: '' },
-  { fecha: '2026-04-13', material: 156.4, cajas: 50, obs: '' },
+  { id: 'reg-2026-04-17', fecha: '2026-04-17', material: 145.2, cajas: 42, obs: 'Arranque lento maquina 2',
+    productos: [
+      { prod_id: 'v_life',     cajas: 18, virgen: 52.4, molido_usado: 3.2, desecho: 1.8, molido_gen: 1.2 },
+      { prod_id: 'j_life',     cajas: 8,  virgen: 42.6, molido_usado: 0,   desecho: 2.2, molido_gen: 1.5,
+        subcomp: { canula: 9600, piston: 9600, tapon: 9600, acordeon: 9600 } },
+      { prod_id: 'cuchara_5ml', cajas: 8, virgen: 14.0, molido_usado: 1.2, desecho: 0.4, molido_gen: 0.3 },
+      { prod_id: 'gotero',     cajas: 8,  virgen: 28.5, molido_usado: 0.5, desecho: 1.9, molido_gen: 0.9,
+        subcomp: { gotero_b: 8000, capuchon: 8000 } },
+    ] },
+  { id: 'reg-2026-04-16', fecha: '2026-04-16', material: 162.5, cajas: 51, obs: '',
+    productos: [
+      { prod_id: 'v_life',     cajas: 22, virgen: 58.0, molido_usado: 4.0, desecho: 1.5, molido_gen: 1.8 },
+      { prod_id: 'v_solplast', cajas: 12, virgen: 28.0, molido_usado: 2.5, desecho: 0.9, molido_gen: 0.6 },
+      { prod_id: 'j_farmayala', cajas: 10, virgen: 52.0, molido_usado: 1.2, desecho: 2.0, molido_gen: 1.6,
+        subcomp: { canula: 10000, piston: 10000, tapon: 10000, acordeon: 10000 } },
+      { prod_id: 'cuchara_5ml', cajas: 7, virgen: 12.5, molido_usado: 0.8, desecho: 0.3, molido_gen: 0.2 },
+    ] },
+  { id: 'reg-2026-04-15', fecha: '2026-04-15', material: 158.0, cajas: 49, obs: 'Cambio molde vaso Life',
+    productos: [
+      { prod_id: 'v_life',     cajas: 16, virgen: 44.0, molido_usado: 2.0, desecho: 2.8, molido_gen: 1.0 },
+      { prod_id: 'v_lamosan',  cajas: 10, virgen: 24.2, molido_usado: 1.8, desecho: 0.6, molido_gen: 0.5 },
+      { prod_id: 'j_life',     cajas: 9,  virgen: 47.0, molido_usado: 0.5, desecho: 2.1, molido_gen: 1.4,
+        subcomp: { canula: 10800, piston: 10800, tapon: 10800, acordeon: 10800 } },
+      { prod_id: 'cuchara_5ml', cajas: 14, virgen: 24.0, molido_usado: 2.2, desecho: 0.5, molido_gen: 0.4 },
+    ] },
+  { id: 'reg-2026-04-14', fecha: '2026-04-14', material: 141.8, cajas: 44, obs: '',
+    productos: [
+      { prod_id: 'v_life',      cajas: 20, virgen: 52.0, molido_usado: 3.5, desecho: 1.6, molido_gen: 1.2 },
+      { prod_id: 'v_pequena',   cajas: 6,  virgen: 13.5, molido_usado: 1.0, desecho: 0.4, molido_gen: 0.3 },
+      { prod_id: 'gotero',      cajas: 10, virgen: 35.0, molido_usado: 0,   desecho: 2.2, molido_gen: 1.1,
+        subcomp: { gotero_b: 10000, capuchon: 10000 } },
+      { prod_id: 'cuchara_5ml', cajas: 8,  virgen: 13.0, molido_usado: 1.5, desecho: 0.5, molido_gen: 0.3 },
+    ] },
+  { id: 'reg-2026-04-13', fecha: '2026-04-13', material: 156.4, cajas: 50, obs: '',
+    productos: [
+      { prod_id: 'v_life',      cajas: 25, virgen: 66.0, molido_usado: 4.5, desecho: 2.0, molido_gen: 1.5 },
+      { prod_id: 'v_farm_new',  cajas: 8,  virgen: 24.0, molido_usado: 1.2, desecho: 0.7, molido_gen: 0.4 },
+      { prod_id: 'j_sin_tampo', cajas: 10, virgen: 50.0, molido_usado: 1.0, desecho: 2.3, molido_gen: 1.6,
+        subcomp: { canula: 10000, piston: 10000, tapon: 10000, acordeon: 10000 } },
+      { prod_id: 'cuchara_5ml', cajas: 7,  virgen: 12.2, molido_usado: 1.0, desecho: 0.3, molido_gen: 0.2 },
+    ] },
 ];
 
-// Costos evolución
+// ════════════════════════ EMISOR (Solplast) ════════════════════════
+const EMISOR = {
+  razon_social: 'AGUIRRE ESPIN MARICELA JAZMINA',
+  nombre_comercial: 'SOLPLAST',
+  ruc: '1802698413001',
+  obligado_contabilidad: true,
+  agente_retencion: 'Resolución No. 1',
+  dir_matriz: { barrio: 'LAS RETAMAS', calle: 'DE LAS MAGNOLIAS', numero: 'S9-129', interseccion: 'DE LAS BUGANVILLAS', ciudad: 'Quito - Ecuador' },
+  dir_sucursal: { barrio: 'LAS RETAMAS', calle: 'DE LAS MAGNOLIAS', numero: 'S9-129', interseccion: 'DE LAS BUGANVILLAS', ciudad: 'Quito - Ecuador' },
+  telefono: '022 796-189',
+  movil: '087 558021 / 098 836869',
+  email: 'ventas@solplastuio.com',
+  pais_origen: 'Ecuador',
+  responsable_calidad: 'Alicia Bone',
+  revisor_calidad: 'Fernando Pinargote',
+};
+
+// ════════════════════════ CLIENTES ════════════════════════
+const CLIENTES_MOCK = [
+  { id: 'cli-farbiopharma',
+    razon_social: 'FARBIOPHARMA S.A.', nombre_comercial: 'Farbiopharma',
+    ruc: '1791773373001', tipo: 'Sociedad', obligado_contabilidad: true,
+    email_fact: 'contabildad@farbiopharma.com', email_contacto: 'compras@farbiopharma.com',
+    telefono: '02-2555-444', celular: '099-1234567',
+    contacto_nombre: 'Ing. Paola Romero', contacto_cargo: 'Jefa de Compras',
+    dir_matriz:   { calle: 'Guayas', numero: 'E3 296', interseccion: 'Pichincha', ciudad: 'Quito', referencia: '' },
+    dir_sucursal: { calle: 'Guayas', numero: 'E3 296', interseccion: 'Pichincha', ciudad: 'Quito', referencia: 'Punto de entrega: bodega planta baja' },
+    credito_dias: 30, credito_limite: 25000,
+    agente_retencion: false, resolucion_retencion: '',
+    notas: 'Cliente frecuente. Pedidos recurrentes de jeringas dosificadoras.' },
+
+  { id: 'cli-farmayala',
+    razon_social: 'Farmayala Pharmaceutical Company S.A.', nombre_comercial: 'Farmayala',
+    ruc: '1792438576001', tipo: 'Sociedad', obligado_contabilidad: true,
+    email_fact: 'facturacion@farmayala.com.ec', email_contacto: 'compras@farmayala.com.ec',
+    telefono: '02-2445-678', celular: '099-2233445',
+    contacto_nombre: 'Ec. Luis Morales', contacto_cargo: 'Gerente de Abastecimiento',
+    dir_matriz:   { calle: 'Av. Eloy Alfaro', numero: 'N34-551', interseccion: 'Portugal', ciudad: 'Quito', referencia: '' },
+    dir_sucursal: { calle: 'Av. Eloy Alfaro', numero: 'N34-551', interseccion: 'Portugal', ciudad: 'Quito', referencia: 'Bodega posterior, horario 8am-4pm' },
+    credito_dias: 30, credito_limite: 40000,
+    agente_retencion: true, resolucion_retencion: 'Res. SRI 2024-001',
+    notas: 'Exige certificado de calidad firmado en cada entrega.' },
+
+  { id: 'cli-life',
+    razon_social: 'Laboratorios Life C.A.', nombre_comercial: 'Life',
+    ruc: '1790012393001', tipo: 'Sociedad', obligado_contabilidad: true,
+    email_fact: 'facturacion@life.com.ec', email_contacto: 'abastecimiento@life.com.ec',
+    telefono: '02-2461-111', celular: '',
+    contacto_nombre: 'Ing. Carla Benítez', contacto_cargo: 'Coordinadora de Compras',
+    dir_matriz:   { calle: 'Av. 10 de Agosto', numero: 'N50-123', interseccion: 'El Inca', ciudad: 'Quito', referencia: '' },
+    dir_sucursal: { calle: 'Av. 10 de Agosto', numero: 'N50-123', interseccion: 'El Inca', ciudad: 'Quito', referencia: '' },
+    credito_dias: 45, credito_limite: 60000,
+    agente_retencion: true, resolucion_retencion: 'Res. SRI 2023-047',
+    notas: '' },
+
+  { id: 'cli-lamosan',
+    razon_social: 'Laboratorios Lamosan CIA. LTDA.', nombre_comercial: 'Lamosan',
+    ruc: '0990057128001', tipo: 'Sociedad', obligado_contabilidad: true,
+    email_fact: 'contabilidad@lamosan.com', email_contacto: 'compras@lamosan.com',
+    telefono: '04-2288-432', celular: '098-8812345',
+    contacto_nombre: 'Sra. Martha Cedeño', contacto_cargo: 'Compras',
+    dir_matriz:   { calle: 'Av. Francisco de Orellana', numero: '204', interseccion: 'Kennedy Norte', ciudad: 'Guayaquil', referencia: '' },
+    dir_sucursal: { calle: 'Av. Francisco de Orellana', numero: '204', interseccion: 'Kennedy Norte', ciudad: 'Guayaquil', referencia: '' },
+    credito_dias: 30, credito_limite: 20000,
+    agente_retencion: false, resolucion_retencion: '',
+    notas: 'Pedidos trimestrales. Solicita muestra antes de cada lote nuevo.' },
+
+  { id: 'cli-solgen',
+    razon_social: 'Solgen Distribuidora S.A.', nombre_comercial: 'Solgen',
+    ruc: '1793167432001', tipo: 'Sociedad', obligado_contabilidad: true,
+    email_fact: 'facturacion@solgen.ec', email_contacto: 'info@solgen.ec',
+    telefono: '02-3983-211', celular: '',
+    contacto_nombre: 'Sr. Jorge Paredes', contacto_cargo: 'Gerente',
+    dir_matriz:   { calle: 'Av. Eloy Alfaro', numero: 'N50-118', interseccion: 'Carcelén Industrial', ciudad: 'Quito', referencia: '' },
+    dir_sucursal: { calle: 'Av. Eloy Alfaro', numero: 'N50-118', interseccion: 'Carcelén Industrial', ciudad: 'Quito', referencia: '' },
+    credito_dias: 15, credito_limite: 8000,
+    agente_retencion: false, resolucion_retencion: '',
+    notas: '' },
+
+  { id: 'cli-kronos',
+    razon_social: 'Laboratorios Kronos S.A.', nombre_comercial: 'Kronos',
+    ruc: '1790345678001', tipo: 'Sociedad', obligado_contabilidad: true,
+    email_fact: 'facturacion@kronos.com.ec', email_contacto: 'compras@kronos.com.ec',
+    telefono: '02-2456-789', celular: '099-8877665',
+    contacto_nombre: 'Sr. Alejandro Mercado', contacto_cargo: 'Desarrollo de Proveedores',
+    dir_matriz:   { calle: 'Av. 6 de Diciembre', numero: 'N34-556', interseccion: 'Gaspar de Villarroel', ciudad: 'Quito', referencia: '' },
+    dir_sucursal: { calle: 'Av. 6 de Diciembre', numero: 'N34-556', interseccion: 'Gaspar de Villarroel', ciudad: 'Quito', referencia: '' },
+    credito_dias: 45, credito_limite: 30000,
+    agente_retencion: true, resolucion_retencion: 'Res. SRI 2024-015',
+    notas: 'Cliente nuevo — primera cotización enviada oct 2022.' },
+
+  { id: 'cli-farmacorp',
+    razon_social: 'Farmacorp Ecuador S.A.', nombre_comercial: 'Farmacorp',
+    ruc: '1790765432001', tipo: 'Sociedad', obligado_contabilidad: true,
+    email_fact: 'facturacion@farmacorp.ec', email_contacto: 'compras@farmacorp.ec',
+    telefono: '02-2445-999', celular: '',
+    contacto_nombre: 'Dra. Silvia Rueda', contacto_cargo: 'Procurement',
+    dir_matriz:   { calle: 'Av. Naciones Unidas', numero: 'N36-99', interseccion: 'Corea', ciudad: 'Quito', referencia: 'Edificio Metropolitan, piso 5' },
+    dir_sucursal: { calle: 'Av. Naciones Unidas', numero: 'N36-99', interseccion: 'Corea', ciudad: 'Quito', referencia: '' },
+    credito_dias: 30, credito_limite: 35000,
+    agente_retencion: true, resolucion_retencion: 'Res. SRI 2023-089',
+    notas: '' },
+];
+
+// ════════════════════════ COTIZACIONES ════════════════════════
+// Estados: borrador | enviada | aprobada | rechazada | convertida (a OC)
+const COTIZACIONES_MOCK = [
+  { id: 'COT-2026-0042', cliente: 'cli-farmayala', fecha: '2026-04-15', validez_dias: 15, estado: 'aprobada',
+    items: [
+      { prod_id: 'j_farmayala', cant_cajas: 40, precio_caja: 42.00 },
+      { prod_id: 'gotero',      cant_cajas: 20, precio_caja: 32.50 },
+    ], observaciones: 'Entrega en 15 días hábiles. Certificado de calidad adjunto.', oc_asociada: 'OC-FA-20260418' },
+  { id: 'COT-2026-0043', cliente: 'cli-life',     fecha: '2026-04-16', validez_dias: 15, estado: 'enviada',
+    items: [
+      { prod_id: 'j_life', cant_cajas: 50, precio_caja: 48.50 },
+      { prod_id: 'v_life', cant_cajas: 30, precio_caja: 34.00 },
+    ], observaciones: '' },
+  { id: 'COT-2026-0044', cliente: 'cli-lamosan',  fecha: '2026-04-17', validez_dias: 20, estado: 'borrador',
+    items: [
+      { prod_id: 'v_lamosan', cant_cajas: 25, precio_caja: 31.20 },
+    ], observaciones: 'Cliente pidió muestra antes.' },
+  { id: 'COT-2026-0041', cliente: 'cli-solgen',   fecha: '2026-04-10', validez_dias: 10, estado: 'rechazada',
+    items: [
+      { prod_id: 'cuchara_5ml', cant_cajas: 100, precio_caja: 14.20 },
+    ], observaciones: 'Precio no compite con proveedor actual.' },
+];
+
+// ════════════════════════ ÓRDENES DE COMPRA ════════════════════════
+// Estados: pendiente | en_produccion | lista | facturada | entregada
+const ORDENES_COMPRA_MOCK = [
+  { id: 'OC-FA-20260418', cliente: 'cli-farmayala', cotizacion_id: 'COT-2026-0042', fecha_recepcion: '2026-04-18', fecha_entrega: '2026-05-03', estado: 'en_produccion',
+    items: [
+      { prod_id: 'j_farmayala', cant_cajas: 40, precio_caja: 42.00 },
+      { prod_id: 'gotero',      cant_cajas: 20, precio_caja: 32.50 },
+    ], nro_pedido_cliente: 'OC-FA-4582', factura_asociada: null },
+  { id: 'OC-LF-20260412', cliente: 'cli-life',     cotizacion_id: null, fecha_recepcion: '2026-04-12', fecha_entrega: '2026-04-28', estado: 'lista',
+    items: [
+      { prod_id: 'v_life', cant_cajas: 60, precio_caja: 34.00 },
+    ], nro_pedido_cliente: 'OC-LIFE-8821', factura_asociada: 'FAC-001-001-000001234' },
+  { id: 'OC-FA-20260405', cliente: 'cli-farmayala', cotizacion_id: null, fecha_recepcion: '2026-04-05', fecha_entrega: '2026-04-20', estado: 'entregada',
+    items: [
+      { prod_id: 'j_farmayala', cant_cajas: 25, precio_caja: 42.00 },
+    ], nro_pedido_cliente: 'OC-FA-4501', factura_asociada: 'FAC-001-001-000001230' },
+];
+
+// ════════════════════════ FACTURAS (SRI) ════════════════════════
+// Estados SRI: pendiente | firmada | enviada | autorizada | rechazada | anulada
+// establecimiento = 001, punto_emision = 001, secuencial incremental
+const FACTURAS_MOCK = [
+  { id: 'FAC-001-001-000001234', cliente: 'cli-life', oc_id: 'OC-LF-20260412', fecha_emision: '2026-04-22',
+    establecimiento: '001', punto_emision: '001', secuencial: '000001234',
+    clave_acceso: '2204202601179001239300120010010000012341234567813',
+    autorizacion_sri: '2204202617001791234567890001001000012341234567817',
+    estado_sri: 'autorizada', fecha_autorizacion: '2026-04-22 14:32',
+    items: [
+      { prod_id: 'v_life', cant_cajas: 60, precio_unit: 34.00, subtotal: 2040.00 },
+    ],
+    subtotal_12: 2040.00, subtotal_0: 0, iva: 244.80, total: 2284.80,
+    forma_pago: 'transferencia', fecha_vencimiento: '2026-06-06', pagada: false,
+    guia_asociada: 'GR-001-001-000000892', cert_calidad: 'CC-2026-0345' },
+  { id: 'FAC-001-001-000001230', cliente: 'cli-farmayala', oc_id: 'OC-FA-20260405', fecha_emision: '2026-04-20',
+    establecimiento: '001', punto_emision: '001', secuencial: '000001230',
+    clave_acceso: '2004202601179243857600120010010000012301234567819',
+    autorizacion_sri: '2004202617001792438576001001001000012301234567813',
+    estado_sri: 'autorizada', fecha_autorizacion: '2026-04-20 11:15',
+    items: [
+      { prod_id: 'j_farmayala', cant_cajas: 25, precio_unit: 42.00, subtotal: 1050.00 },
+    ],
+    subtotal_12: 1050.00, subtotal_0: 0, iva: 126.00, total: 1176.00,
+    forma_pago: 'transferencia', fecha_vencimiento: '2026-05-20', pagada: true,
+    guia_asociada: 'GR-001-001-000000888', cert_calidad: 'CC-2026-0343' },
+];
+
+// ════════════════════════ GUÍAS DE REMISIÓN ════════════════════════
+const GUIAS_MOCK = [
+  { id: 'GR-001-001-000000892', factura_id: 'FAC-001-001-000001234', fecha_emision: '2026-04-22',
+    punto_partida: 'Solplast · Carcelén Ind., Quito', punto_llegada: 'Life · 10 de Agosto N50, Quito',
+    transportista: 'Transportes Pichincha S.A.', ruc_transportista: '1791234567001', placa: 'PBA-4582',
+    motivo: 'Venta', estado_sri: 'autorizada', clave_acceso: '...2204...' },
+  { id: 'GR-001-001-000000888', factura_id: 'FAC-001-001-000001230', fecha_emision: '2026-04-20',
+    punto_partida: 'Solplast · Carcelén Ind., Quito', punto_llegada: 'Farmayala · Eloy Alfaro N34-551, Quito',
+    transportista: 'Flete propio', ruc_transportista: '', placa: 'PBE-1122',
+    motivo: 'Venta', estado_sri: 'autorizada', clave_acceso: '...2004...' },
+];
+
+// ════════════════════════ CERTIFICADOS DE CALIDAD ════════════════════════
+const CERTIFICADOS_MOCK = [
+  { id: 'CC-2026-0345', factura_id: 'FAC-001-001-000001234', fecha: '2026-04-22', lote: 'L-26-04-118',
+    controlado_por: 'Ing. M. Rodríguez', observaciones: 'Todos los parámetros dentro de especificación.' },
+  { id: 'CC-2026-0343', factura_id: 'FAC-001-001-000001230', fecha: '2026-04-20', lote: 'L-26-04-112',
+    controlado_por: 'Ing. M. Rodríguez', observaciones: 'Aprobado. Espesor de pared dentro de tolerancia.' },
+];
+
+// ════════════════════════ INVENTARIO — MATERIA PRIMA ════════════════════════
+// Stock por material, con mínimo y movimientos recientes
+const INVENTARIO_MP_MOCK = [
+  { id: 'pp_omo',         stock_kg: 420.5, minimo_kg: 200, ultima_entrada: '2026-04-10', costo_prom_kg: 1.75 },
+  { id: 'pp_clarificado', stock_kg: 312.0, minimo_kg: 250, ultima_entrada: '2026-04-15', costo_prom_kg: 2.25 },
+  { id: 'pe_alta',        stock_kg: 185.8, minimo_kg: 150, ultima_entrada: '2026-04-08', costo_prom_kg: 1.85 },
+  { id: 'pe_baja',        stock_kg:  95.2, minimo_kg: 100, ultima_entrada: '2026-04-08', costo_prom_kg: 2.00 }, // bajo mínimo
+  { id: 'pvc',            stock_kg:  48.0, minimo_kg:  50, ultima_entrada: '2026-03-28', costo_prom_kg: 2.10 }, // bajo mínimo
+];
+
+// ════════════════════════ INVENTARIO — PRODUCTO TERMINADO ════════════════════════
+const INVENTARIO_PT_MOCK = [
+  { prod_id: 'v_life',      stock_cajas: 48, minimo_cajas: 20, reservado: 30 },  // reservado por OC-LIFE
+  { prod_id: 'v_solplast',  stock_cajas: 22, minimo_cajas: 15, reservado: 0  },
+  { prod_id: 'v_lamosan',   stock_cajas:  8, minimo_cajas: 10, reservado: 0  },  // bajo mínimo
+  { prod_id: 'v_farm_new',  stock_cajas: 15, minimo_cajas: 10, reservado: 0  },
+  { prod_id: 'v_pequena',   stock_cajas:  6, minimo_cajas:  8, reservado: 0  },  // bajo mínimo
+  { prod_id: 'cuchara_5ml', stock_cajas: 42, minimo_cajas: 20, reservado: 0  },
+  { prod_id: 'gotero',      stock_cajas: 18, minimo_cajas: 15, reservado: 20 },  // reservado OC-FARMAYALA
+  { prod_id: 'j_life',      stock_cajas:  9, minimo_cajas: 10, reservado: 0  },  // bajo mínimo
+  { prod_id: 'j_farmayala', stock_cajas: 14, minimo_cajas: 10, reservado: 40 },  // reservado OC-FARMAYALA
+  { prod_id: 'j_sin_tampo', stock_cajas: 12, minimo_cajas: 10, reservado: 0  },
+];
+
+// ════════════════════════ MOVIMIENTOS DE INVENTARIO (historial) ════════════════════════
+const MOV_INVENTARIO_MOCK = [
+  { id: 1, fecha: '2026-04-18', tipo: 'salida', clase: 'pt',  item_id: 'v_life',      cantidad: 12, unidad: 'cajas', ref: 'OC-LF-20260412', nota: 'Despacho parcial' },
+  { id: 2, fecha: '2026-04-18', tipo: 'produccion', clase: 'pt', item_id: 'j_farmayala', cantidad: 8, unidad: 'cajas', ref: 'reg-2026-04-17', nota: 'Registro diario' },
+  { id: 3, fecha: '2026-04-15', tipo: 'entrada', clase: 'mp',  item_id: 'pp_clarificado', cantidad: 500, unidad: 'kg', ref: 'FACT-PROV-9912', nota: 'Compra a Resiquim' },
+  { id: 4, fecha: '2026-04-10', tipo: 'entrada', clase: 'mp',  item_id: 'pp_omo',          cantidad: 800, unidad: 'kg', ref: 'FACT-PROV-9908', nota: 'Compra a Resiquim' },
+  { id: 5, fecha: '2026-04-17', tipo: 'consumo', clase: 'mp',  item_id: 'pp_clarificado', cantidad: 52.4, unidad: 'kg', ref: 'reg-2026-04-17', nota: 'Consumo Vaso Life' },
+];
 const COSTOS_EVOLUCION = {
   'Vaso Life':         [0.0076, 0.0078, 0.0080, 0.0080, 0.0081, 0.0082, 0.0082, 0.0082],
   'Jeringa Life':      [0.0235, 0.0240, 0.0245, 0.0248, 0.0248, 0.0249, 0.0249, 0.0249],
@@ -824,15 +1699,20 @@ const fmtNum = (n, d = 0) =>
 
 Object.assign(window, {
   MESES, SBU_2026,
-  EMPLEADOS_MOCK, MATERIALES_MOCK, EMPAQUES_MOCK, PRODUCTOS_MOCK,
+  EMPLEADOS_MOCK, MATERIALES_MOCK, EMPAQUES_MOCK, PRODUCTOS_MOCK, SUBCOMPONENTES_MOCK,
+  BENEFICIOS_RECURRENTES_MOCK,
   GASTOS_FIJOS_MOCK, NOMINA_HISTORICA, NOMINA_ULTIMO, ANOMALIAS_MOCK,
   REGISTROS_RECIENTES, COSTOS_EVOLUCION, COSTOS_EVOLUCION_MESES, PRODUCCION_MES,
+  EMISOR, CLIENTES_MOCK, COTIZACIONES_MOCK, ORDENES_COMPRA_MOCK, FACTURAS_MOCK, GUIAS_MOCK, CERTIFICADOS_MOCK,
+  INVENTARIO_MP_MOCK, INVENTARIO_PT_MOCK, MOV_INVENTARIO_MOCK,
   fmtMoney, fmtMoneyShort, fmtNum,
 });
+
 
 </script>
 
 <script type="text/babel" data-file="primitives.jsx">
+
 // Shared primitives
 
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
@@ -905,6 +1785,11 @@ const ICON_PATHS = {
   package:   (<><path d="M21 16V8a2 2 0 0 0-1-1.73L13 2.27a2 2 0 0 0-2 0L4 6.27A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96L12 12l8.73-5.04"/><path d="M12 22V12"/></>),
   dollar:    (<><path d="M12 2v20"/><path d="M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></>),
   flask:     (<><path d="M9 3h6"/><path d="M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/></>),
+  activity:  (<><path d="M3 12h4l3-9 4 18 3-9h4"/></>),
+  receipt:   (<><path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 8h6"/><path d="M9 12h6"/><path d="M9 16h4"/></>),
+  truck:     (<><rect x="1" y="6" width="13" height="10" rx="1"/><path d="M14 9h4l3 3v4h-7"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></>),
+  send:      (<><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></>),
+  copy:      (<><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h4"/></>),
 };
 
 // ─────────────────────────────── Primitives ───────────────────────────────
@@ -1150,9 +2035,11 @@ Object.assign(window, {
   Bars, LineChart, Drawer, Modal, PanelHead, Eyebrow,
 });
 
+
 </script>
 
 <script type="text/babel" data-file="illustrations.jsx">
+
 // SVG product illustrations — based on real Solplast dosificadores
 
 function IllusVaso({ size = 64, strokeWidth = 1.5, color = 'currentColor' }) {
@@ -1496,9 +2383,11 @@ function ProductIllus({ kind, size = 48, color = 'var(--accent-hi)' }) {
 
 Object.assign(window, { IllusVaso, IllusJeringa, IllusGotero, IllusCuchara, HeroIllus, ProductIllus });
 
+
 </script>
 
 <script type="text/babel" data-file="shell.jsx">
+
 // Shell: sidebar nav + topbar + theme toggle
 
 const NAV_ITEMS = [
@@ -1509,10 +2398,13 @@ const NAV_ITEMS = [
   { key: 'registro',  label: 'Registro Diario',icon: 'clipboard', group: 'Producción' },
   { key: 'catalogo',  label: 'Catálogo',       icon: 'box',       group: 'Producción' },
   { key: 'costos',    label: 'Costos',         icon: 'dollar',    group: 'Producción' },
+  { key: 'inventario',label: 'Inventario',     icon: 'package',   group: 'Producción' },
+  { key: 'pedidos',   label: 'Pedidos',        icon: 'receipt',   group: 'Comercial' },
+  { key: 'clientes',  label: 'Clientes',       icon: 'users',     group: 'Comercial' },
 ];
 
 // Items exposed in mobile bottom nav (limit to 5)
-const MBNAV = ['home', 'nomina', 'registro', 'costos', 'metricas'];
+const MBNAV = ['home', 'pedidos', 'registro', 'inventario', 'metricas'];
 
 function Sidebar({ page, setPage, role, open, onClose, theme, setTheme, onLogout }) {
   const items = role === 'operario'
@@ -1615,9 +2507,11 @@ function MobileBottomNav({ page, setPage, role }) {
 
 Object.assign(window, { Sidebar, Topbar, MobileBottomNav });
 
+
 </script>
 
 <script type="text/babel" data-file="login.jsx">
+
 function Login({ onLogin }) {
   const [pwd, setPwd] = useState('');
   const [role, setRole] = useState('admin');
@@ -1676,9 +2570,11 @@ function Login({ onLogin }) {
 
 Object.assign(window, { Login });
 
+
 </script>
 
 <script type="text/babel" data-file="home.jsx">
+
 function Home({ setPage, role }) {
   const ultimo = NOMINA_HISTORICA[NOMINA_HISTORICA.length - 1] || { total: 0, h50: 0, h100: 0, label: '—' };
   const prev   = NOMINA_HISTORICA[NOMINA_HISTORICA.length - 2] || { total: 0 };
@@ -1819,9 +2715,11 @@ function sparkPath(data, w, h) {
 
 Object.assign(window, { Home });
 
+
 </script>
 
 <script type="text/babel" data-file="nomina.jsx">
+
 // Nómina: 3-step flow (Subir → Revisar horas → Sueldos)
 
 function Nomina({ setPage }) {
@@ -2012,6 +2910,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
   const [sel, setSel] = useState(firstId);
   const [edits, setEdits] = useState({});
   const [saving, setSaving] = useState(false);
+  const [showRec, setShowRec] = useState(false);
 
   React.useEffect(() => {
     const nuevo = cloneHoras(periodoId);
@@ -2243,7 +3142,11 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
               <h3 className="panel-title">Beneficios y descuentos del mes</h3>
               <div className="panel-sub">Valores para {empSel.nombre} este período. Los cambios solo aplican a {periodoLabel}, no alteran los defaults del empleado.</div>
             </div>
+            <Btn size="sm" variant="ghost" onClick={() => setShowRec(true)}><Icon name="calendar" size={12}/> Recurrentes con vigencia</Btn>
           </div>
+
+          <RecurrentesAplicadas empleadoId={sel} periodoId={periodoId} />
+
           <div className="cols-2" style={{ gap: 10 }}>
             <div className="field">
               <label>Transporte por día {esOverride('transporte_dia') && <Chip tone="accent" style={{ marginLeft: 6 }}>override</Chip>}</label>
@@ -2366,6 +3269,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
           </div>
         </div>
       </div>
+      {showRec && <RecurrentesModal empleadoId={sel} onClose={() => setShowRec(false)} />}
     </div>
   );
 }
@@ -2611,14 +3515,206 @@ function NomStepSueldos({ periodoId, periodoLabel, onBack }) {
   );
 }
 
+// ═══════════════════════ Recurrentes con vigencia ═══════════════════════
+// Formato periodoId → 'YYYY-MM' en nomina lo convertimos con periodoToYM
+function periodoToYM(periodoId) {
+  // periodoId esperado: '2026-04' o '2026_04'; si no, devolver null
+  if (!periodoId) return null;
+  const s = String(periodoId).replace('_', '-');
+  if (/^\d{4}-\d{2}$/.test(s)) return s;
+  return null;
+}
+
+function vigenteEn(rec, ym) {
+  if (!ym) return true;
+  if (rec.desde && ym < rec.desde) return false;
+  if (rec.hasta && ym > rec.hasta) return false;
+  return true;
+}
+
+const TIPOS_REC = [
+  { key: 'prestamo_iess',    label: 'Préstamo IESS',       signo: '-' },
+  { key: 'prestamo_empresa', label: 'Préstamo empresa',    signo: '-' },
+  { key: 'transporte_bono',  label: 'Transporte / bono',   signo: '+' },
+  { key: 'alimentacion',     label: 'Alimentación',        signo: '+' },
+  { key: 'comision',         label: 'Comisión',            signo: '+' },
+  { key: 'otro_desc',        label: 'Otro descuento',      signo: '-' },
+  { key: 'otro_ben',         label: 'Otro beneficio',      signo: '+' },
+];
+
+function RecurrentesAplicadas({ empleadoId, periodoId }) {
+  const ym = periodoToYM(periodoId);
+  const all = (window.BENEFICIOS_RECURRENTES_MOCK || []).filter(r => r.empleado_id === empleadoId);
+  const vigentes = all.filter(r => vigenteEn(r, ym));
+  if (vigentes.length === 0) return null;
+  return (
+    <div className="rec-applied">
+      <div className="xs mute" style={{ marginBottom: 6 }}>Recurrentes activos este mes</div>
+      <div className="rec-chips">
+        {vigentes.map(r => {
+          const tipo = TIPOS_REC.find(t => t.key === r.tipo) || { label: r.tipo, signo: '?' };
+          return (
+            <div key={r.id} className={`rec-chip ${tipo.signo === '-' ? 'neg' : 'pos'}`}>
+              <span className="rec-chip-sig">{tipo.signo}</span>
+              <span>{tipo.label}</span>
+              <span className="mono">${r.monto.toFixed(2)}</span>
+              <span className="xs mute">· hasta {r.hasta || 'indef.'}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RecurrentesModal({ empleadoId, onClose }) {
+  const emp = EMPLEADOS_MOCK.find(e => e.id === empleadoId);
+  const [items, setItems] = useState(() => (window.BENEFICIOS_RECURRENTES_MOCK || []).filter(r => r.empleado_id === empleadoId));
+  const [nuevo, setNuevo] = useState(null);
+
+  function agregar() {
+    const ahora = new Date();
+    const ym = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`;
+    setNuevo({ id: 'tmp-' + Date.now(), empleado_id: empleadoId, tipo: 'prestamo_iess', monto: 0, desde: ym, hasta: null, nota: '' });
+  }
+
+  async function guardar(r) {
+    const existe = items.find(x => x.id === r.id);
+    let next;
+    if (existe) next = items.map(x => x.id === r.id ? r : x);
+    else next = [...items, r];
+    setItems(next);
+    // Sync to global mock (backend se encargará)
+    const all = window.BENEFICIOS_RECURRENTES_MOCK || [];
+    const otros = all.filter(x => x.empleado_id !== empleadoId);
+    window.BENEFICIOS_RECURRENTES_MOCK = [...otros, ...next];
+    if (window._api?.saveRecurrentes) await window._api.saveRecurrentes(empleadoId, next);
+    setNuevo(null);
+  }
+
+  async function eliminar(id) {
+    if (!confirm('¿Eliminar esta regla recurrente?')) return;
+    const next = items.filter(x => x.id !== id);
+    setItems(next);
+    const all = window.BENEFICIOS_RECURRENTES_MOCK || [];
+    const otros = all.filter(x => x.empleado_id !== empleadoId);
+    window.BENEFICIOS_RECURRENTES_MOCK = [...otros, ...next];
+    if (window._api?.saveRecurrentes) await window._api.saveRecurrentes(empleadoId, next);
+  }
+
+  return (
+    <div className="modal-back" onClick={onClose}>
+      <div className="modal-card lg" onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <Eyebrow>Nómina · Recurrentes</Eyebrow>
+            <h3 className="panel-title">Descuentos y beneficios recurrentes</h3>
+            <div className="panel-sub">{emp?.nombre} · se aplican automáticamente a los meses dentro de su vigencia</div>
+          </div>
+          <Btn size="sm" variant="ghost" onClick={onClose}><Icon name="close" size={14}/></Btn>
+        </div>
+        <div className="modal-body">
+          {items.length === 0 && !nuevo && (
+            <div className="empty-state" style={{ textAlign: 'center', padding: 30, color: 'var(--text-dim)' }}>
+              <Icon name="calendar" size={24}/>
+              <div style={{ marginTop: 8 }}>No hay reglas recurrentes configuradas.</div>
+              <div className="xs mute" style={{ marginTop: 4 }}>Puedes crear una para que aplique automáticamente a un rango de meses.</div>
+            </div>
+          )}
+          {items.map(r => (
+            <RecurrenteRow key={r.id} rec={r} onSave={guardar} onDelete={() => eliminar(r.id)} />
+          ))}
+          {nuevo && (
+            <RecurrenteRow rec={nuevo} onSave={guardar} onDelete={() => setNuevo(null)} isNew />
+          )}
+        </div>
+        <div className="modal-foot">
+          {!nuevo && <Btn variant="ghost" onClick={agregar}><Icon name="plus" size={12}/> Agregar regla</Btn>}
+          <Btn onClick={onClose}>Cerrar</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecurrenteRow({ rec, onSave, onDelete, isNew }) {
+  const [edit, setEdit] = useState(isNew);
+  const [draft, setDraft] = useState(rec);
+  const tipo = TIPOS_REC.find(t => t.key === (edit ? draft.tipo : rec.tipo)) || { label: rec.tipo, signo: '?' };
+
+  if (!edit) {
+    return (
+      <div className="rec-row">
+        <div className={`rec-row-sig ${tipo.signo === '-' ? 'neg' : 'pos'}`}>{tipo.signo}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600 }}>{tipo.label} · <span className="mono">${rec.monto.toFixed(2)}</span></div>
+          <div className="xs mute">{rec.desde} → {rec.hasta || 'indefinido'}{rec.nota && ` · ${rec.nota}`}</div>
+        </div>
+        <Btn size="sm" variant="ghost" onClick={() => setEdit(true)}><Icon name="edit" size={12}/></Btn>
+        <Btn size="sm" variant="ghost" onClick={onDelete}><Icon name="trash" size={12}/></Btn>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rec-row edit">
+      <div className="rec-edit-grid">
+        <div className="field">
+          <label>Tipo</label>
+          <Select value={draft.tipo} onChange={v => setDraft({ ...draft, tipo: v })}
+            options={TIPOS_REC.map(t => ({ value: t.key, label: `${t.signo} ${t.label}` }))} />
+        </div>
+        <div className="field">
+          <label>Monto mensual ($)</label>
+          <input className="input" type="number" step="0.01" value={draft.monto}
+            onChange={e => setDraft({ ...draft, monto: parseFloat(e.target.value) || 0 })} />
+        </div>
+        <div className="field">
+          <label>Desde (mes)</label>
+          <input className="input" type="month" value={draft.desde || ''}
+            onChange={e => setDraft({ ...draft, desde: e.target.value })} />
+        </div>
+        <div className="field">
+          <label>Hasta (mes) · vacío = indefinido</label>
+          <input className="input" type="month" value={draft.hasta || ''}
+            onChange={e => setDraft({ ...draft, hasta: e.target.value || null })} />
+        </div>
+        <div className="field" style={{ gridColumn: '1 / -1' }}>
+          <label>Nota</label>
+          <input className="input" type="text" value={draft.nota || ''}
+            onChange={e => setDraft({ ...draft, nota: e.target.value })} placeholder="Opcional (ej: 12 cuotas)" />
+        </div>
+      </div>
+      <div className="row" style={{ justifyContent: 'flex-end', marginTop: 10 }}>
+        {!isNew && <Btn size="sm" variant="ghost" onClick={() => { setDraft(rec); setEdit(false); }}>Cancelar</Btn>}
+        {isNew && <Btn size="sm" variant="ghost" onClick={onDelete}>Cancelar</Btn>}
+        <Btn size="sm" variant="primary" onClick={() => { onSave(draft); setEdit(false); }}>Guardar</Btn>
+      </div>
+    </div>
+  );
+}
+
 Object.assign(window, { Nomina });
+
 
 </script>
 
 <script type="text/babel" data-file="registro.jsx">
+
 // Registro Diario — wizard con trazabilidad por producto
 
 function RegistroDiario({ role }) {
+  const [view, setView] = useState('wizard'); // wizard | detalle
+  const [detalleId, setDetalleId] = useState(null);
+
+  if (view === 'detalle' && detalleId) {
+    return <RegistroDetalle id={detalleId} onBack={() => { setView('wizard'); setDetalleId(null); }} />;
+  }
+
+  return <RegistroWizard role={role} onOpenDetalle={(id) => { setDetalleId(id); setView('detalle'); }} />;
+}
+
+function RegistroWizard({ role, onOpenDetalle }) {
   const [step, setStep] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -2629,6 +3725,12 @@ function RegistroDiario({ role }) {
 
   // Producción: { [prod_id]: cajas }
   const [prod, setProd] = useState({ v_life: 12, v_solplast: 6, cuchara_5ml: 5, j_life: 3 });
+
+  // Sub-componentes por producto (solo para jeringa/gotero):
+  // { [prod_id]: { [subcomp_id]: unidades } }
+  const [subcomp, setSubcomp] = useState({
+    j_life: { canula: 3600, piston: 3600, tapon: 3600, acordeon: 3600 },
+  });
 
   // Material consumido POR producto:
   // { [prod_id]: { virgen: { [mat_id]: kg }, molido: [{ origen: prod_id, kg }] } }
@@ -2710,10 +3812,10 @@ function RegistroDiario({ role }) {
 
       <div className="panel" style={{ minHeight: 420 }}>
         {step === 0 && <RegStepDia date={date} setDate={setDate} />}
-        {step === 1 && <RegStepProd prod={prod} setProd={setProd} />}
+        {step === 1 && <RegStepProd prod={prod} setProd={setProd} subcomp={subcomp} setSubcomp={setSubcomp} />}
         {step === 2 && <RegStepMaterial activeProds={activeProds} consumo={consumo} setConsumo={setConsumo} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} />}
         {step === 3 && <RegStepResiduos activeProds={activeProds} residuos={residuos} setResiduos={setResiduos} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} />}
-        {step === 4 && <RegStepRevisar date={date} activeProds={activeProds} prod={prod} consumo={consumo} residuos={residuos} obs={obs} setObs={setObs} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} totalCajas={totalCajas} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} />}
+        {step === 4 && <RegStepRevisar date={date} activeProds={activeProds} prod={prod} consumo={consumo} residuos={residuos} obs={obs} setObs={setObs} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} totalCajas={totalCajas} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} subcomp={subcomp} />}
 
         <div className="row" style={{ justifyContent: 'space-between', marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
           <Btn onClick={back} disabled={step === 0}><Icon name="arrow_l" size={14}/> Atrás</Btn>
@@ -2759,10 +3861,11 @@ function RegistroDiario({ role }) {
       {role !== 'operario' && (
         <div className="panel panel-flush" style={{ marginTop: 18 }}>
           <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
-            <PanelHead title="Últimos registros" sub="Historial de jornadas guardadas" />
+            <PanelHead title="Últimos registros" sub="Historial de jornadas guardadas — click para ver detalle" />
           </div>
           {REGISTROS_RECIENTES.map((r, i) => (
-            <div key={i} className="list-row">
+            <button key={r.id || i} className="list-row" style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text)' }}
+              onClick={() => onOpenDetalle(r.id)}>
               <div className="ico" style={{ background: 'var(--accent-soft)', color: 'var(--accent-hi)' }}>
                 <Icon name="calendar" size={14}/>
               </div>
@@ -2770,7 +3873,8 @@ function RegistroDiario({ role }) {
                 <div className="ttl">{r.fecha}</div>
                 <div className="cap">{r.material} kg material · {r.cajas} cajas{r.obs && ` · ${r.obs}`}</div>
               </div>
-            </div>
+              <Icon name="arrow_r" size={14} className="mute" />
+            </button>
           ))}
         </div>
       )}
@@ -2796,15 +3900,25 @@ function RegStepDia({ date, setDate }) {
   );
 }
 
-function RegStepProd({ prod, setProd }) {
+function RegStepProd({ prod, setProd, subcomp, setSubcomp }) {
+  const setSC = (pid, scid, value) => {
+    setSubcomp({
+      ...subcomp,
+      [pid]: { ...(subcomp[pid] || {}), [scid]: Math.max(0, value | 0) }
+    });
+  };
+
   return (
     <div>
       <h3 className="panel-title" style={{ marginBottom: 4 }}>¿Qué productos se hicieron hoy?</h3>
-      <div className="panel-sub" style={{ marginBottom: 18 }}>Cajas completadas por línea. Después podrás registrar material y desechos de cada uno.</div>
+      <div className="panel-sub" style={{ marginBottom: 18 }}>Cajas completadas por línea. En jeringas y goteros se registra además cada pieza por separado.</div>
       <div className="prod-grid">
         {PRODUCTOS_MOCK.map(p => {
           const v = prod[p.id] || 0;
           const active = v > 0;
+          const piezas = SUBCOMPONENTES_MOCK[p.kind] || null;
+          const unidadesEsperadas = v * p.unidades_caja;
+          const sc = subcomp[p.id] || {};
           return (
             <div key={p.id} className={`prod-card ${active ? 'on' : ''}`}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
@@ -2821,6 +3935,35 @@ function RegStepProd({ prod, setProd }) {
                 <input type="number" value={v} onChange={e => setProd({ ...prod, [p.id]: parseInt(e.target.value) || 0 })} />
                 <button onClick={() => setProd({ ...prod, [p.id]: v + 1 })}><Icon name="plus" size={12}/></button>
               </div>
+
+              {active && piezas && (
+                <div className="subcomp-block">
+                  <div className="subcomp-head">
+                    <div className="subcomp-title"><Icon name="grid" size={11}/> Piezas producidas</div>
+                    <div className="xs mute">Esperado: {fmtNum(unidadesEsperadas)} c/u</div>
+                  </div>
+                  <div className="subcomp-list">
+                    {piezas.map(pc => {
+                      const val = sc[pc.id] || 0;
+                      const diff = val > 0 ? val - unidadesEsperadas : 0;
+                      return (
+                        <div key={pc.id} className="subcomp-row">
+                          <div className="subcomp-name">{pc.nombre}</div>
+                          <input className="input mono xs" type="number" value={val}
+                            onChange={e => setSC(p.id, pc.id, parseInt(e.target.value) || 0)}
+                            style={{ padding: '3px 6px', width: 80, textAlign: 'right' }} />
+                          {val > 0 && diff !== 0 && (
+                            <span className="xs" style={{ color: Math.abs(diff) > unidadesEsperadas * 0.02 ? 'var(--warn)' : 'var(--text-mute)', minWidth: 44, textAlign: 'right' }}>
+                              {diff > 0 ? '+' : ''}{diff}
+                            </span>
+                          )}
+                          {val === 0 && <span className="xs mute" style={{ minWidth: 44, textAlign: 'right' }}>—</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -3046,7 +4189,7 @@ function EmptyProducts({ msg }) {
   );
 }
 
-function RegStepRevisar({ date, activeProds, prod, consumo, residuos, obs, setObs, totalMat, totalVirgen, totalMolidoUsado, totalCajas, totalDesecho, totalMolidoGen, mermaPct }) {
+function RegStepRevisar({ date, activeProds, prod, consumo, residuos, obs, setObs, totalMat, totalVirgen, totalMolidoUsado, totalCajas, totalDesecho, totalMolidoGen, mermaPct, subcomp }) {
   return (
     <div>
       <h3 className="panel-title" style={{ marginBottom: 4 }}>Revisa antes de guardar</h3>
@@ -3082,12 +4225,21 @@ function RegStepRevisar({ date, activeProds, prod, consumo, residuos, obs, setOb
             const r = residuos[pid] || { desecho: 0, molido: 0 };
             const vTotal = Object.values(c.virgen || {}).reduce((a, b) => a + (b || 0), 0);
             const mTotal = (c.molido || []).reduce((a, m) => a + (m.kg || 0), 0);
+            const piezas = SUBCOMPONENTES_MOCK[p.kind] || null;
+            const sc = (subcomp && subcomp[pid]) || null;
             return (
               <div key={pid} className="rev-prod-row">
                 <ProductIllus kind={p.kind} size={28} color="var(--accent-hi)" />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600 }}>{p.nombre}</div>
                   <div className="xs mute">{prod[pid]} cajas · {(vTotal + mTotal).toFixed(1)} kg material</div>
+                  {piezas && sc && (
+                    <div className="row" style={{ gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                      {piezas.map(pc => (
+                        <Chip key={pc.id} style={{ fontSize: 10.5 }}>{pc.nombre}: {fmtNum(sc[pc.id] || 0)}</Chip>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="rev-metrics">
                   <div><span className="xs mute">Virgen</span><strong className="mono">{vTotal.toFixed(1)}</strong></div>
@@ -3110,11 +4262,144 @@ function RegStepRevisar({ date, activeProds, prod, consumo, residuos, obs, setOb
   );
 }
 
-Object.assign(window, { RegistroDiario });
+Object.assign(window, { RegistroDiario, RegistroWizard, RegistroDetalle });
+
+// ═══════════════════════ Detalle de Registro ═══════════════════════
+function RegistroDetalle({ id, onBack }) {
+  const reg = REGISTROS_RECIENTES.find(r => r.id === id);
+  if (!reg) {
+    return (
+      <div className="fadein">
+        <Btn onClick={onBack}><Icon name="arrow_l" size={14}/> Volver</Btn>
+        <div className="panel" style={{ marginTop: 14, textAlign: 'center', padding: 60, color: 'var(--text-dim)' }}>
+          <Icon name="alert" size={24}/>
+          <div style={{ marginTop: 8 }}>Registro no encontrado.</div>
+        </div>
+      </div>
+    );
+  }
+
+  const productos = reg.productos || [];
+  const totalVirgen = productos.reduce((a, p) => a + (p.virgen || 0), 0);
+  const totalMolidoUsado = productos.reduce((a, p) => a + (p.molido_usado || 0), 0);
+  const totalMat = totalVirgen + totalMolidoUsado;
+  const totalDesecho = productos.reduce((a, p) => a + (p.desecho || 0), 0);
+  const totalMolidoGen = productos.reduce((a, p) => a + (p.molido_gen || 0), 0);
+  const totalCajas = productos.reduce((a, p) => a + (p.cajas || 0), 0);
+  const mermaPct = totalMat > 0 ? (totalDesecho / totalMat) * 100 : 0;
+
+  const fmtFecha = (ds) => {
+    const [y, m, d] = ds.split('-');
+    const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const dt = new Date(`${ds}T00:00:00`);
+    const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+    return `${dias[dt.getDay()]} ${parseInt(d)} de ${meses[parseInt(m)-1]} ${y}`;
+  };
+
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <div className="row" style={{ gap: 8, marginBottom: 6 }}>
+            <Btn size="sm" variant="ghost" onClick={onBack}><Icon name="arrow_l" size={12}/> Registros</Btn>
+          </div>
+          <Eyebrow>Producción · Detalle de jornada</Eyebrow>
+          <h1 className="page-title">Registro del <em>{reg.fecha}</em></h1>
+          <div className="page-sub">{fmtFecha(reg.fecha)}{reg.obs && <> · {reg.obs}</>}</div>
+        </div>
+        <div className="row">
+          <Btn variant="ghost"><Icon name="edit" size={14}/> Editar</Btn>
+          <Btn><Icon name="download" size={14}/> Exportar</Btn>
+        </div>
+      </div>
+
+      <div className="kpi-grid" style={{ marginBottom: 18 }}>
+        <Kpi label="Producción" icon="box" value={`${totalCajas}`} unit="cajas" />
+        <Kpi label="Material" icon="flask" value={`${totalMat.toFixed(1)}`} unit="kg" delta={`${totalVirgen.toFixed(1)} virgen + ${totalMolidoUsado.toFixed(1)} molido`} />
+        <Kpi label="Desecho" icon="trash" value={`${totalDesecho.toFixed(1)}`} unit="kg" accent="var(--bad)" />
+        <Kpi label="Merma" icon="alert" value={`${mermaPct.toFixed(1)}%`} accent={mermaPct > 5 ? 'var(--warn)' : 'var(--good)'} />
+      </div>
+
+      <div className="panel panel-flush">
+        <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+          <PanelHead title="Desglose por producto" sub={`${productos.length} productos registrados`} />
+        </div>
+        {productos.map((pp, i) => {
+          const p = PRODUCTOS_MOCK.find(x => x.id === pp.prod_id) || { nombre: pp.prod_id, kind: 'vaso', material: '—', unidades_caja: 0 };
+          const piezas = SUBCOMPONENTES_MOCK[p.kind] || null;
+          const unitEsperadas = pp.cajas * p.unidades_caja;
+          return (
+            <div key={i} className="reg-det-row">
+              <div className="reg-det-head">
+                <ProductIllus kind={p.kind} size={32} color="var(--accent-hi)" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{p.nombre}</div>
+                  <div className="xs mute">{p.material} · {fmtNum(unitEsperadas)} unidades esperadas</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{pp.cajas} <span className="xs mute">cajas</span></div>
+                </div>
+              </div>
+              <div className="reg-det-grid">
+                <div className="reg-det-stat">
+                  <div className="xs mute">Virgen</div>
+                  <div className="mono" style={{ fontSize: 15 }}>{(pp.virgen || 0).toFixed(1)} kg</div>
+                </div>
+                <div className="reg-det-stat">
+                  <div className="xs mute">Molido usado</div>
+                  <div className="mono" style={{ fontSize: 15, color: 'var(--good)' }}>{(pp.molido_usado || 0).toFixed(1)} kg</div>
+                </div>
+                <div className="reg-det-stat">
+                  <div className="xs mute">Desecho</div>
+                  <div className="mono" style={{ fontSize: 15, color: 'var(--bad)' }}>{(pp.desecho || 0).toFixed(1)} kg</div>
+                </div>
+                <div className="reg-det-stat">
+                  <div className="xs mute">Molido generado</div>
+                  <div className="mono" style={{ fontSize: 15, color: 'var(--good)' }}>+{(pp.molido_gen || 0).toFixed(1)} kg</div>
+                </div>
+              </div>
+              {piezas && pp.subcomp && (
+                <div className="reg-det-piezas">
+                  <div className="xs mute" style={{ marginBottom: 6 }}>Piezas producidas</div>
+                  <div className="reg-det-piezas-grid">
+                    {piezas.map(pc => {
+                      const val = pp.subcomp[pc.id] || 0;
+                      const diff = val - unitEsperadas;
+                      return (
+                        <div key={pc.id} className="reg-det-pieza">
+                          <div className="xs mute">{pc.nombre}</div>
+                          <div className="mono" style={{ fontSize: 14 }}>{fmtNum(val)}</div>
+                          {val > 0 && diff !== 0 && (
+                            <div className="xs" style={{ color: Math.abs(diff) > unitEsperadas * 0.02 ? 'var(--warn)' : 'var(--text-mute)' }}>
+                              {diff > 0 ? '+' : ''}{fmtNum(diff)} vs esperado
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {reg.obs && (
+        <div className="panel" style={{ marginTop: 18 }}>
+          <Eyebrow>Observaciones</Eyebrow>
+          <div style={{ marginTop: 6 }}>{reg.obs}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 </script>
 
 <script type="text/babel" data-file="catalogo.jsx">
+
 // Catálogo: Materiales + Productos + Empaques + Gastos fijos en un solo módulo
 
 function Catalogo() {
@@ -3577,9 +4862,11 @@ function TabGastos() {
 
 Object.assign(window, { Catalogo });
 
+
 </script>
 
 <script type="text/babel" data-file="costos.jsx">
+
 // Costos — breakdown + evolución + comparador
 function Costos() {
   const [sel, setSel] = useState(PRODUCTOS_MOCK[0].id);
@@ -3822,9 +5109,11 @@ function VistaEvolucion() {
 
 Object.assign(window, { Costos });
 
+
 </script>
 
 <script type="text/babel" data-file="metricas.jsx">
+
 // Métricas — histórico de nómina + horas extras
 
 function Metricas() {
@@ -3911,9 +5200,11 @@ function Metricas() {
 
 Object.assign(window, { Metricas });
 
+
 </script>
 
 <script type="text/babel" data-file="empleados.jsx">
+
 // Empleados — grid de tarjetas + drawer lateral de edición
 
 const EMPTY_EMP = {
@@ -4097,9 +5388,2414 @@ function EmpEditor({ form, setForm, sel }) {
 
 Object.assign(window, { Empleados });
 
+
 </script>
 
+<script type="text/babel" data-file="inventario.jsx">
+
+// Inventario — Materia Prima + Producto Terminado + Movimientos
+// Sistema de stock con mínimos, alertas, reservas y CRUD de movimientos
+
+function Inventario() {
+  const [tab, setTab] = useState('resumen');
+
+  const tabs = [
+    { k: 'resumen', l: 'Resumen',           ico: 'chart' },
+    { k: 'mp',      l: 'Materia prima',     ico: 'flask' },
+    { k: 'pt',      l: 'Producto terminado', ico: 'package' },
+    { k: 'mov',     l: 'Movimientos',       ico: 'activity' },
+  ];
+
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <Eyebrow>Inventario</Eyebrow>
+          <h1 className="page-title">Inventario <em>en tiempo real</em></h1>
+          <div className="page-sub">Stock de materia prima y producto terminado, con trazabilidad por movimientos.</div>
+        </div>
+        <div className="row">
+          <Btn variant="ghost"><Icon name="download" size={14}/> Exportar</Btn>
+          <Btn variant="primary"><Icon name="plus" size={14}/> Nuevo movimiento</Btn>
+        </div>
+      </div>
+
+      <div className="tab-bar">
+        {tabs.map(t => (
+          <button key={t.k} className={`tab ${tab === t.k ? 'on' : ''}`} onClick={() => setTab(t.k)}>
+            <Icon name={t.ico} size={13}/> {t.l}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'resumen' && <InvResumen />}
+      {tab === 'mp'      && <InvMateriaPrima />}
+      {tab === 'pt'      && <InvProductoTerminado />}
+      {tab === 'mov'     && <InvMovimientos />}
+    </div>
+  );
+}
+
+// ═══════════════════════ Resumen ═══════════════════════
+function InvResumen() {
+  const mpBajos = INVENTARIO_MP_MOCK.filter(x => x.stock_kg <= x.minimo_kg);
+  const ptBajos = INVENTARIO_PT_MOCK.filter(x => (x.stock_cajas - x.reservado) <= x.minimo_cajas);
+  const totalKg = INVENTARIO_MP_MOCK.reduce((a, x) => a + x.stock_kg, 0);
+  const totalCajas = INVENTARIO_PT_MOCK.reduce((a, x) => a + x.stock_cajas, 0);
+  const valorMP = INVENTARIO_MP_MOCK.reduce((a, x) => a + x.stock_kg * x.costo_prom_kg, 0);
+  const valorPT = INVENTARIO_PT_MOCK.reduce((a, x) => {
+    const p = PRODUCTOS_MOCK.find(q => q.id === x.prod_id);
+    return a + x.stock_cajas * (p?.costo_caja || 0);
+  }, 0);
+
+  return (
+    <>
+      <div className="kpi-grid" style={{ marginBottom: 18 }}>
+        <Kpi label="Materia prima"    icon="flask"   value={`${fmtNum(totalKg)} kg`} delta={fmtMoney(valorMP)} />
+        <Kpi label="Producto terminado" icon="package" value={`${totalCajas} cajas`} delta={fmtMoney(valorPT)} />
+        <Kpi label="Alertas MP"       icon="alert"   value={`${mpBajos.length}`} accent={mpBajos.length ? 'var(--bad)' : 'var(--good)'} />
+        <Kpi label="Alertas PT"       icon="alert"   value={`${ptBajos.length}`} accent={ptBajos.length ? 'var(--warn)' : 'var(--good)'} />
+      </div>
+
+      {(mpBajos.length > 0 || ptBajos.length > 0) && (
+        <div className="panel panel-flush" style={{ marginBottom: 18 }}>
+          <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+            <PanelHead title="Alertas de stock bajo" sub="Items por debajo del mínimo" />
+          </div>
+          {mpBajos.map(m => {
+            const mat = MATERIALES_MOCK.find(x => x.id === m.id);
+            return (
+              <div key={m.id} className="list-row">
+                <div className="ico" style={{ background: 'var(--bad-soft)', color: 'var(--bad)' }}>
+                  <Icon name="flask" size={14}/>
+                </div>
+                <div className="body">
+                  <div className="ttl">{mat?.nombre}</div>
+                  <div className="cap">{fmtNum(m.stock_kg)} kg · mínimo {m.minimo_kg} kg</div>
+                </div>
+                <Chip tone="bad">Bajo mínimo</Chip>
+              </div>
+            );
+          })}
+          {ptBajos.map(p => {
+            const prod = PRODUCTOS_MOCK.find(x => x.id === p.prod_id);
+            const disp = p.stock_cajas - p.reservado;
+            return (
+              <div key={p.prod_id} className="list-row">
+                <div className="ico" style={{ background: 'var(--warn-soft)', color: 'var(--warn)' }}>
+                  <Icon name="package" size={14}/>
+                </div>
+                <div className="body">
+                  <div className="ttl">{prod?.nombre}</div>
+                  <div className="cap">Disponible {disp} cajas · mínimo {p.minimo_cajas} · reservadas {p.reservado}</div>
+                </div>
+                <Chip tone="warn">Revisar</Chip>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="cols-2" style={{ gap: 18 }}>
+        <div className="panel panel-flush">
+          <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+            <PanelHead title="Materia prima" sub="Stock actual vs. mínimo" />
+          </div>
+          <div style={{ padding: 14 }}>
+            {INVENTARIO_MP_MOCK.map(m => {
+              const mat = MATERIALES_MOCK.find(x => x.id === m.id);
+              const pct = Math.min(100, (m.stock_kg / (m.minimo_kg * 2)) * 100);
+              const tone = m.stock_kg <= m.minimo_kg ? 'var(--bad)' : m.stock_kg <= m.minimo_kg * 1.5 ? 'var(--warn)' : 'var(--good)';
+              return (
+                <div key={m.id} style={{ marginBottom: 14 }}>
+                  <div className="row" style={{ justifyContent: 'space-between', marginBottom: 5 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500 }}>{mat?.nombre}</span>
+                    <span className="mono xs">{fmtNum(m.stock_kg)} kg</span>
+                  </div>
+                  <div style={{ height: 6, background: 'var(--bg-raised)', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: tone, transition: 'width .3s' }}/>
+                    <div style={{ position: 'absolute', left: `${(m.minimo_kg / (m.minimo_kg * 2)) * 100}%`, top: -2, width: 1, height: 10, background: 'var(--text)', opacity: 0.4 }}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="panel panel-flush">
+          <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+            <PanelHead title="Producto terminado" sub="Cajas disponibles (no reservadas)" />
+          </div>
+          <div style={{ padding: 14 }}>
+            {INVENTARIO_PT_MOCK.map(p => {
+              const prod = PRODUCTOS_MOCK.find(x => x.id === p.prod_id);
+              const disp = p.stock_cajas - p.reservado;
+              const tone = disp <= p.minimo_cajas ? 'var(--warn)' : 'var(--good)';
+              return (
+                <div key={p.prod_id} className="row" style={{ justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{prod?.nombre}</div>
+                    <div className="xs mute">mín {p.minimo_cajas} · reservadas {p.reservado}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div className="mono" style={{ fontWeight: 600, color: tone }}>{disp}</div>
+                    <div className="xs mute">de {p.stock_cajas} cajas</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ═══════════════════════ Materia Prima ═══════════════════════
+function InvMateriaPrima() {
+  return (
+    <div className="panel panel-flush">
+      <table className="tbl tbl-hover">
+        <thead>
+          <tr><th>Material</th><th className="num">Stock (kg)</th><th className="num">Mínimo</th><th className="num">Costo/kg</th><th className="num">Valor total</th><th>Última entrada</th><th>Estado</th></tr>
+        </thead>
+        <tbody>
+          {INVENTARIO_MP_MOCK.map(m => {
+            const mat = MATERIALES_MOCK.find(x => x.id === m.id);
+            const bajo = m.stock_kg <= m.minimo_kg;
+            const alerta = m.stock_kg <= m.minimo_kg * 1.5;
+            return (
+              <tr key={m.id}>
+                <td>
+                  <div className="row" style={{ gap: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: mat?.color }}/>
+                    <div style={{ fontWeight: 600 }}>{mat?.nombre}</div>
+                  </div>
+                </td>
+                <td className="num mono">{fmtNum(m.stock_kg)}</td>
+                <td className="num mono xs mute">{m.minimo_kg}</td>
+                <td className="num mono">{fmtMoney(m.costo_prom_kg)}</td>
+                <td className="num mono">{fmtMoney(m.stock_kg * m.costo_prom_kg)}</td>
+                <td className="mono xs">{m.ultima_entrada}</td>
+                <td>{bajo ? <Chip tone="bad">Bajo mínimo</Chip> : alerta ? <Chip tone="warn">Cercano</Chip> : <Chip tone="good">OK</Chip>}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ═══════════════════════ Producto Terminado ═══════════════════════
+function InvProductoTerminado() {
+  return (
+    <div className="panel panel-flush">
+      <table className="tbl tbl-hover">
+        <thead>
+          <tr><th>Producto</th><th className="num">Stock</th><th className="num">Reservadas</th><th className="num">Disponible</th><th className="num">Mínimo</th><th className="num">Valor</th><th>Estado</th></tr>
+        </thead>
+        <tbody>
+          {INVENTARIO_PT_MOCK.map(p => {
+            const prod = PRODUCTOS_MOCK.find(x => x.id === p.prod_id);
+            const disp = p.stock_cajas - p.reservado;
+            const bajo = disp <= p.minimo_cajas;
+            const valor = p.stock_cajas * (prod?.costo_caja || 0);
+            return (
+              <tr key={p.prod_id}>
+                <td>
+                  <div style={{ fontWeight: 600 }}>{prod?.nombre}</div>
+                  <div className="xs mute">{prod?.unidades_caja} unid/caja</div>
+                </td>
+                <td className="num mono">{p.stock_cajas}</td>
+                <td className="num mono xs mute">{p.reservado || '—'}</td>
+                <td className="num mono" style={{ color: bajo ? 'var(--warn)' : 'inherit', fontWeight: bajo ? 600 : 400 }}>{disp}</td>
+                <td className="num mono xs mute">{p.minimo_cajas}</td>
+                <td className="num mono">{fmtMoney(valor)}</td>
+                <td>{bajo ? <Chip tone="warn">Revisar</Chip> : <Chip tone="good">OK</Chip>}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ═══════════════════════ Movimientos ═══════════════════════
+function InvMovimientos() {
+  const [filtro, setFiltro] = useState('todos');
+  const items = MOV_INVENTARIO_MOCK.filter(m => filtro === 'todos' || m.tipo === filtro)
+    .slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  const tipoConfig = {
+    entrada:    { t: 'good',    ico: 'arrow_r', l: 'Entrada' },
+    salida:     { t: 'bad',     ico: 'arrow_r', l: 'Salida' },
+    produccion: { t: 'info',    ico: 'box',     l: 'Producción' },
+    ajuste:     { t: 'default', ico: 'edit',    l: 'Ajuste' },
+    reserva:    { t: 'accent',  ico: 'clock',   l: 'Reserva' },
+  };
+
+  return (
+    <>
+      <div className="panel" style={{ marginBottom: 14 }}>
+        <Seg value={filtro} onChange={setFiltro} options={[
+          { value: 'todos',      label: `Todos (${MOV_INVENTARIO_MOCK.length})` },
+          { value: 'entrada',    label: 'Entradas' },
+          { value: 'salida',     label: 'Salidas' },
+          { value: 'produccion', label: 'Producción' },
+          { value: 'ajuste',     label: 'Ajustes' },
+          { value: 'reserva',    label: 'Reservas' },
+        ]} />
+      </div>
+
+      <div className="panel panel-flush">
+        <table className="tbl">
+          <thead>
+            <tr><th>Fecha</th><th>Tipo</th><th>Item</th><th className="num">Cantidad</th><th>Referencia</th><th>Nota</th></tr>
+          </thead>
+          <tbody>
+            {items.map(m => {
+              const cfg = tipoConfig[m.tipo] || tipoConfig.ajuste;
+              const item = m.clase === 'mp'
+                ? MATERIALES_MOCK.find(x => x.id === m.item_id)
+                : PRODUCTOS_MOCK.find(x => x.id === m.item_id);
+              const isNeg = m.tipo === 'salida';
+              return (
+                <tr key={m.id}>
+                  <td className="mono xs">{m.fecha}</td>
+                  <td><Chip tone={cfg.t}>{cfg.l}</Chip></td>
+                  <td>
+                    <div style={{ fontWeight: 500 }}>{item?.nombre || m.item_id}</div>
+                    <div className="xs mute">{m.clase === 'mp' ? 'Materia prima' : 'Producto terminado'}</div>
+                  </td>
+                  <td className="num mono" style={{ color: isNeg ? 'var(--bad)' : 'inherit' }}>
+                    {isNeg ? '−' : '+'}{fmtNum(m.cantidad)} <span className="xs mute">{m.unidad}</span>
+                  </td>
+                  <td className="mono xs">{m.ref || '—'}</td>
+                  <td className="xs">{m.nota}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+Object.assign(window, { Inventario });
+
+</script>
+
+<script type="text/babel" data-file="pedidos.jsx">
+
+// Pedidos — Cotizaciones, OC, Facturas (SRI), Guías, Certificados
+// Flujo: Cotización → Orden de compra → Factura electrónica + Guía remisión + Certificado calidad
+
+function Pedidos() {
+  const [tab, setTab] = useState('pipeline');
+  const [sel, setSel] = useState(null); // { kind, id }
+  const [showWizard, setShowWizard] = useState(false);
+
+  const tabs = [
+    { k: 'pipeline', l: 'Pipeline',     ico: 'activity' },
+    { k: 'cot',      l: 'Cotizaciones', ico: 'doc' },
+    { k: 'oc',       l: 'Órdenes',      ico: 'box' },
+    { k: 'fact',     l: 'Facturas',     ico: 'receipt' },
+    { k: 'guia',     l: 'Guías',        ico: 'truck' },
+    { k: 'cert',     l: 'Certificados', ico: 'check' },
+  ];
+
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <Eyebrow>Gestión de pedidos</Eyebrow>
+          <h1 className="page-title">Pedidos <em>& facturación</em></h1>
+          <div className="page-sub">Del pedido de cotización a la entrega con factura electrónica SRI.</div>
+        </div>
+        <div className="row">
+          <Btn variant="ghost"><Icon name="download" size={14}/> Exportar</Btn>
+          <Btn variant="primary" onClick={() => setShowWizard(true)}><Icon name="plus" size={14}/> Nueva cotización</Btn>
+        </div>
+      </div>
+
+      <div className="tab-bar">
+        {tabs.map(t => (
+          <button key={t.k} className={`tab ${tab === t.k ? 'on' : ''}`} onClick={() => { setTab(t.k); setSel(null); }}>
+            <Icon name={t.ico} size={13}/> {t.l}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'pipeline' && <PedidosPipeline onOpen={(kind, id) => { setTab(kind); setSel({ kind, id }); }} />}
+      {tab === 'cot'  && <CotizacionesTab selId={sel?.kind === 'cot'  ? sel.id : null} clearSel={() => setSel(null)} />}
+      {tab === 'oc'   && <OrdenesTab       selId={sel?.kind === 'oc'   ? sel.id : null} clearSel={() => setSel(null)} />}
+      {tab === 'fact' && <FacturasTab      selId={sel?.kind === 'fact' ? sel.id : null} clearSel={() => setSel(null)} />}
+      {tab === 'guia' && <GuiasTab         selId={sel?.kind === 'guia' ? sel.id : null} clearSel={() => setSel(null)} />}
+      {tab === 'cert' && <CertificadosTab  selId={sel?.kind === 'cert' ? sel.id : null} clearSel={() => setSel(null)} />}
+
+      {showWizard && (
+        <WizardNuevaCotizacion
+          onClose={() => setShowWizard(false)}
+          onCreated={(newId) => { setTab('cot'); setSel({ kind: 'cot', id: newId }); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════ Pipeline Overview ═══════════════════════
+function PedidosPipeline({ onOpen }) {
+  const cots = COTIZACIONES_MOCK;
+  const ocs  = ORDENES_COMPRA_MOCK;
+  const facts = FACTURAS_MOCK;
+
+  const pendientes = cots.filter(c => c.estado === 'enviada' || c.estado === 'borrador').length;
+  const aprobadas  = cots.filter(c => c.estado === 'aprobada').length;
+  const enProd     = ocs.filter(o => o.estado === 'en_produccion' || o.estado === 'pendiente').length;
+  const porFacturar = ocs.filter(o => o.estado === 'lista' && !o.factura_asociada).length;
+  const porPagar    = facts.filter(f => !f.pagada && f.estado_sri === 'autorizada').length;
+  const montoPorPagar = facts.filter(f => !f.pagada).reduce((a, f) => a + f.total, 0);
+
+  // Recordatorios: OCs con entrega en <5 días y no están listas
+  const hoy = new Date('2026-04-22');
+  const recordatorios = ocs.filter(o => o.estado !== 'entregada').map(o => {
+    const diff = Math.ceil((new Date(o.fecha_entrega) - hoy) / 86400000);
+    return { ...o, dias: diff };
+  }).sort((a, b) => a.dias - b.dias);
+
+  return (
+    <>
+      <div className="kpi-grid" style={{ marginBottom: 18 }}>
+        <Kpi label="Cotizaciones en proceso" icon="doc"  value={`${pendientes}`} delta={`${aprobadas} aprobadas por convertir`} />
+        <Kpi label="Órdenes en producción"   icon="box"  value={`${enProd}`} accent="var(--info)" />
+        <Kpi label="Por facturar"            icon="receipt" value={`${porFacturar}`} accent="var(--warn)" />
+        <Kpi label="Por cobrar"              icon="dollar"  value={fmtMoney(montoPorPagar)} delta={`${porPagar} facturas pendientes`} accent="var(--bad)" />
+      </div>
+
+      <div className="cols-2" style={{ gap: 18 }}>
+        <div className="panel panel-flush">
+          <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+            <PanelHead title="Próximas entregas" sub="Órdenes con fecha de entrega comprometida" />
+          </div>
+          {recordatorios.length === 0 && <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-dim)' }}>Ninguna entrega pendiente.</div>}
+          {recordatorios.map(r => {
+            const cli = CLIENTES_MOCK.find(c => c.id === r.cliente);
+            const urgencia = r.dias < 0 ? 'atraso' : r.dias < 3 ? 'urgente' : r.dias < 7 ? 'proximo' : 'normal';
+            return (
+              <button key={r.id} className="list-row" onClick={() => onOpen('oc', r.id)}
+                style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text)' }}>
+                <div className={`reminder-pill ${urgencia}`}>
+                  <strong>{r.dias < 0 ? `+${-r.dias}d` : r.dias === 0 ? 'HOY' : `${r.dias}d`}</strong>
+                  <span className="xs">{r.dias < 0 ? 'atraso' : 'restante'}</span>
+                </div>
+                <div className="body">
+                  <div className="ttl">{r.id} · {cli?.razon_social || r.cliente}</div>
+                  <div className="cap">Entrega {r.fecha_entrega} · {r.items.length} productos · estado: {r.estado}</div>
+                </div>
+                <Icon name="arrow_r" size={14} className="mute" />
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="panel panel-flush">
+          <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+            <PanelHead title="Flujo del pedido" sub="Etapas del proceso comercial" />
+          </div>
+          <div style={{ padding: 18 }}>
+            <FlowDiagram />
+          </div>
+        </div>
+      </div>
+
+      <div className="panel panel-flush" style={{ marginTop: 18 }}>
+        <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+          <PanelHead title="Actividad reciente" sub="Últimos movimientos en el módulo" />
+        </div>
+        {[
+          { fecha: '2026-04-22', txt: 'Factura FAC-001-001-000001234 autorizada por SRI', ico: 'check', tone: 'good' },
+          { fecha: '2026-04-22', txt: 'Guía GR-001-001-000000892 emitida para Life', ico: 'truck', tone: 'info' },
+          { fecha: '2026-04-18', txt: 'OC-FA-20260418 (Farmayala) ingresó a producción', ico: 'box', tone: 'info' },
+          { fecha: '2026-04-17', txt: 'Cotización COT-2026-0043 enviada a Life', ico: 'doc', tone: 'default' },
+          { fecha: '2026-04-15', txt: 'Cotización COT-2026-0042 aprobada por Farmayala', ico: 'check', tone: 'good' },
+        ].map((a, i) => (
+          <div key={i} className="list-row">
+            <div className="ico" style={{ background: a.tone === 'good' ? 'var(--good-soft)' : a.tone === 'info' ? 'var(--info-soft)' : 'var(--accent-soft)',
+              color: a.tone === 'good' ? 'var(--good)' : a.tone === 'info' ? 'var(--info)' : 'var(--accent-hi)' }}>
+              <Icon name={a.ico} size={14}/>
+            </div>
+            <div className="body">
+              <div className="ttl">{a.txt}</div>
+              <div className="cap">{a.fecha}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function FlowDiagram() {
+  const stages = [
+    { k: 'cot',  l: 'Cotización',  c: 'var(--accent)' },
+    { k: 'oc',   l: 'Orden compra', c: 'var(--info)' },
+    { k: 'prod', l: 'Producción',  c: 'var(--warn)' },
+    { k: 'fact', l: 'Factura SRI', c: 'var(--good)' },
+    { k: 'ent',  l: 'Entrega + Cert.', c: 'var(--accent-hi)' },
+  ];
+  return (
+    <div className="flow">
+      {stages.map((s, i) => (
+        <React.Fragment key={s.k}>
+          <div className="flow-node">
+            <div className="flow-bubble" style={{ background: s.c, color: 'var(--bg)' }}>{i + 1}</div>
+            <div className="flow-label">{s.l}</div>
+          </div>
+          {i < stages.length - 1 && <div className="flow-arrow">→</div>}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════ Helpers ═══════════════════════
+function cliente(id) { return CLIENTES_MOCK.find(c => c.id === id); }
+function producto(id) { return PRODUCTOS_MOCK.find(p => p.id === id); }
+
+function EstadoChip({ estado, kind }) {
+  const colores = {
+    borrador:   { t: 'default',  l: 'Borrador' },
+    enviada:    { t: 'accent',  l: 'Enviada' },
+    aprobada:   { t: 'good',    l: 'Aprobada' },
+    convertida: { t: 'good',    l: 'Convertida' },
+    rechazada:  { t: 'bad',     l: 'Rechazada' },
+    pendiente:      { t: 'default', l: 'Pendiente' },
+    en_produccion:  { t: 'info',    l: 'En producción' },
+    lista:          { t: 'accent',  l: 'Lista' },
+    facturada:      { t: 'good',    l: 'Facturada' },
+    entregada:      { t: 'good',    l: 'Entregada' },
+    firmada:        { t: 'default', l: 'Firmada' },
+    autorizada:     { t: 'good',    l: 'Autorizada SRI' },
+  };
+  const cfg = colores[estado] || { t: 'default', l: estado };
+  return <Chip tone={cfg.t}>{cfg.l}</Chip>;
+}
+
+function calcTotal(items, campo = 'precio_caja') {
+  return items.reduce((a, i) => a + (i.cant_cajas || 0) * (i[campo] || 0), 0);
+}
+
+// ═══════════════════════ Cotizaciones ═══════════════════════
+function CotizacionesTab({ selId, clearSel }) {
+  const [q, setQ] = useState('');
+  const [filtro, setFiltro] = useState('todas');
+  const [detail, setDetail] = useState(selId || null);
+
+  React.useEffect(() => { if (selId) setDetail(selId); }, [selId]);
+
+  const items = COTIZACIONES_MOCK.filter(c => {
+    const cli = cliente(c.cliente);
+    const matchQ = !q || c.id.toLowerCase().includes(q.toLowerCase()) || (cli?.razon_social || '').toLowerCase().includes(q.toLowerCase());
+    const matchF = filtro === 'todas' || c.estado === filtro;
+    return matchQ && matchF;
+  }).sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  if (detail) {
+    const cot = COTIZACIONES_MOCK.find(c => c.id === detail);
+    if (!cot) return null;
+    return <CotizacionDetalle cot={cot} onBack={() => { setDetail(null); clearSel(); }} />;
+  }
+
+  return (
+    <>
+      <div className="panel" style={{ marginBottom: 14 }}>
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <div className="row" style={{ gap: 8, flex: 1, minWidth: 220 }}>
+            <input className="input" type="text" placeholder="Buscar por número o cliente…" value={q} onChange={e => setQ(e.target.value)} style={{ flex: 1 }} />
+          </div>
+          <Seg value={filtro} onChange={setFiltro} options={[
+            { value: 'todas',      label: `Todas (${COTIZACIONES_MOCK.length})` },
+            { value: 'borrador',   label: 'Borrador' },
+            { value: 'enviada',    label: 'Enviadas' },
+            { value: 'aprobada',   label: 'Aprobadas' },
+            { value: 'rechazada',  label: 'Rechazadas' },
+          ]} />
+        </div>
+      </div>
+
+      <div className="panel panel-flush">
+        <table className="tbl tbl-hover">
+          <thead>
+            <tr>
+              <th>Número</th><th>Cliente</th><th>Fecha</th><th>Items</th><th className="num">Total</th><th>Validez</th><th>Estado</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map(c => {
+              const cli = cliente(c.cliente);
+              const total = calcTotal(c.items);
+              return (
+                <tr key={c.id} onClick={() => setDetail(c.id)} style={{ cursor: 'pointer' }}>
+                  <td className="mono">{c.id}</td>
+                  <td>{cli?.razon_social}</td>
+                  <td className="mono xs">{c.fecha}</td>
+                  <td>{c.items.length}</td>
+                  <td className="num mono">{fmtMoney(total)}</td>
+                  <td className="xs mute">{c.validez_dias} días</td>
+                  <td><EstadoChip estado={c.estado} kind="cot" /></td>
+                  <td><Icon name="arrow_r" size={12} className="mute" /></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function CotizacionDetalle({ cot, onBack }) {
+  const cli = cliente(cot.cliente);
+  const [showProforma, setShowProforma] = useState(false);
+  const total = calcTotal(cot.items);
+  const iva = total * 0.12;
+  const conIva = total + iva;
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <div className="row" style={{ gap: 8, marginBottom: 6 }}>
+            <Btn size="sm" variant="ghost" onClick={onBack}><Icon name="arrow_l" size={12}/> Cotizaciones</Btn>
+          </div>
+          <Eyebrow>Cotización</Eyebrow>
+          <h1 className="page-title">{cot.id}</h1>
+          <div className="page-sub">{cli?.razon_social} · emitida {cot.fecha} · validez {cot.validez_dias} días</div>
+        </div>
+        <div className="row">
+          <EstadoChip estado={cot.estado} />
+          {cot.estado === 'borrador' && <Btn><Icon name="send" size={14}/> Enviar</Btn>}
+          {cot.estado === 'aprobada' && !cot.oc_asociada && <Btn variant="primary"><Icon name="arrow_r" size={14}/> Convertir a OC</Btn>}
+          {cot.estado === 'aprobada' && cot.oc_asociada && <Btn variant="ghost"><Icon name="arrow_r" size={14}/> Ver OC {cot.oc_asociada}</Btn>}
+          <Btn variant="primary" onClick={() => setShowProforma(true)}><Icon name="download" size={14}/> Ver proforma</Btn>
+        </div>
+      </div>
+      {showProforma && <ProformaCot cotId={cot.id} onClose={() => setShowProforma(false)} />}
+
+      <div className="cols-2" style={{ gap: 16, marginBottom: 18 }}>
+        <div className="panel">
+          <Eyebrow>Cliente</Eyebrow>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22, letterSpacing: '-0.01em', marginTop: 4 }}>{cli?.razon_social}</div>
+          <div className="info-grid" style={{ marginTop: 10 }}>
+            <div><span className="xs mute">RUC</span><div className="mono">{cli?.ruc}</div></div>
+            <div><span className="xs mute">Email</span><div className="xs">{cli?.email_contacto || cli?.email_fact}</div></div>
+            <div><span className="xs mute">Teléfono</span><div className="xs">{cli?.telefono}</div></div>
+            <div><span className="xs mute">Crédito</span><div className="xs">{cli?.credito_dias} días</div></div>
+          </div>
+        </div>
+        <div className="panel">
+          <Eyebrow>Resumen</Eyebrow>
+          <div className="tot-rows" style={{ marginTop: 8 }}>
+            <div><span>Subtotal</span><span className="mono">{fmtMoney(total)}</span></div>
+            <div><span>IVA 12%</span><span className="mono">{fmtMoney(iva)}</span></div>
+            <div className="tot-big"><span>Total</span><span className="mono">{fmtMoney(conIva)}</span></div>
+          </div>
+          {cot.observaciones && (
+            <div style={{ marginTop: 12, padding: 10, background: 'var(--bg-raised)', borderRadius: 'var(--radius-sm)', fontSize: 12.5 }}>
+              <strong className="xs mute">Observaciones</strong>
+              <div style={{ marginTop: 4 }}>{cot.observaciones}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="panel panel-flush">
+        <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+          <PanelHead title="Ítems cotizados" sub={`${cot.items.length} productos`} />
+        </div>
+        <table className="tbl">
+          <thead>
+            <tr><th>Producto</th><th>Material</th><th className="num">Cajas</th><th className="num">Unidades</th><th className="num">Precio caja</th><th className="num">Subtotal</th></tr>
+          </thead>
+          <tbody>
+            {cot.items.map((it, i) => {
+              const p = producto(it.prod_id);
+              return (
+                <tr key={i}>
+                  <td><div style={{ fontWeight: 600 }}>{p?.nombre}</div><div className="xs mute">{p?.id}</div></td>
+                  <td className="xs">{p?.material}</td>
+                  <td className="num mono">{it.cant_cajas}</td>
+                  <td className="num mono xs">{fmtNum((p?.unidades_caja || 0) * it.cant_cajas)}</td>
+                  <td className="num mono">{fmtMoney(it.precio_caja)}</td>
+                  <td className="num mono">{fmtMoney(it.cant_cajas * it.precio_caja)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════ Órdenes de Compra ═══════════════════════
+function OrdenesTab({ selId, clearSel }) {
+  const [detail, setDetail] = useState(selId || null);
+  React.useEffect(() => { if (selId) setDetail(selId); }, [selId]);
+
+  const items = ORDENES_COMPRA_MOCK.slice().sort((a, b) => b.fecha_recepcion.localeCompare(a.fecha_recepcion));
+
+  if (detail) {
+    const oc = ORDENES_COMPRA_MOCK.find(o => o.id === detail);
+    if (!oc) return null;
+    return <OCDetalle oc={oc} onBack={() => { setDetail(null); clearSel(); }} />;
+  }
+
+  return (
+    <div className="panel panel-flush">
+      <table className="tbl tbl-hover">
+        <thead>
+          <tr><th>Número</th><th>Cliente</th><th>OC cliente</th><th>Recepción</th><th>Entrega</th><th className="num">Total</th><th>Estado</th><th></th></tr>
+        </thead>
+        <tbody>
+          {items.map(o => {
+            const cli = cliente(o.cliente);
+            const total = calcTotal(o.items);
+            return (
+              <tr key={o.id} onClick={() => setDetail(o.id)} style={{ cursor: 'pointer' }}>
+                <td className="mono">{o.id}</td>
+                <td>{cli?.razon_social}</td>
+                <td className="xs mono">{o.nro_pedido_cliente}</td>
+                <td className="mono xs">{o.fecha_recepcion}</td>
+                <td className="mono xs">{o.fecha_entrega}</td>
+                <td className="num mono">{fmtMoney(total)}</td>
+                <td><EstadoChip estado={o.estado} /></td>
+                <td><Icon name="arrow_r" size={12} className="mute" /></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function OCDetalle({ oc, onBack }) {
+  const cli = cliente(oc.cliente);
+  const total = calcTotal(oc.items);
+  const iva = total * 0.12;
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <div className="row" style={{ gap: 8, marginBottom: 6 }}>
+            <Btn size="sm" variant="ghost" onClick={onBack}><Icon name="arrow_l" size={12}/> Órdenes</Btn>
+          </div>
+          <Eyebrow>Orden de compra</Eyebrow>
+          <h1 className="page-title">{oc.id}</h1>
+          <div className="page-sub">{cli?.razon_social} · {oc.nro_pedido_cliente} · recibida {oc.fecha_recepcion}</div>
+        </div>
+        <div className="row">
+          <EstadoChip estado={oc.estado} />
+          {oc.estado === 'lista' && !oc.factura_asociada && <Btn variant="primary"><Icon name="receipt" size={14}/> Emitir factura SRI</Btn>}
+          {oc.factura_asociada && <Btn variant="ghost"><Icon name="receipt" size={14}/> Ver {oc.factura_asociada}</Btn>}
+        </div>
+      </div>
+
+      <OCProgress estado={oc.estado} />
+
+      <div className="cols-2" style={{ gap: 16, marginTop: 18 }}>
+        <div className="panel">
+          <Eyebrow>Fechas clave</Eyebrow>
+          <div className="info-grid" style={{ marginTop: 8 }}>
+            <div><span className="xs mute">Recepción OC</span><div>{oc.fecha_recepcion}</div></div>
+            <div><span className="xs mute">Entrega comprometida</span><div>{oc.fecha_entrega}</div></div>
+            <div><span className="xs mute">Cotización origen</span><div className="xs mono">{oc.cotizacion_id || '— directa'}</div></div>
+            <div><span className="xs mute">OC cliente</span><div className="xs mono">{oc.nro_pedido_cliente}</div></div>
+          </div>
+        </div>
+        <div className="panel">
+          <Eyebrow>Totales</Eyebrow>
+          <div className="tot-rows" style={{ marginTop: 8 }}>
+            <div><span>Subtotal</span><span className="mono">{fmtMoney(total)}</span></div>
+            <div><span>IVA 12%</span><span className="mono">{fmtMoney(iva)}</span></div>
+            <div className="tot-big"><span>Total</span><span className="mono">{fmtMoney(total + iva)}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="panel panel-flush" style={{ marginTop: 18 }}>
+        <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+          <PanelHead title="Ítems solicitados" sub={`${oc.items.length} productos`} />
+        </div>
+        <table className="tbl">
+          <thead><tr><th>Producto</th><th className="num">Cajas</th><th className="num">Precio caja</th><th className="num">Subtotal</th><th>Disponible</th></tr></thead>
+          <tbody>
+            {oc.items.map((it, i) => {
+              const p = producto(it.prod_id);
+              const inv = INVENTARIO_PT_MOCK.find(x => x.prod_id === it.prod_id);
+              const disp = inv ? (inv.stock_cajas - inv.reservado) : 0;
+              const cubre = disp >= it.cant_cajas;
+              return (
+                <tr key={i}>
+                  <td><div style={{ fontWeight: 600 }}>{p?.nombre}</div></td>
+                  <td className="num mono">{it.cant_cajas}</td>
+                  <td className="num mono">{fmtMoney(it.precio_caja)}</td>
+                  <td className="num mono">{fmtMoney(it.cant_cajas * it.precio_caja)}</td>
+                  <td><Chip tone={cubre ? 'good' : 'warn'}>{cubre ? `${disp} en stock` : `Falta: ${it.cant_cajas - disp}`}</Chip></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function OCProgress({ estado }) {
+  const etapas = ['pendiente','en_produccion','lista','facturada','entregada'];
+  const labels = { pendiente:'Recibida', en_produccion:'Producción', lista:'Lista', facturada:'Facturada', entregada:'Entregada' };
+  const idx = etapas.indexOf(estado);
+  return (
+    <div className="progress-stepper">
+      {etapas.map((e, i) => (
+        <React.Fragment key={e}>
+          <div className={`ps-node ${i <= idx ? 'done' : ''} ${i === idx ? 'current' : ''}`}>
+            <div className="ps-dot">{i <= idx ? <Icon name="check" size={11}/> : i + 1}</div>
+            <div className="ps-lbl">{labels[e]}</div>
+          </div>
+          {i < etapas.length - 1 && <div className={`ps-line ${i < idx ? 'done' : ''}`}></div>}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════ Facturas ═══════════════════════
+function FacturasTab({ selId, clearSel }) {
+  const [detail, setDetail] = useState(selId || null);
+  React.useEffect(() => { if (selId) setDetail(selId); }, [selId]);
+
+  if (detail) {
+    const f = FACTURAS_MOCK.find(x => x.id === detail);
+    if (!f) return null;
+    return <FacturaDetalle factura={f} onBack={() => { setDetail(null); clearSel(); }} />;
+  }
+
+  const items = FACTURAS_MOCK.slice().sort((a, b) => b.fecha_emision.localeCompare(a.fecha_emision));
+  return (
+    <div className="panel panel-flush">
+      <table className="tbl tbl-hover">
+        <thead>
+          <tr><th>Número SRI</th><th>Cliente</th><th>Emisión</th><th>Vencimiento</th><th className="num">Total</th><th>Pago</th><th>Estado SRI</th><th></th></tr>
+        </thead>
+        <tbody>
+          {items.map(f => {
+            const cli = cliente(f.cliente);
+            return (
+              <tr key={f.id} onClick={() => setDetail(f.id)} style={{ cursor: 'pointer' }}>
+                <td className="mono xs">{f.id}</td>
+                <td>{cli?.razon_social}</td>
+                <td className="mono xs">{f.fecha_emision}</td>
+                <td className="mono xs">{f.fecha_vencimiento}</td>
+                <td className="num mono">{fmtMoney(f.total)}</td>
+                <td><Chip tone={f.pagada ? 'good' : 'warn'}>{f.pagada ? 'Pagada' : 'Pendiente'}</Chip></td>
+                <td><EstadoChip estado={f.estado_sri} /></td>
+                <td><Icon name="arrow_r" size={12} className="mute" /></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function FacturaDetalle({ factura, onBack }) {
+  const cli = cliente(factura.cliente);
+  const [docOpen, setDocOpen] = useState(null); // 'ride' | 'guia' | 'cert' | null
+  return (
+    <div className="fadein">
+      {docOpen === 'ride' && <RideFactura facturaId={factura.id} onClose={() => setDocOpen(null)} />}
+      {docOpen === 'guia' && factura.guia_asociada && (
+        <RideGuia guiaId={factura.guia_asociada} onClose={() => setDocOpen(null)} />
+      )}
+      {docOpen === 'cert' && factura.cert_calidad && (
+        <RideCertificado certId={factura.cert_calidad} onClose={() => setDocOpen(null)} />
+      )}
+      <div className="page-head">
+        <div>
+          <div className="row" style={{ gap: 8, marginBottom: 6 }}>
+            <Btn size="sm" variant="ghost" onClick={onBack}><Icon name="arrow_l" size={12}/> Facturas</Btn>
+          </div>
+          <Eyebrow>Factura electrónica SRI</Eyebrow>
+          <h1 className="page-title">{factura.id}</h1>
+          <div className="page-sub">{cli?.razon_social} · emitida {factura.fecha_emision}</div>
+        </div>
+        <div className="row">
+          <EstadoChip estado={factura.estado_sri} />
+          <Btn variant="ghost"><Icon name="download" size={14}/> XML</Btn>
+          <Btn variant="primary" onClick={() => setDocOpen('ride')}><Icon name="download" size={14}/> Ver RIDE</Btn>
+        </div>
+      </div>
+
+      <div className="panel panel-flush" style={{ marginBottom: 16, background: 'var(--good-soft)', borderColor: 'var(--good)' }}>
+        <div style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--good)', color: 'var(--bg)', display: 'grid', placeItems: 'center' }}>
+            <Icon name="check" size={18} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600 }}>Autorizada por el SRI</div>
+            <div className="xs mute">Autorización {factura.autorizacion_sri} · {factura.fecha_autorizacion}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="cols-2" style={{ gap: 16, marginBottom: 18 }}>
+        <div className="panel">
+          <Eyebrow>Información fiscal</Eyebrow>
+          <div className="info-grid" style={{ marginTop: 8 }}>
+            <div><span className="xs mute">Establecimiento</span><div className="mono">{factura.establecimiento}</div></div>
+            <div><span className="xs mute">Punto emisión</span><div className="mono">{factura.punto_emision}</div></div>
+            <div><span className="xs mute">Secuencial</span><div className="mono">{factura.secuencial}</div></div>
+            <div><span className="xs mute">Forma de pago</span><div>{factura.forma_pago}</div></div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <span className="xs mute">Clave de acceso (49 dígitos)</span>
+              <div className="mono xs" style={{ wordBreak: 'break-all', padding: 6, background: 'var(--bg-raised)', borderRadius: 4, marginTop: 4 }}>{factura.clave_acceso}</div>
+            </div>
+          </div>
+        </div>
+        <div className="panel">
+          <Eyebrow>Totales</Eyebrow>
+          <div className="tot-rows" style={{ marginTop: 8 }}>
+            <div><span>Subtotal 12%</span><span className="mono">{fmtMoney(factura.subtotal_12)}</span></div>
+            <div><span>Subtotal 0%</span><span className="mono">{fmtMoney(factura.subtotal_0)}</span></div>
+            <div><span>IVA 12%</span><span className="mono">{fmtMoney(factura.iva)}</span></div>
+            <div className="tot-big"><span>Total</span><span className="mono">{fmtMoney(factura.total)}</span></div>
+          </div>
+          <div style={{ marginTop: 12, padding: 10, background: 'var(--bg-raised)', borderRadius: 6, fontSize: 12.5 }}>
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <span>Vencimiento</span><span className="mono">{factura.fecha_vencimiento}</span>
+            </div>
+            <div className="row" style={{ justifyContent: 'space-between', marginTop: 4 }}>
+              <span>Estado</span><Chip tone={factura.pagada ? 'good' : 'warn'}>{factura.pagada ? 'Pagada' : 'Por cobrar'}</Chip>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="panel panel-flush">
+        <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+          <PanelHead title="Detalle de ítems" sub={`${factura.items.length} productos`} />
+        </div>
+        <table className="tbl">
+          <thead><tr><th>Producto</th><th className="num">Cajas</th><th className="num">Precio unit.</th><th className="num">Subtotal</th></tr></thead>
+          <tbody>
+            {factura.items.map((it, i) => {
+              const p = producto(it.prod_id);
+              return (
+                <tr key={i}>
+                  <td><div style={{ fontWeight: 600 }}>{p?.nombre}</div><div className="xs mute">{p?.id}</div></td>
+                  <td className="num mono">{it.cant_cajas}</td>
+                  <td className="num mono">{fmtMoney(it.precio_unit)}</td>
+                  <td className="num mono">{fmtMoney(it.subtotal)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="row" style={{ marginTop: 16, gap: 10 }}>
+        {factura.guia_asociada && <Btn variant="ghost" onClick={() => setDocOpen('guia')}><Icon name="truck" size={14}/> Ver guía {factura.guia_asociada}</Btn>}
+        {factura.cert_calidad && <Btn variant="ghost" onClick={() => setDocOpen('cert')}><Icon name="check" size={14}/> Certificado {factura.cert_calidad}</Btn>}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════ Guías ═══════════════════════
+function GuiasTab({ selId, clearSel }) {
+  const [docId, setDocId] = useState(null);
+  return (
+    <div className="panel panel-flush">
+      {docId && <RideGuia guiaId={docId} onClose={() => setDocId(null)} />}
+      <table className="tbl tbl-hover">
+        <thead>
+          <tr><th>Número</th><th>Factura</th><th>Emisión</th><th>Origen → Destino</th><th>Transportista</th><th>Estado</th></tr>
+        </thead>
+        <tbody>
+          {GUIAS_MOCK.map(g => {
+            const f = FACTURAS_MOCK.find(x => x.id === g.factura_id);
+            const cli = f ? cliente(f.cliente) : null;
+            return (
+              <tr key={g.id} style={{ cursor: 'pointer' }} onClick={() => setDocId(g.id)}>
+                <td className="mono xs">{g.id}</td>
+                <td className="mono xs">{g.factura_id}</td>
+                <td className="mono xs">{g.fecha_emision}</td>
+                <td><div className="xs">{g.punto_partida}</div><div className="xs mute">→ {cli?.razon_social || g.punto_llegada}</div></td>
+                <td><div className="xs">{g.transportista}</div>{g.placa && <div className="xs mute mono">{g.placa}</div>}</td>
+                <td><EstadoChip estado={g.estado_sri} /></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ═══════════════════════ Certificados ═══════════════════════
+function CertificadosTab({ selId, clearSel }) {
+  const [docId, setDocId] = useState(null);
+  return (
+    <div className="panel panel-flush">
+      {docId && <RideCertificado certId={docId} onClose={() => setDocId(null)} />}
+      <table className="tbl tbl-hover">
+        <thead>
+          <tr><th>Certificado</th><th>Factura</th><th>Fecha</th><th>Lote</th><th>Controlado por</th><th>Obs.</th></tr>
+        </thead>
+        <tbody>
+          {CERTIFICADOS_MOCK.map(c => (
+            <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => setDocId(c.id)}>
+              <td className="mono">{c.id}</td>
+              <td className="mono xs">{c.factura_id}</td>
+              <td className="mono xs">{c.fecha}</td>
+              <td className="mono xs">{c.lote}</td>
+              <td className="xs">{c.controlado_por}</td>
+              <td className="xs" style={{ maxWidth: 300 }}>{c.observaciones}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+Object.assign(window, { Pedidos });
+
+</script>
+
+<script type="text/babel" data-file="clientes.jsx">
+
+// Clientes — CRUD completo con datos fiscales, dir matriz + sucursal, contacto, crédito.
+// Base para emitir facturas electrónicas y guías de remisión SRI.
+
+function Clientes() {
+  const [clientes, setClientes] = useState(CLIENTES_MOCK);
+  const [q, setQ] = useState('');
+  const [sel, setSel] = useState(null); // cliente.id
+  const [modo, setModo] = useState('ver'); // ver | editar | nuevo
+  const [draft, setDraft] = useState(null);
+
+  const filtered = clientes.filter(c => {
+    if (!q) return true;
+    const s = q.toLowerCase();
+    return (c.razon_social || '').toLowerCase().includes(s)
+        || (c.nombre_comercial || '').toLowerCase().includes(s)
+        || (c.ruc || '').includes(s);
+  });
+
+  const current = clientes.find(c => c.id === sel);
+
+  const abrir = (id) => { setSel(id); setModo('ver'); setDraft(null); };
+  const editar = () => { setDraft(JSON.parse(JSON.stringify(current))); setModo('editar'); };
+  const nuevo = () => {
+    const blank = {
+      id: `cli-${Date.now().toString(36)}`,
+      razon_social: '', nombre_comercial: '', ruc: '', tipo: 'Sociedad', obligado_contabilidad: true,
+      email_fact: '', email_contacto: '', telefono: '', celular: '',
+      contacto_nombre: '', contacto_cargo: '',
+      dir_matriz:   { calle: '', numero: '', interseccion: '', ciudad: '', referencia: '' },
+      dir_sucursal: { calle: '', numero: '', interseccion: '', ciudad: '', referencia: '' },
+      credito_dias: 30, credito_limite: 0,
+      agente_retencion: false, resolucion_retencion: '',
+      notas: '',
+    };
+    setDraft(blank); setSel(null); setModo('nuevo');
+  };
+  const cancelar = () => { setModo('ver'); setDraft(null); };
+  const guardar = () => {
+    if (modo === 'nuevo') {
+      setClientes([draft, ...clientes]);
+      setSel(draft.id);
+    } else {
+      setClientes(clientes.map(c => c.id === draft.id ? draft : c));
+    }
+    setModo('ver');
+    setDraft(null);
+  };
+  const eliminar = () => {
+    if (!current) return;
+    if (!window.confirm(`Eliminar a "${current.razon_social}"? Las facturas y cotizaciones asociadas se conservan.`)) return;
+    setClientes(clientes.filter(c => c.id !== current.id));
+    setSel(null);
+  };
+
+  // Stats del cliente seleccionado
+  const stats = current ? (() => {
+    const cots = COTIZACIONES_MOCK.filter(c => c.cliente === current.id);
+    const ocs  = ORDENES_COMPRA_MOCK.filter(o => o.cliente === current.id);
+    const facts = FACTURAS_MOCK.filter(f => f.cliente === current.id);
+    const pendientes = facts.filter(f => !f.pagada).reduce((a, f) => a + (f.total || 0), 0);
+    const facturado = facts.reduce((a, f) => a + (f.total || 0), 0);
+    return { cots, ocs, facts, pendientes, facturado };
+  })() : null;
+
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <Eyebrow>Gestión comercial</Eyebrow>
+          <h1 className="page-title">Clientes</h1>
+          <div className="page-sub">Datos fiscales completos para facturación electrónica SRI.</div>
+        </div>
+        <div className="row">
+          <Btn variant="ghost"><Icon name="download" size={14}/> Exportar CSV</Btn>
+          <Btn variant="primary" onClick={nuevo}><Icon name="plus" size={14}/> Nuevo cliente</Btn>
+        </div>
+      </div>
+
+      <div className="cli-layout">
+        {/* Lista izquierda */}
+        <div className="cli-list panel panel-flush">
+          <div style={{ padding: 14, borderBottom: '1px solid var(--line)' }}>
+            <div className="search-box">
+              <Icon name="search" size={14}/>
+              <input placeholder="Buscar por razón social, RUC, nombre comercial…" value={q} onChange={e => setQ(e.target.value)} />
+            </div>
+            <div className="xs mute" style={{ marginTop: 8 }}>{filtered.length} de {clientes.length} clientes</div>
+          </div>
+          <div className="cli-list-items">
+            {filtered.map(c => {
+              const activa = c.id === sel;
+              const facts = FACTURAS_MOCK.filter(f => f.cliente === c.id);
+              const pend = facts.filter(f => !f.pagada).length;
+              return (
+                <button key={c.id} className={`cli-item ${activa ? 'active' : ''}`} onClick={() => abrir(c.id)}>
+                  <div className="cli-item-avatar" aria-hidden>
+                    {(c.nombre_comercial || c.razon_social).charAt(0).toUpperCase()}
+                  </div>
+                  <div className="cli-item-body">
+                    <div className="cli-item-name">{c.nombre_comercial || c.razon_social}</div>
+                    <div className="cli-item-meta">
+                      <span className="mono">{c.ruc}</span>
+                      {pend > 0 && <span className="cli-pill-warn">{pend} por cobrar</span>}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-mute)', fontSize: 12.5 }}>
+                Ningún cliente coincide con "{q}".
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Detalle derecho */}
+        <div className="cli-detail">
+          {!current && modo !== 'nuevo' && (
+            <div className="panel" style={{ textAlign: 'center', padding: '60px 30px' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}><Icon name="users" size={40} /></div>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>Seleccione un cliente</div>
+              <div className="xs mute" style={{ marginTop: 8 }}>o cree uno nuevo para empezar.</div>
+              <div style={{ marginTop: 16 }}>
+                <Btn variant="primary" onClick={nuevo}><Icon name="plus" size={14}/> Nuevo cliente</Btn>
+              </div>
+            </div>
+          )}
+
+          {modo === 'ver' && current && <ClienteVer cliente={current} stats={stats} onEdit={editar} onDelete={eliminar} />}
+          {(modo === 'editar' || modo === 'nuevo') && draft && (
+            <ClienteEditor
+              draft={draft}
+              setDraft={setDraft}
+              esNuevo={modo === 'nuevo'}
+              onCancel={cancelar}
+              onSave={guardar}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════ Ver Cliente ═══════════════════════
+function ClienteVer({ cliente, stats, onEdit, onDelete }) {
+  return (
+    <div>
+      {/* Header */}
+      <div className="panel" style={{ padding: 22 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Eyebrow>{cliente.tipo || 'Sociedad'} · {cliente.obligado_contabilidad ? 'Obligada a llevar contabilidad' : 'No obligada'}</Eyebrow>
+            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 28, letterSpacing: '-0.01em', marginTop: 6 }}>
+              {cliente.razon_social}
+            </h2>
+            {cliente.nombre_comercial && cliente.nombre_comercial !== cliente.razon_social && (
+              <div className="xs mute" style={{ marginTop: 2 }}>Nombre comercial: {cliente.nombre_comercial}</div>
+            )}
+            <div className="mono" style={{ marginTop: 8, fontSize: 13 }}>RUC: {cliente.ruc}</div>
+          </div>
+          <div className="row">
+            <Btn variant="ghost" onClick={onDelete}><Icon name="trash" size={13}/> Eliminar</Btn>
+            <Btn variant="primary" onClick={onEdit}><Icon name="edit" size={13}/> Editar</Btn>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="kpi-grid" style={{ marginTop: 14 }}>
+        <Kpi label="Cotizaciones" icon="doc"     value={String(stats.cots.length)} />
+        <Kpi label="Órdenes"      icon="box"     value={String(stats.ocs.length)} />
+        <Kpi label="Facturas"     icon="receipt" value={String(stats.facts.length)} delta={stats.facturado ? `${fmtMoney(stats.facturado)} facturado total` : null} />
+        <Kpi label="Por cobrar"   icon="dollar"  value={fmtMoney(stats.pendientes)} accent={stats.pendientes > 0 ? 'var(--bad)' : null} />
+      </div>
+
+      <div className="cols-2" style={{ marginTop: 14, gap: 14 }}>
+        {/* Contacto */}
+        <div className="panel">
+          <Eyebrow>Contacto</Eyebrow>
+          <div className="info-grid" style={{ marginTop: 10 }}>
+            <div><span className="xs mute">Persona</span><div>{cliente.contacto_nombre || <span className="mute">—</span>}</div></div>
+            <div><span className="xs mute">Cargo</span><div>{cliente.contacto_cargo || <span className="mute">—</span>}</div></div>
+            <div><span className="xs mute">Teléfono</span><div className="mono">{cliente.telefono || <span className="mute">—</span>}</div></div>
+            <div><span className="xs mute">Celular</span><div className="mono">{cliente.celular || <span className="mute">—</span>}</div></div>
+            <div style={{ gridColumn: 'span 2' }}><span className="xs mute">Email facturación</span><div>{cliente.email_fact || <span className="mute">—</span>}</div></div>
+            <div style={{ gridColumn: 'span 2' }}><span className="xs mute">Email contacto</span><div>{cliente.email_contacto || <span className="mute">—</span>}</div></div>
+          </div>
+        </div>
+
+        {/* Crédito y fiscal */}
+        <div className="panel">
+          <Eyebrow>Condiciones comerciales</Eyebrow>
+          <div className="info-grid" style={{ marginTop: 10 }}>
+            <div><span className="xs mute">Plazo de crédito</span><div>{cliente.credito_dias} días</div></div>
+            <div><span className="xs mute">Límite de crédito</span><div>{fmtMoney(cliente.credito_limite)}</div></div>
+            <div><span className="xs mute">Agente de retención</span>
+              <div>{cliente.agente_retencion ? <Chip tone="info">Sí</Chip> : <span className="mute">No</span>}</div>
+            </div>
+            <div><span className="xs mute">Resolución</span><div className="xs">{cliente.resolucion_retencion || <span className="mute">—</span>}</div></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Direcciones */}
+      <div className="cols-2" style={{ marginTop: 14, gap: 14 }}>
+        <div className="panel">
+          <Eyebrow>Dirección matriz</Eyebrow>
+          <DirFmt dir={cliente.dir_matriz} />
+        </div>
+        <div className="panel">
+          <Eyebrow>Dirección de entrega / sucursal</Eyebrow>
+          <DirFmt dir={cliente.dir_sucursal} />
+        </div>
+      </div>
+
+      {/* Notas */}
+      {cliente.notas && (
+        <div className="panel" style={{ marginTop: 14 }}>
+          <Eyebrow>Notas internas</Eyebrow>
+          <div style={{ marginTop: 8, fontSize: 13.5, lineHeight: 1.55 }}>{cliente.notas}</div>
+        </div>
+      )}
+
+      {/* Historial facturas */}
+      {stats.facts.length > 0 && (
+        <div className="panel panel-flush" style={{ marginTop: 14 }}>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--line)' }}>
+            <Eyebrow>Últimas facturas</Eyebrow>
+          </div>
+          <table className="tbl tbl-hover">
+            <thead>
+              <tr><th>Número</th><th>Emisión</th><th>Vence</th><th>Total</th><th>Estado</th></tr>
+            </thead>
+            <tbody>
+              {stats.facts.slice(0, 6).map(f => (
+                <tr key={f.id}>
+                  <td className="mono xs">{f.id}</td>
+                  <td className="mono xs">{f.fecha_emision}</td>
+                  <td className="mono xs">{f.fecha_vencimiento}</td>
+                  <td className="mono">{fmtMoney(f.total)}</td>
+                  <td>{f.pagada ? <Chip tone="good">Pagada</Chip> : <Chip tone="warn">Pendiente</Chip>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DirFmt({ dir }) {
+  if (!dir || (!dir.calle && !dir.ciudad)) return <div className="mute xs" style={{ marginTop: 8 }}>Sin dirección registrada</div>;
+  return (
+    <div style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.6 }}>
+      <div>{dir.calle} {dir.numero} {dir.interseccion && <span className="mute">· y {dir.interseccion}</span>}</div>
+      <div>{dir.ciudad}</div>
+      {dir.referencia && <div className="xs mute" style={{ marginTop: 4 }}>Ref.: {dir.referencia}</div>}
+    </div>
+  );
+}
+
+// ═══════════════════════ Editor de Cliente ═══════════════════════
+function ClienteEditor({ draft, setDraft, esNuevo, onCancel, onSave }) {
+  const set = (k, v) => setDraft({ ...draft, [k]: v });
+  const setDir = (campo, k, v) => setDraft({ ...draft, [campo]: { ...draft[campo], [k]: v } });
+  const copiarMatriz = () => setDraft({ ...draft, dir_sucursal: { ...draft.dir_matriz } });
+
+  const valido = draft.razon_social.trim() && draft.ruc.trim().length >= 10;
+
+  return (
+    <div>
+      <div className="panel" style={{ padding: 22 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div>
+            <Eyebrow>{esNuevo ? 'Nuevo cliente' : 'Editar cliente'}</Eyebrow>
+            <h2 style={{ fontFamily: 'var(--serif)', fontSize: 24, marginTop: 4 }}>
+              {draft.razon_social || <span className="mute">Razón social</span>}
+            </h2>
+          </div>
+          <div className="row">
+            <Btn variant="ghost" onClick={onCancel}>Cancelar</Btn>
+            <Btn variant="primary" onClick={onSave} disabled={!valido}>
+              <Icon name="check" size={13}/> {esNuevo ? 'Crear cliente' : 'Guardar cambios'}
+            </Btn>
+          </div>
+        </div>
+        {!valido && (
+          <div className="xs" style={{ color: 'var(--warn)', marginTop: 8 }}>
+            Razón social y RUC (mínimo 10 dígitos) son obligatorios.
+          </div>
+        )}
+      </div>
+
+      {/* Datos fiscales */}
+      <div className="panel" style={{ marginTop: 14 }}>
+        <Eyebrow>Datos fiscales</Eyebrow>
+        <div className="form-grid" style={{ marginTop: 12 }}>
+          <Field label="Razón social *" span={2}>
+            <input value={draft.razon_social} onChange={e => set('razon_social', e.target.value)} placeholder="LABORATORIOS LIFE C.A." />
+          </Field>
+          <Field label="Nombre comercial">
+            <input value={draft.nombre_comercial} onChange={e => set('nombre_comercial', e.target.value)} placeholder="Life" />
+          </Field>
+          <Field label="RUC / Cédula *">
+            <input className="mono" value={draft.ruc} onChange={e => set('ruc', e.target.value.replace(/\D/g, ''))} placeholder="1790012393001" maxLength={13} />
+          </Field>
+          <Field label="Tipo">
+            <select value={draft.tipo} onChange={e => set('tipo', e.target.value)}>
+              <option>Sociedad</option>
+              <option>Persona Natural</option>
+              <option>Gobierno</option>
+            </select>
+          </Field>
+          <Field label="Obligado a contabilidad">
+            <Toggle checked={draft.obligado_contabilidad} onChange={v => set('obligado_contabilidad', v)}>
+              {draft.obligado_contabilidad ? 'Sí' : 'No'}
+            </Toggle>
+          </Field>
+          <Field label="Agente de retención">
+            <Toggle checked={draft.agente_retencion} onChange={v => set('agente_retencion', v)}>
+              {draft.agente_retencion ? 'Sí' : 'No'}
+            </Toggle>
+          </Field>
+          {draft.agente_retencion && (
+            <Field label="Nº resolución retención" span={2}>
+              <input value={draft.resolucion_retencion} onChange={e => set('resolucion_retencion', e.target.value)} placeholder="Res. SRI 2024-001" />
+            </Field>
+          )}
+        </div>
+      </div>
+
+      {/* Contacto */}
+      <div className="panel" style={{ marginTop: 14 }}>
+        <Eyebrow>Contacto</Eyebrow>
+        <div className="form-grid" style={{ marginTop: 12 }}>
+          <Field label="Persona de contacto">
+            <input value={draft.contacto_nombre} onChange={e => set('contacto_nombre', e.target.value)} placeholder="Ing. Paola Romero" />
+          </Field>
+          <Field label="Cargo">
+            <input value={draft.contacto_cargo} onChange={e => set('contacto_cargo', e.target.value)} placeholder="Jefa de Compras" />
+          </Field>
+          <Field label="Teléfono">
+            <input className="mono" value={draft.telefono} onChange={e => set('telefono', e.target.value)} placeholder="02-2555-444" />
+          </Field>
+          <Field label="Celular">
+            <input className="mono" value={draft.celular} onChange={e => set('celular', e.target.value)} placeholder="099-1234567" />
+          </Field>
+          <Field label="Email facturación" span={2}>
+            <input type="email" value={draft.email_fact} onChange={e => set('email_fact', e.target.value)} placeholder="facturacion@empresa.com" />
+          </Field>
+          <Field label="Email contacto comercial" span={2}>
+            <input type="email" value={draft.email_contacto} onChange={e => set('email_contacto', e.target.value)} placeholder="compras@empresa.com" />
+          </Field>
+        </div>
+      </div>
+
+      {/* Direcciones */}
+      <div className="cols-2" style={{ marginTop: 14, gap: 14 }}>
+        <div className="panel">
+          <Eyebrow>Dirección matriz</Eyebrow>
+          <DirEditor dir={draft.dir_matriz} onChange={(k, v) => setDir('dir_matriz', k, v)} />
+        </div>
+        <div className="panel">
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <Eyebrow>Dirección de entrega / sucursal</Eyebrow>
+            <Btn variant="ghost" size="sm" onClick={copiarMatriz}><Icon name="copy" size={12}/> Copiar de matriz</Btn>
+          </div>
+          <DirEditor dir={draft.dir_sucursal} onChange={(k, v) => setDir('dir_sucursal', k, v)} />
+        </div>
+      </div>
+
+      {/* Crédito */}
+      <div className="panel" style={{ marginTop: 14 }}>
+        <Eyebrow>Condiciones comerciales</Eyebrow>
+        <div className="form-grid" style={{ marginTop: 12 }}>
+          <Field label="Plazo de crédito (días)">
+            <input type="number" min={0} value={draft.credito_dias} onChange={e => set('credito_dias', Number(e.target.value) || 0)} />
+          </Field>
+          <Field label="Límite de crédito (USD)">
+            <input type="number" min={0} step="0.01" value={draft.credito_limite} onChange={e => set('credito_limite', Number(e.target.value) || 0)} />
+          </Field>
+          <Field label="Notas internas" span={2}>
+            <textarea rows={3} value={draft.notas} onChange={e => set('notas', e.target.value)} placeholder="Cliente exige certificado de calidad firmado, entrega solo hasta 4pm, etc." />
+          </Field>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DirEditor({ dir, onChange }) {
+  return (
+    <div className="form-grid" style={{ marginTop: 10 }}>
+      <Field label="Calle principal" span={2}>
+        <input value={dir.calle || ''} onChange={e => onChange('calle', e.target.value)} placeholder="Av. Eloy Alfaro" />
+      </Field>
+      <Field label="Número">
+        <input value={dir.numero || ''} onChange={e => onChange('numero', e.target.value)} placeholder="N34-551" />
+      </Field>
+      <Field label="Intersección">
+        <input value={dir.interseccion || ''} onChange={e => onChange('interseccion', e.target.value)} placeholder="Portugal" />
+      </Field>
+      <Field label="Ciudad" span={2}>
+        <input value={dir.ciudad || ''} onChange={e => onChange('ciudad', e.target.value)} placeholder="Quito" />
+      </Field>
+      <Field label="Referencia / indicaciones de entrega" span={2}>
+        <input value={dir.referencia || ''} onChange={e => onChange('referencia', e.target.value)} placeholder="Bodega posterior, horario 8am-4pm" />
+      </Field>
+    </div>
+  );
+}
+
+// Field helper — wraps a label + input in the .field pattern from styles.css
+function Field({ label, span, children }) {
+  return (
+    <div className="field" style={span ? { gridColumn: `span ${span}` } : undefined}>
+      <label>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+Object.assign(window, { Clientes });
+
+</script>
+<script type="text/babel" data-file="imprimibles.jsx">
+
+// Documentos imprimibles: RIDE factura SRI, Guía remisión SRI, Cotización proforma, Certificado calidad.
+// Se abren en modal fullscreen con vista tipo papel (A4). Todos los campos editables inline.
+
+// ═══════════════════════════════════════════════════════════════════
+// Modal contenedor
+// ═══════════════════════════════════════════════════════════════════
+function DocModal({ onClose, children, title, actions }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+  }, [onClose]);
+
+  const handlePrint = () => {
+    const doc = document.querySelector('.doc-page');
+    if (!doc) return window.print();
+    // Print just the page via window.print; .doc-modal-chrome hides in print.
+    window.print();
+  };
+
+  return (
+    <div className="doc-overlay" onClick={(e) => { if (e.target.classList.contains('doc-overlay')) onClose(); }}>
+      <div className="doc-modal-chrome">
+        <div className="doc-modal-head">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Btn variant="ghost" size="sm" onClick={onClose}><Icon name="x" size={14}/></Btn>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 16, letterSpacing: '-0.01em' }}>{title}</div>
+          </div>
+          <div className="row">
+            {actions}
+            <Btn variant="ghost" size="sm" onClick={handlePrint}><Icon name="download" size={13}/> Imprimir / PDF</Btn>
+          </div>
+        </div>
+        <div className="doc-scroll">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Edit-in-place helper. Click to convert to input, blur to save.
+function Editable({ value, onChange, className = '', multiline = false, placeholder = '' }) {
+  const [editing, setEditing] = useState(false);
+  const [tmp, setTmp] = useState(value);
+  useEffect(() => { setTmp(value); }, [value]);
+  if (!editing) {
+    return (
+      <span className={`doc-editable ${className}`} onClick={() => setEditing(true)} title="Click para editar">
+        {value || <span className="doc-placeholder">{placeholder || '—'}</span>}
+      </span>
+    );
+  }
+  const commit = () => { setEditing(false); if (tmp !== value) onChange(tmp); };
+  const Tag = multiline ? 'textarea' : 'input';
+  return (
+    <Tag
+      className={`doc-editable-input ${className}`}
+      value={tmp}
+      autoFocus
+      rows={multiline ? 3 : undefined}
+      onChange={(e) => setTmp(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' && !multiline) { e.preventDefault(); commit(); }
+        if (e.key === 'Escape') { setEditing(false); setTmp(value); }
+      }}
+    />
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RIDE – Factura electrónica SRI
+// ═══════════════════════════════════════════════════════════════════
+function RideFactura({ facturaId, onClose }) {
+  const baseFactura = FACTURAS_MOCK.find(f => f.id === facturaId);
+  const [factura, setFactura] = useState(baseFactura);
+  const cli = CLIENTES_MOCK.find(c => c.id === factura.cliente);
+
+  if (!factura || !cli) return null;
+
+  const upd = (k, v) => setFactura({ ...factura, [k]: v });
+  const updItem = (idx, k, v) => {
+    const items = [...factura.items];
+    items[idx] = { ...items[idx], [k]: v };
+    // recompute subtotal for this item
+    if (k === 'cant_cajas' || k === 'precio_unit') {
+      items[idx].subtotal = (Number(items[idx].cant_cajas) || 0) * (Number(items[idx].precio_unit) || 0);
+    }
+    setFactura({ ...factura, items });
+  };
+
+  // recompute totals
+  const subtotal_12 = factura.items.reduce((s, i) => s + (i.subtotal || 0), 0);
+  const iva = subtotal_12 * 0.12;
+  const total = subtotal_12 + iva;
+
+  return (
+    <DocModal onClose={onClose} title={`Factura ${factura.id}`}>
+      <div className="doc-page a4">
+        {/* Header: emisor + RUC / nº autorización */}
+        <div className="ride-header">
+          <div className="ride-emisor">
+            <div className="ride-logo">
+              <span style={{ fontFamily: 'var(--serif)', fontSize: 32, letterSpacing: '-0.01em' }}>
+                sol<em style={{ fontStyle: 'italic', color: '#5b3a8a' }}>plast</em>
+              </span>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 11, lineHeight: 1.55 }}>
+              <div><b>{EMISOR.razon_social}</b></div>
+              <div>Nombre comercial: {EMISOR.nombre_comercial}</div>
+              <div>Dir. matriz: {EMISOR.dir_matriz.calle} {EMISOR.dir_matriz.numero} y {EMISOR.dir_matriz.interseccion}</div>
+              <div>{EMISOR.dir_matriz.barrio}, {EMISOR.dir_matriz.ciudad}</div>
+              <div>Tel: {EMISOR.telefono} · Móvil: {EMISOR.movil}</div>
+              <div>{EMISOR.email}</div>
+              <div style={{ marginTop: 4 }}>OBLIGADO A LLEVAR CONTABILIDAD: <b>SÍ</b></div>
+              <div>AGENTE DE RETENCIÓN: <b>{EMISOR.agente_retencion}</b></div>
+            </div>
+          </div>
+          <div className="ride-sri-box">
+            <div className="ride-ruc">R.U.C. {EMISOR.ruc}</div>
+            <div className="ride-title">FACTURA</div>
+            <div className="ride-num">
+              <div>No. {factura.establecimiento}-{factura.punto_emision}-{factura.secuencial}</div>
+            </div>
+            <div className="ride-small">
+              <b>NÚMERO DE AUTORIZACIÓN</b>
+              <div className="mono" style={{ fontSize: 9, wordBreak: 'break-all' }}>{factura.clave_acceso}</div>
+              <b style={{ marginTop: 6, display: 'block' }}>FECHA Y HORA DE AUTORIZACIÓN</b>
+              <div className="mono">{factura.fecha_autorizacion || '—'}</div>
+              <b style={{ marginTop: 6, display: 'block' }}>AMBIENTE</b>
+              <div>PRODUCCIÓN</div>
+              <b style={{ marginTop: 6, display: 'block' }}>EMISIÓN</b>
+              <div>NORMAL</div>
+              <b style={{ marginTop: 6, display: 'block' }}>CLAVE DE ACCESO</b>
+              <ClaveBars clave={factura.clave_acceso} />
+              <div className="mono" style={{ fontSize: 9, wordBreak: 'break-all', marginTop: 2 }}>{factura.clave_acceso}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Datos del comprador */}
+        <div className="ride-comprador">
+          <div className="row-2">
+            <div><b>Razón social / Nombres y apellidos:</b> {cli.razon_social}</div>
+            <div><b>Fecha emisión:</b> <Editable value={factura.fecha_emision} onChange={v => upd('fecha_emision', v)} /></div>
+          </div>
+          <div className="row-2">
+            <div><b>Identificación:</b> {cli.ruc}</div>
+            <div><b>Guía de remisión:</b> <Editable value={factura.guia_asociada || ''} onChange={v => upd('guia_asociada', v)} placeholder="—" /></div>
+          </div>
+          <div className="row-2">
+            <div style={{ gridColumn: 'span 2' }}>
+              <b>Dirección:</b> {cli.dir_matriz.calle} {cli.dir_matriz.numero} {cli.dir_matriz.interseccion ? `y ${cli.dir_matriz.interseccion}` : ''}, {cli.dir_matriz.ciudad}
+            </div>
+          </div>
+        </div>
+
+        {/* Items */}
+        <table className="ride-items">
+          <thead>
+            <tr>
+              <th>Cód. principal</th>
+              <th>Cant.</th>
+              <th>Descripción</th>
+              <th>Precio unitario</th>
+              <th>Descuento</th>
+              <th>Precio total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {factura.items.map((it, i) => {
+              const prod = PRODUCTOS_MOCK.find(p => p.id === it.prod_id);
+              return (
+                <tr key={i}>
+                  <td className="mono xs">{it.prod_id?.toUpperCase()}</td>
+                  <td className="num"><Editable value={String(it.cant_cajas)} onChange={v => updItem(i, 'cant_cajas', Number(v) || 0)} /></td>
+                  <td>{prod?.nombre || it.prod_id} <span className="xs mute">({prod?.unidades_caja} unidades/caja)</span></td>
+                  <td className="num mono"><Editable value={Number(it.precio_unit).toFixed(2)} onChange={v => updItem(i, 'precio_unit', Number(v) || 0)} /></td>
+                  <td className="num mono">0.00</td>
+                  <td className="num mono">{fmtMoney(it.subtotal || 0).replace('$', '')}</td>
+                </tr>
+              );
+            })}
+            {/* filler rows */}
+            {Array.from({ length: Math.max(0, 5 - factura.items.length) }).map((_, i) => (
+              <tr key={`f${i}`} className="filler"><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Footer: info adicional + totales */}
+        <div className="ride-footer">
+          <div className="ride-info-adicional">
+            <div className="ride-subtitle">Información adicional</div>
+            <table className="ride-info-tbl">
+              <tbody>
+                <tr><td><b>Email</b></td><td>{cli.email_fact || cli.email_contacto}</td></tr>
+                <tr><td><b>Teléfono</b></td><td>{cli.telefono}</td></tr>
+                <tr><td><b>OC cliente</b></td><td className="mono xs">{factura.oc_id}</td></tr>
+                <tr><td><b>Forma de pago</b></td><td style={{ textTransform: 'capitalize' }}>{factura.forma_pago}</td></tr>
+                <tr><td><b>Vencimiento</b></td><td className="mono">{factura.fecha_vencimiento}</td></tr>
+              </tbody>
+            </table>
+
+            <div className="ride-pago" style={{ marginTop: 16 }}>
+              <div className="ride-subtitle">Forma de pago</div>
+              <table className="ride-pago-tbl">
+                <tbody>
+                  <tr><td>20 - OTROS CON UTILIZACIÓN DEL SISTEMA FINANCIERO</td><td className="num mono">{fmtMoney(total).replace('$','')}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="ride-totales">
+            <table className="ride-tot-tbl">
+              <tbody>
+                <tr><td>SUBTOTAL 12%</td><td className="num mono">{subtotal_12.toFixed(2)}</td></tr>
+                <tr><td>SUBTOTAL 0%</td><td className="num mono">0.00</td></tr>
+                <tr><td>SUBTOTAL NO OBJETO IVA</td><td className="num mono">0.00</td></tr>
+                <tr><td>SUBTOTAL EXENTO IVA</td><td className="num mono">0.00</td></tr>
+                <tr><td><b>SUBTOTAL SIN IMPUESTOS</b></td><td className="num mono"><b>{subtotal_12.toFixed(2)}</b></td></tr>
+                <tr><td>DESCUENTO</td><td className="num mono">0.00</td></tr>
+                <tr><td>ICE</td><td className="num mono">0.00</td></tr>
+                <tr><td>IVA 12%</td><td className="num mono">{iva.toFixed(2)}</td></tr>
+                <tr><td>IRBPNR</td><td className="num mono">0.00</td></tr>
+                <tr className="tot-row"><td>VALOR TOTAL</td><td className="num mono"><b>{total.toFixed(2)}</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </DocModal>
+  );
+}
+
+// Simulated clave-de-acceso barcode (pure SVG stripes, just decorative)
+function ClaveBars({ clave }) {
+  if (!clave) return null;
+  const seed = clave.length;
+  const bars = Array.from({ length: 60 }).map((_, i) => {
+    const w = ((seed * (i + 1)) % 7) < 3 ? 1 : 2;
+    const black = ((seed * 7 + i * 3) % 5) < 3;
+    return { w, black };
+  });
+  let x = 0;
+  return (
+    <svg viewBox="0 0 200 30" width="100%" height="24" style={{ marginTop: 4 }}>
+      {bars.map((b, i) => {
+        const el = <rect key={i} x={x} y={0} width={b.w} height={30} fill={b.black ? '#000' : 'transparent'} />;
+        x += b.w + 0.6;
+        return el;
+      })}
+    </svg>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Guía de remisión
+// ═══════════════════════════════════════════════════════════════════
+function RideGuia({ guiaId, onClose }) {
+  const baseGuia = GUIAS_MOCK.find(g => g.id === guiaId);
+  const [guia, setGuia] = useState(baseGuia);
+  const fact = FACTURAS_MOCK.find(f => f.id === guia.factura_id);
+  const cli = fact ? CLIENTES_MOCK.find(c => c.id === fact.cliente) : null;
+
+  if (!guia) return null;
+
+  const upd = (k, v) => setGuia({ ...guia, [k]: v });
+  const items = fact?.items || [];
+
+  return (
+    <DocModal onClose={onClose} title={`Guía ${guia.id}`}>
+      <div className="doc-page a4">
+        {/* Header */}
+        <div className="ride-header">
+          <div className="ride-emisor">
+            <div className="ride-logo">
+              <span style={{ fontFamily: 'var(--serif)', fontSize: 32, letterSpacing: '-0.01em' }}>
+                sol<em style={{ fontStyle: 'italic', color: '#5b3a8a' }}>plast</em>
+              </span>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 11, lineHeight: 1.55 }}>
+              <div><b>{EMISOR.razon_social}</b></div>
+              <div>Nombre comercial: {EMISOR.nombre_comercial}</div>
+              <div>Dir. matriz: {EMISOR.dir_matriz.calle} {EMISOR.dir_matriz.numero} y {EMISOR.dir_matriz.interseccion}</div>
+              <div>{EMISOR.dir_matriz.ciudad}</div>
+              <div>Tel: {EMISOR.telefono}</div>
+              <div style={{ marginTop: 4 }}>OBLIGADO A LLEVAR CONTABILIDAD: <b>SÍ</b></div>
+            </div>
+          </div>
+          <div className="ride-sri-box">
+            <div className="ride-ruc">R.U.C. {EMISOR.ruc}</div>
+            <div className="ride-title">GUÍA DE REMISIÓN</div>
+            <div className="ride-num"><div>No. {guia.id.replace('GR-', '')}</div></div>
+            <div className="ride-small">
+              <b>NÚMERO DE AUTORIZACIÓN</b>
+              <div className="mono" style={{ fontSize: 9, wordBreak: 'break-all' }}>{guia.clave_acceso}</div>
+              <b style={{ marginTop: 6, display: 'block' }}>AMBIENTE</b>
+              <div>PRODUCCIÓN</div>
+              <b style={{ marginTop: 6, display: 'block' }}>EMISIÓN</b>
+              <div>NORMAL</div>
+              <ClaveBars clave={guia.clave_acceso} />
+            </div>
+          </div>
+        </div>
+
+        {/* Datos */}
+        <div className="ride-comprador">
+          <div className="row-2">
+            <div><b>Fecha inicio transporte:</b> <Editable value={guia.fecha_emision} onChange={v => upd('fecha_emision', v)} /></div>
+            <div><b>Fecha fin transporte:</b> <Editable value={guia.fecha_fin || guia.fecha_emision} onChange={v => upd('fecha_fin', v)} /></div>
+          </div>
+          <div className="row-2">
+            <div><b>Motivo del traslado:</b> <Editable value={guia.motivo} onChange={v => upd('motivo', v)} /></div>
+            <div><b>Documento aduanero:</b> <span className="mute">—</span></div>
+          </div>
+          <div className="row-2">
+            <div><b>Transportista:</b> <Editable value={guia.transportista} onChange={v => upd('transportista', v)} /></div>
+            <div><b>RUC transportista:</b> <Editable value={guia.ruc_transportista || ''} onChange={v => upd('ruc_transportista', v)} placeholder="—" /></div>
+          </div>
+          <div className="row-2">
+            <div><b>Placa:</b> <Editable value={guia.placa} onChange={v => upd('placa', v)} /></div>
+            <div><b>Comprobante de venta:</b> <span className="mono xs">{guia.factura_id}</span></div>
+          </div>
+        </div>
+
+        {/* Punto de partida / llegada */}
+        <table className="ride-items" style={{ marginTop: 12 }}>
+          <thead>
+            <tr><th colSpan={2}>Destinatario</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={{ width: '50%' }}><b>Razón social:</b> {cli?.razon_social}</td>
+              <td><b>Identificación:</b> {cli?.ruc}</td>
+            </tr>
+            <tr>
+              <td><b>Punto de partida:</b><br/><Editable value={guia.punto_partida} onChange={v => upd('punto_partida', v)} /></td>
+              <td><b>Punto de llegada:</b><br/><Editable value={guia.punto_llegada} onChange={v => upd('punto_llegada', v)} /></td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Detalle */}
+        <table className="ride-items" style={{ marginTop: 12 }}>
+          <thead>
+            <tr>
+              <th>Cód. principal</th>
+              <th>Cant.</th>
+              <th>Descripción</th>
+              <th>Detalles adicionales</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((it, i) => {
+              const prod = PRODUCTOS_MOCK.find(p => p.id === it.prod_id);
+              return (
+                <tr key={i}>
+                  <td className="mono xs">{it.prod_id?.toUpperCase()}</td>
+                  <td className="num">{it.cant_cajas} cajas</td>
+                  <td>{prod?.nombre} <span className="xs mute">({prod?.unidades_caja} u/caja · {prod?.peso_g}g)</span></td>
+                  <td className="xs mute">Lote {guia.lote || `L-${guia.fecha_emision?.slice(2,10).replace(/-/g,'')}`}</td>
+                </tr>
+              );
+            })}
+            {Array.from({ length: Math.max(0, 4 - items.length) }).map((_, i) => (
+              <tr key={`f${i}`} className="filler"><td></td><td></td><td></td><td></td></tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Firmas */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, marginTop: 50, fontSize: 10.5 }}>
+          <div style={{ borderTop: '1px solid #000', paddingTop: 4, textAlign: 'center' }}>
+            Emisor · {EMISOR.razon_social}
+          </div>
+          <div style={{ borderTop: '1px solid #000', paddingTop: 4, textAlign: 'center' }}>
+            Transportista · {guia.transportista}
+          </div>
+          <div style={{ borderTop: '1px solid #000', paddingTop: 4, textAlign: 'center' }}>
+            Recibe · {cli?.razon_social}
+          </div>
+        </div>
+      </div>
+    </DocModal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Proforma / Cotización
+// ═══════════════════════════════════════════════════════════════════
+function ProformaCot({ cotId, onClose }) {
+  const baseCot = COTIZACIONES_MOCK.find(c => c.id === cotId);
+  const [cot, setCot] = useState(baseCot);
+  const cli = CLIENTES_MOCK.find(c => c.id === cot.cliente);
+
+  if (!cot || !cli) return null;
+
+  const upd = (k, v) => setCot({ ...cot, [k]: v });
+  const updItem = (idx, k, v) => {
+    const items = [...cot.items];
+    items[idx] = { ...items[idx], [k]: v };
+    setCot({ ...cot, items });
+  };
+
+  const subtotal = cot.items.reduce((s, i) => s + (i.cant_cajas * i.precio_caja), 0);
+  const iva = subtotal * 0.12;
+  const total = subtotal + iva;
+
+  return (
+    <DocModal onClose={onClose} title={`Cotización ${cot.id}`}>
+      <div className="doc-page a4 doc-proforma">
+        {/* Header estético */}
+        <div className="proforma-head">
+          <div>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 48, lineHeight: 0.9, letterSpacing: '-0.02em' }}>
+              sol<em style={{ fontStyle: 'italic', color: '#5b3a8a' }}>plast</em>
+            </div>
+            <div style={{ fontSize: 10.5, color: '#555', marginTop: 4, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              Envases plásticos farmacéuticos
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 36, letterSpacing: '-0.02em', color: '#5b3a8a' }}>Cotización</div>
+            <div className="mono" style={{ fontSize: 12, marginTop: 4 }}>{cot.id}</div>
+          </div>
+        </div>
+
+        <div style={{ borderTop: '2px solid #5b3a8a', margin: '16px 0 24px' }} />
+
+        {/* 2 cols: emisor + cliente */}
+        <div className="proforma-parties">
+          <div>
+            <div className="proforma-label">De</div>
+            <div style={{ fontWeight: 600, marginTop: 4 }}>{EMISOR.nombre_comercial}</div>
+            <div style={{ fontSize: 10.5, color: '#333', lineHeight: 1.55, marginTop: 4 }}>
+              {EMISOR.razon_social}<br/>
+              RUC {EMISOR.ruc}<br/>
+              {EMISOR.dir_matriz.calle} {EMISOR.dir_matriz.numero}<br/>
+              {EMISOR.dir_matriz.ciudad}<br/>
+              {EMISOR.email} · {EMISOR.telefono}
+            </div>
+          </div>
+          <div>
+            <div className="proforma-label">Para</div>
+            <div style={{ fontWeight: 600, marginTop: 4 }}>{cli.razon_social}</div>
+            <div style={{ fontSize: 10.5, color: '#333', lineHeight: 1.55, marginTop: 4 }}>
+              {cli.contacto_nombre && <>A/C: {cli.contacto_nombre}{cli.contacto_cargo ? ` (${cli.contacto_cargo})` : ''}<br/></>}
+              RUC {cli.ruc}<br/>
+              {cli.dir_matriz.calle} {cli.dir_matriz.numero}<br/>
+              {cli.dir_matriz.ciudad}<br/>
+              {cli.email_contacto || cli.email_fact}
+            </div>
+          </div>
+          <div>
+            <div className="proforma-label">Fecha</div>
+            <div className="mono" style={{ marginTop: 4 }}><Editable value={cot.fecha} onChange={v => upd('fecha', v)} /></div>
+            <div className="proforma-label" style={{ marginTop: 14 }}>Validez</div>
+            <div style={{ marginTop: 4 }}><Editable value={String(cot.validez_dias)} onChange={v => upd('validez_dias', Number(v) || 0)} /> días</div>
+            <div className="proforma-label" style={{ marginTop: 14 }}>Condiciones</div>
+            <div style={{ fontSize: 10.5, marginTop: 4 }}>Crédito {cli.credito_dias} días</div>
+          </div>
+        </div>
+
+        {/* Items */}
+        <table className="proforma-items">
+          <thead>
+            <tr>
+              <th style={{ width: '40%' }}>Producto</th>
+              <th style={{ width: '12%', textAlign: 'right' }}>Cajas</th>
+              <th style={{ width: '15%' }}>Unid/caja</th>
+              <th style={{ width: '15%', textAlign: 'right' }}>Precio caja</th>
+              <th style={{ width: '18%', textAlign: 'right' }}>Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cot.items.map((it, i) => {
+              const prod = PRODUCTOS_MOCK.find(p => p.id === it.prod_id);
+              return (
+                <tr key={i}>
+                  <td>
+                    <div style={{ fontWeight: 500 }}>{prod?.nombre}</div>
+                    <div className="xs mute" style={{ marginTop: 2 }}>{prod?.material} · {prod?.peso_g}g</div>
+                  </td>
+                  <td className="num"><Editable value={String(it.cant_cajas)} onChange={v => updItem(i, 'cant_cajas', Number(v) || 0)} /></td>
+                  <td className="num mute">{prod?.unidades_caja}</td>
+                  <td className="num mono">$ <Editable value={Number(it.precio_caja).toFixed(2)} onChange={v => updItem(i, 'precio_caja', Number(v) || 0)} /></td>
+                  <td className="num mono">$ {(it.cant_cajas * it.precio_caja).toFixed(2)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {/* Totales */}
+        <div className="proforma-totals">
+          <table>
+            <tbody>
+              <tr><td>Subtotal</td><td className="num mono">$ {subtotal.toFixed(2)}</td></tr>
+              <tr><td>IVA 12%</td><td className="num mono">$ {iva.toFixed(2)}</td></tr>
+              <tr className="tot"><td>Total</td><td className="num mono">$ {total.toFixed(2)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Observaciones */}
+        <div style={{ marginTop: 32 }}>
+          <div className="proforma-label">Observaciones</div>
+          <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.6, color: '#333', minHeight: 40 }}>
+            <Editable value={cot.observaciones || ''} onChange={v => upd('observaciones', v)} multiline placeholder="Ej. entrega en 15 días hábiles, certificado de calidad adjunto…" />
+          </div>
+        </div>
+
+        {/* Footer / terms */}
+        <div style={{ marginTop: 40, borderTop: '1px solid #ddd', paddingTop: 16, fontSize: 9.5, color: '#555', lineHeight: 1.6 }}>
+          <b>Términos:</b> Precios sujetos a cambio sin previo aviso una vez vencida la validez indicada. Los pedidos se confirmarán con orden de compra y 50% de anticipo para clientes nuevos. El plazo de entrega comienza desde la recepción de OC confirmada.
+          <br/><br/>
+          Una respuesta a esta cotización con orden de compra equivale a la aceptación de estos términos.
+        </div>
+      </div>
+    </DocModal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Certificado de calidad (multi-componente)
+// ═══════════════════════════════════════════════════════════════════
+function RideCertificado({ certId, onClose }) {
+  const baseCert = CERTIFICADOS_MOCK.find(c => c.id === certId);
+  const [cert, setCert] = useState(baseCert);
+  const fact = FACTURAS_MOCK.find(f => f.id === cert.factura_id);
+  const cli = fact ? CLIENTES_MOCK.find(c => c.id === fact.cliente) : null;
+
+  if (!cert) return null;
+
+  const upd = (k, v) => setCert({ ...cert, [k]: v });
+
+  // Para cada item en la factura, intentamos cargar su template de certificado desde PRODUCTOS_MOCK
+  const items = fact?.items || [];
+
+  return (
+    <DocModal onClose={onClose} title={`Certificado ${cert.id}`}>
+      <div className="doc-page a4 doc-cert">
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 18, borderBottom: '3px solid #5b3a8a' }}>
+          <div>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 42, lineHeight: 0.9, letterSpacing: '-0.02em' }}>
+              sol<em style={{ fontStyle: 'italic', color: '#5b3a8a' }}>plast</em>
+            </div>
+            <div style={{ fontSize: 10, color: '#555', marginTop: 6, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              Control de Calidad · Laboratorio interno
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 28, letterSpacing: '-0.01em', color: '#5b3a8a' }}>
+              Certificado de Análisis
+            </div>
+            <div className="mono" style={{ fontSize: 12, marginTop: 4 }}>{cert.id}</div>
+          </div>
+        </div>
+
+        {/* Identificación */}
+        <div className="cert-meta">
+          <div><span className="cert-label">Emitido a</span><div>{cli?.razon_social}</div></div>
+          <div><span className="cert-label">RUC</span><div className="mono">{cli?.ruc}</div></div>
+          <div><span className="cert-label">Factura</span><div className="mono xs">{cert.factura_id}</div></div>
+          <div><span className="cert-label">Fecha de emisión</span><div><Editable value={cert.fecha} onChange={v => upd('fecha', v)} /></div></div>
+          <div><span className="cert-label">Lote de producción</span><div className="mono"><Editable value={cert.lote} onChange={v => upd('lote', v)} /></div></div>
+          <div><span className="cert-label">Controlado por</span><div><Editable value={cert.controlado_por} onChange={v => upd('controlado_por', v)} /></div></div>
+        </div>
+
+        {/* Para cada producto, un bloque de parámetros */}
+        {items.map((it, i) => {
+          const prod = PRODUCTOS_MOCK.find(p => p.id === it.prod_id);
+          return <CertProductoBloque key={i} prod={prod} cantidad={it.cant_cajas} />;
+        })}
+
+        {/* Declaración */}
+        <div className="cert-declaracion">
+          <div className="cert-label">Declaración</div>
+          <p style={{ marginTop: 8, fontSize: 11, lineHeight: 1.6 }}>
+            Se certifica que el lote arriba identificado fue sometido al proceso de control de calidad interno de {EMISOR.nombre_comercial} y que los parámetros analizados cumplen con las especificaciones técnicas establecidas para cada producto. Los envases son aptos para uso farmacéutico y no contienen aditivos distintos de los declarados en la ficha técnica correspondiente.
+          </p>
+        </div>
+
+        {/* Observaciones */}
+        <div style={{ marginTop: 20 }}>
+          <div className="cert-label">Observaciones</div>
+          <div style={{ marginTop: 6, fontSize: 11, lineHeight: 1.6, color: '#333' }}>
+            <Editable value={cert.observaciones || ''} onChange={v => upd('observaciones', v)} multiline placeholder="Sin observaciones" />
+          </div>
+        </div>
+
+        {/* Firmas */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40, marginTop: 60, fontSize: 10.5 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ borderBottom: '1px solid #000', height: 40 }} />
+            <div style={{ marginTop: 6 }}><b>{EMISOR.responsable_calidad}</b></div>
+            <div className="xs mute">Responsable de Calidad</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ borderBottom: '1px solid #000', height: 40 }} />
+            <div style={{ marginTop: 6 }}><b>{EMISOR.revisor_calidad}</b></div>
+            <div className="xs mute">Revisor · Jefe de Producción</div>
+          </div>
+        </div>
+      </div>
+    </DocModal>
+  );
+}
+
+function CertProductoBloque({ prod, cantidad }) {
+  if (!prod) return null;
+  const params = getCertTemplate(prod);
+  return (
+    <div className="cert-producto">
+      <div className="cert-producto-head">
+        <div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 20, letterSpacing: '-0.01em' }}>{prod.nombre}</div>
+          <div className="xs mute" style={{ marginTop: 2 }}>{prod.material} · {prod.unidades_caja} unidades/caja · {cantidad} cajas</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <span className="cert-ok-badge">✓ Aprobado</span>
+        </div>
+      </div>
+      <table className="cert-params">
+        <thead>
+          <tr>
+            <th>Parámetro</th>
+            <th>Especificación</th>
+            <th>Método</th>
+            <th>Resultado</th>
+            <th style={{ textAlign: 'center' }}>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {params.map((p, i) => (
+            <tr key={i}>
+              <td style={{ fontWeight: 500 }}>{p.parametro}</td>
+              <td className="xs">{p.especificacion}</td>
+              <td className="xs mute">{p.metodo}</td>
+              <td className="mono">{p.resultado}</td>
+              <td style={{ textAlign: 'center', color: '#0d7f45' }}>✓</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Templates por tipo de producto — se alimenta del kind + nombre
+function getCertTemplate(prod) {
+  if (!prod) return [];
+  const kind = prod.kind;
+  if (kind === 'vaso') {
+    return [
+      { parametro: 'Capacidad nominal',    especificacion: '30 mL ± 2%',             metodo: 'Inspección volumétrica',        resultado: '30.2 mL' },
+      { parametro: 'Peso por unidad',      especificacion: `${prod.peso_g}g ± 5%`,   metodo: 'Balanza analítica',             resultado: `${prod.peso_g.toFixed(3)}g` },
+      { parametro: 'Espesor de pared',     especificacion: '0.30 – 0.40 mm',         metodo: 'Micrómetro calibrado',          resultado: '0.34 mm' },
+      { parametro: 'Transparencia',        especificacion: 'Cristalino, sin turbidez', metodo: 'Inspección visual ISO 9001',  resultado: 'Conforme' },
+      { parametro: 'Hermeticidad',         especificacion: 'Sin fuga en 24h',        metodo: 'Prueba de inmersión',           resultado: 'Conforme' },
+      { parametro: 'Material',             especificacion: prod.material,            metodo: 'FTIR / hoja técnica',           resultado: 'Conforme' },
+    ];
+  }
+  if (kind === 'jeringa') {
+    return [
+      { parametro: 'Capacidad dosificadora', especificacion: '5 mL ± 0.1 mL',        metodo: 'Calibración gravimétrica',      resultado: '5.02 mL' },
+      { parametro: 'Peso conjunto',          especificacion: `${prod.peso_g}g ± 4%`, metodo: 'Balanza analítica',             resultado: `${prod.peso_g.toFixed(3)}g` },
+      { parametro: 'Sellado del tapón',      especificacion: 'Sin fuga a 0.5 bar',   metodo: 'Prueba neumática',              resultado: 'Conforme' },
+      { parametro: 'Deslizamiento pistón',   especificacion: '< 15 N',               metodo: 'Dinamómetro',                   resultado: '11.2 N' },
+      { parametro: 'Graduación legible',     especificacion: 'Visible a 30 cm',      metodo: 'Inspección visual',             resultado: 'Conforme' },
+      { parametro: 'Material',               especificacion: prod.material,          metodo: 'FTIR / hoja técnica',           resultado: 'Conforme' },
+    ];
+  }
+  if (kind === 'gotero') {
+    return [
+      { parametro: 'Volumen de gota',     especificacion: '0.05 mL ± 10%',           metodo: 'Calibración gravimétrica',      resultado: '0.048 mL' },
+      { parametro: 'Hermeticidad tapón',  especificacion: 'Sin fuga 48h invertido',  metodo: 'Prueba invertida',              resultado: 'Conforme' },
+      { parametro: 'Peso por unidad',     especificacion: `${prod.peso_g}g ± 5%`,    metodo: 'Balanza analítica',             resultado: `${prod.peso_g.toFixed(3)}g` },
+      { parametro: 'Resistencia de rosca',especificacion: 'Sin deformación a 1.2 Nm',metodo: 'Torquímetro',                   resultado: 'Conforme' },
+      { parametro: 'Material',            especificacion: prod.material,             metodo: 'FTIR / hoja técnica',           resultado: 'Conforme' },
+    ];
+  }
+  if (kind === 'accesorio') {
+    return [
+      { parametro: 'Dimensiones',         especificacion: 'Según plano técnico',     metodo: 'Calibre digital',               resultado: 'Conforme' },
+      { parametro: 'Peso por unidad',     especificacion: `${prod.peso_g}g ± 5%`,    metodo: 'Balanza analítica',             resultado: `${prod.peso_g.toFixed(3)}g` },
+      { parametro: 'Acabado superficial', especificacion: 'Sin rebabas ni burbujas', metodo: 'Inspección visual',             resultado: 'Conforme' },
+      { parametro: 'Material',            especificacion: prod.material,             metodo: 'FTIR / hoja técnica',           resultado: 'Conforme' },
+    ];
+  }
+  return [
+    { parametro: 'Peso por unidad',     especificacion: `${prod.peso_g}g ± 5%`,      metodo: 'Balanza analítica',             resultado: `${prod.peso_g.toFixed(3)}g` },
+    { parametro: 'Material',            especificacion: prod.material,               metodo: 'FTIR / hoja técnica',           resultado: 'Conforme' },
+  ];
+}
+
+Object.assign(window, { RideFactura, RideGuia, ProformaCot, RideCertificado, DocModal, Editable, WizardNuevaCotizacion });
+
+// ═══════════════════════════════════════════════════════════════════
+// Wizard: Nueva cotización (modal, 3 pasos)
+// Paso 1: cliente · Paso 2: ítems · Paso 3: condiciones + confirmación
+// ═══════════════════════════════════════════════════════════════════
+function WizardNuevaCotizacion({ onClose, onCreated }) {
+  const [step, setStep] = useState(1);
+  const [clienteId, setClienteId] = useState(null);
+  const [qCli, setQCli] = useState('');
+  const [items, setItems] = useState([]); // { prod_id, cant_cajas, precio_caja }
+  const [qProd, setQProd] = useState('');
+  const [validezDias, setValidezDias] = useState(15);
+  const [observaciones, setObservaciones] = useState('');
+  const [fecha] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const cli = clienteId ? CLIENTES_MOCK.find(c => c.id === clienteId) : null;
+  const clientesFiltrados = CLIENTES_MOCK.filter(c =>
+    !qCli || c.razon_social.toLowerCase().includes(qCli.toLowerCase()) || c.ruc.includes(qCli)
+  );
+  const productosFiltrados = PRODUCTOS_MOCK.filter(p =>
+    !qProd || p.nombre.toLowerCase().includes(qProd.toLowerCase())
+  );
+
+  const addItem = (prod) => {
+    if (items.find(i => i.prod_id === prod.id)) return;
+    // Precio caja sugerido = costo_caja * 1.35 (margen 35% por defecto)
+    const precioSug = Math.round(prod.costo_caja * 1.35 * 100) / 100;
+    setItems([...items, { prod_id: prod.id, cant_cajas: 10, precio_caja: precioSug }]);
+    setQProd('');
+  };
+  const updItem = (idx, k, v) => {
+    const next = [...items];
+    next[idx] = { ...next[idx], [k]: v };
+    setItems(next);
+  };
+  const rmItem = (idx) => setItems(items.filter((_, i) => i !== idx));
+
+  const subtotal = items.reduce((s, i) => s + (Number(i.cant_cajas) || 0) * (Number(i.precio_caja) || 0), 0);
+  const iva = subtotal * 0.12;
+  const total = subtotal + iva;
+
+  const canNext = (step === 1 && !!clienteId) || (step === 2 && items.length > 0) || step === 3;
+
+  const crear = () => {
+    // Genera un ID incremental tipo COT-YYYY-NNNN
+    const year = new Date().getFullYear();
+    const lastNum = COTIZACIONES_MOCK
+      .filter(c => c.id.startsWith(`COT-${year}-`))
+      .map(c => Number(c.id.split('-')[2]) || 0)
+      .reduce((m, n) => Math.max(m, n), 40);
+    const nuevaId = `COT-${year}-${String(lastNum + 1).padStart(4, '0')}`;
+    const nueva = {
+      id: nuevaId,
+      cliente: clienteId,
+      fecha,
+      validez_dias: Number(validezDias) || 15,
+      estado: 'borrador',
+      items: items.map(it => ({ prod_id: it.prod_id, cant_cajas: Number(it.cant_cajas) || 0, precio_caja: Number(it.precio_caja) || 0 })),
+      observaciones,
+    };
+    COTIZACIONES_MOCK.unshift(nueva);
+    if (onCreated) onCreated(nuevaId);
+    onClose();
+  };
+
+  const stepInfo = [
+    { n: 1, label: 'Cliente' },
+    { n: 2, label: 'Ítems' },
+    { n: 3, label: 'Condiciones' },
+  ];
+
+  return (
+    <div className="doc-overlay" onClick={e => { if (e.target.classList.contains('doc-overlay')) onClose(); }}>
+      <div style={{
+        background: 'var(--bg)', width: 'min(860px, 94vw)', maxHeight: '92vh',
+        margin: 'auto', borderRadius: 'var(--radius)', border: '1px solid var(--line)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 22, letterSpacing: '-0.01em' }}>Nueva cotización</div>
+            <div className="xs mute" style={{ marginTop: 2 }}>Paso {step} de 3 · {stepInfo[step-1].label}</div>
+          </div>
+          <Btn variant="ghost" size="sm" onClick={onClose}><Icon name="x" size={14}/></Btn>
+        </div>
+
+        {/* Stepper */}
+        <div style={{ display: 'flex', padding: '14px 22px', gap: 8, borderBottom: '1px solid var(--line)', background: 'var(--bg-raised)' }}>
+          {stepInfo.map((s, i) => (
+            <div key={s.n} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 24, height: 24, borderRadius: '50%',
+                background: step >= s.n ? 'var(--accent)' : 'var(--line)',
+                color: step >= s.n ? 'var(--bg)' : 'var(--text-muted)',
+                display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 600,
+              }}>{step > s.n ? '✓' : s.n}</div>
+              <div style={{ fontSize: 12.5, color: step >= s.n ? 'var(--text)' : 'var(--text-muted)', fontWeight: step === s.n ? 600 : 400 }}>
+                {s.label}
+              </div>
+              {i < stepInfo.length - 1 && <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />}
+            </div>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: 22, overflow: 'auto', flex: 1 }}>
+          {step === 1 && (
+            <div>
+              <input className="input" type="text" placeholder="Buscar cliente por nombre o RUC…"
+                value={qCli} onChange={e => setQCli(e.target.value)}
+                style={{ width: '100%', marginBottom: 14 }} />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10, maxHeight: 400, overflow: 'auto' }}>
+                {clientesFiltrados.map(c => (
+                  <button key={c.id} onClick={() => setClienteId(c.id)}
+                    className="panel" style={{
+                      padding: 14, textAlign: 'left', cursor: 'pointer',
+                      border: clienteId === c.id ? '2px solid var(--accent)' : '1px solid var(--line)',
+                      background: clienteId === c.id ? 'var(--accent-soft)' : 'var(--bg)',
+                    }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>{c.razon_social}</div>
+                    <div className="xs mute mono">{c.ruc}</div>
+                    <div className="xs mute" style={{ marginTop: 4 }}>{c.dir_matriz?.ciudad} · Crédito {c.credito_dias}d</div>
+                  </button>
+                ))}
+                {clientesFiltrados.length === 0 && (
+                  <div className="xs mute" style={{ padding: 24, textAlign: 'center', gridColumn: '1 / -1' }}>
+                    Sin resultados.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div>
+              {/* buscador + agregar */}
+              <div style={{ position: 'relative', marginBottom: 14 }}>
+                <input className="input" type="text" placeholder="Buscar producto para agregar…"
+                  value={qProd} onChange={e => setQProd(e.target.value)}
+                  style={{ width: '100%' }} />
+                {qProd && productosFiltrados.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4,
+                    background: 'var(--bg-raised)', border: '1px solid var(--line)',
+                    borderRadius: 'var(--radius-sm)', maxHeight: 260, overflow: 'auto', zIndex: 10,
+                    boxShadow: 'var(--shadow-lg)',
+                  }}>
+                    {productosFiltrados.slice(0, 10).map(p => (
+                      <button key={p.id} onClick={() => addItem(p)}
+                        style={{
+                          width: '100%', padding: '10px 14px', textAlign: 'left',
+                          background: 'transparent', border: 0, borderBottom: '1px solid var(--line)',
+                          cursor: 'pointer', color: 'var(--text)',
+                        }}>
+                        <div style={{ fontWeight: 500 }}>{p.nombre}</div>
+                        <div className="xs mute">{p.material} · {p.unidades_caja}u/caja · costo caja ${p.costo_caja.toFixed(2)}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Tabla items */}
+              {items.length === 0 ? (
+                <div className="xs mute" style={{ padding: 32, textAlign: 'center', border: '1px dashed var(--line)', borderRadius: 'var(--radius-sm)' }}>
+                  Aún no has agregado productos. Usa el buscador arriba.
+                </div>
+              ) : (
+                <table className="tbl">
+                  <thead>
+                    <tr><th>Producto</th><th className="num">Cajas</th><th className="num">Precio caja</th><th className="num">Importe</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    {items.map((it, i) => {
+                      const p = PRODUCTOS_MOCK.find(pp => pp.id === it.prod_id);
+                      const importe = (Number(it.cant_cajas) || 0) * (Number(it.precio_caja) || 0);
+                      return (
+                        <tr key={it.prod_id}>
+                          <td>
+                            <div style={{ fontWeight: 500 }}>{p?.nombre}</div>
+                            <div className="xs mute">{p?.material} · {p?.unidades_caja}u/caja</div>
+                          </td>
+                          <td className="num">
+                            <input className="input" type="number" min="1" value={it.cant_cajas}
+                              onChange={e => updItem(i, 'cant_cajas', e.target.value)}
+                              style={{ width: 80, textAlign: 'right' }} />
+                          </td>
+                          <td className="num">
+                            <input className="input" type="number" step="0.01" min="0" value={it.precio_caja}
+                              onChange={e => updItem(i, 'precio_caja', e.target.value)}
+                              style={{ width: 90, textAlign: 'right' }} />
+                          </td>
+                          <td className="num mono">${importe.toFixed(2)}</td>
+                          <td><Btn variant="ghost" size="sm" onClick={() => rmItem(i)}><Icon name="x" size={12}/></Btn></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+
+              {items.length > 0 && (
+                <div className="tot-rows" style={{ marginTop: 16, maxWidth: 300, marginLeft: 'auto' }}>
+                  <div><span>Subtotal</span><span className="mono">${subtotal.toFixed(2)}</span></div>
+                  <div><span>IVA 12%</span><span className="mono">${iva.toFixed(2)}</span></div>
+                  <div className="tot-big"><span>Total</span><span className="mono">${total.toFixed(2)}</span></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 3 && (
+            <div>
+              {/* Resumen */}
+              <div className="panel" style={{ marginBottom: 14 }}>
+                <Eyebrow>Cliente</Eyebrow>
+                <div style={{ fontFamily: 'var(--serif)', fontSize: 18, marginTop: 4 }}>{cli?.razon_social}</div>
+                <div className="xs mute">{cli?.ruc} · {cli?.dir_matriz?.ciudad}</div>
+              </div>
+              <div className="panel" style={{ marginBottom: 14 }}>
+                <Eyebrow>Ítems · {items.length} productos</Eyebrow>
+                {items.map((it, i) => {
+                  const p = PRODUCTOS_MOCK.find(pp => pp.id === it.prod_id);
+                  return (
+                    <div key={i} className="row" style={{ justifyContent: 'space-between', padding: '6px 0', borderBottom: i < items.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                      <div><div style={{ fontSize: 13 }}>{p?.nombre}</div><div className="xs mute">{it.cant_cajas} cajas × ${Number(it.precio_caja).toFixed(2)}</div></div>
+                      <div className="mono">${((Number(it.cant_cajas)||0) * (Number(it.precio_caja)||0)).toFixed(2)}</div>
+                    </div>
+                  );
+                })}
+                <div className="tot-rows" style={{ marginTop: 10 }}>
+                  <div className="tot-big"><span>Total con IVA</span><span className="mono">${total.toFixed(2)}</span></div>
+                </div>
+              </div>
+              <div className="cols-2" style={{ gap: 16 }}>
+                <div>
+                  <label className="xs mute" style={{ display: 'block', marginBottom: 4 }}>Validez (días)</label>
+                  <input className="input" type="number" min="1" value={validezDias}
+                    onChange={e => setValidezDias(e.target.value)} style={{ width: '100%' }} />
+                </div>
+                <div>
+                  <label className="xs mute" style={{ display: 'block', marginBottom: 4 }}>Fecha de emisión</label>
+                  <div className="mono" style={{ padding: '8px 12px', background: 'var(--bg-raised)', borderRadius: 'var(--radius-sm)' }}>{fecha}</div>
+                </div>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <label className="xs mute" style={{ display: 'block', marginBottom: 4 }}>Observaciones (opcional)</label>
+                <textarea className="input" rows={3} value={observaciones}
+                  onChange={e => setObservaciones(e.target.value)}
+                  placeholder="Ej. entrega en 15 días, certificado de calidad adjunto…"
+                  style={{ width: '100%', resize: 'vertical' }} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '14px 22px', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-raised)' }}>
+          <div>
+            {step > 1 && <Btn variant="ghost" onClick={() => setStep(step - 1)}><Icon name="arrow_l" size={13}/> Atrás</Btn>}
+          </div>
+          <div className="row" style={{ gap: 8 }}>
+            <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
+            {step < 3 && (
+              <Btn variant="primary" disabled={!canNext} onClick={() => setStep(step + 1)}>
+                Siguiente <Icon name="arrow_r" size={13}/>
+              </Btn>
+            )}
+            {step === 3 && (
+              <Btn variant="primary" disabled={!clienteId || items.length === 0} onClick={crear}>
+                <Icon name="check" size={13}/> Crear cotización
+              </Btn>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+</script>
 <script type="text/babel" data-file="app.jsx">
+
 // App shell + Tweaks integration
 
 const { useState: useStateA, useEffect: useEffectA } = React;
@@ -4183,6 +7879,9 @@ function App() {
             {page === 'costos' && <Costos />}
             {page === 'metricas' && <Metricas />}
             {page === 'empleados' && <Empleados />}
+            {page === 'inventario' && <Inventario />}
+            {page === 'pedidos' && <Pedidos />}
+            {page === 'clientes' && <Clientes />}
           </div>
         </main>
       </div>
@@ -4222,8 +7921,6 @@ function TweaksPanel({ tw, setTweak, onLogout }) {
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 
+
 </script>
-
-
-</body>
-</html>
+</body></html>

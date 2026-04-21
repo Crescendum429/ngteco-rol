@@ -376,6 +376,105 @@ def save_nomina_overrides(periodo_id, data):
     _cfg_set(f"nomina:overrides:{periodo_id}", data)
 
 
+# ═══ Beneficios recurrentes (nomina) — list of rules per empleado ═══
+
+def load_beneficios_recurrentes():
+    return _cfg_get("nomina:beneficios_recurrentes", [])
+
+
+def save_beneficios_recurrentes(rules):
+    _cfg_set("nomina:beneficios_recurrentes", rules)
+
+
+# ═══ CRM / Comercial — entidades con None=usar mock ═══
+
+def _load_or_none(key):
+    """Retorna los datos guardados o None si nunca se guardaron."""
+    return _cfg_get(key, None)
+
+
+def load_clientes():
+    return _load_or_none("crm:clientes")
+
+
+def save_clientes(data):
+    _cfg_set("crm:clientes", data)
+
+
+def load_cotizaciones():
+    return _load_or_none("crm:cotizaciones")
+
+
+def save_cotizaciones(data):
+    _cfg_set("crm:cotizaciones", data)
+
+
+def load_ordenes_compra():
+    return _load_or_none("crm:ordenes_compra")
+
+
+def save_ordenes_compra(data):
+    _cfg_set("crm:ordenes_compra", data)
+
+
+def load_facturas():
+    return _load_or_none("crm:facturas")
+
+
+def save_facturas(data):
+    _cfg_set("crm:facturas", data)
+
+
+def load_guias():
+    return _load_or_none("crm:guias")
+
+
+def save_guias(data):
+    _cfg_set("crm:guias", data)
+
+
+def load_certificados():
+    return _load_or_none("crm:certificados")
+
+
+def save_certificados(data):
+    _cfg_set("crm:certificados", data)
+
+
+def load_emisor():
+    return _load_or_none("crm:emisor")
+
+
+def save_emisor(data):
+    _cfg_set("crm:emisor", data)
+
+
+# ═══ Inventario ═══
+
+def load_inventario_mp():
+    return _load_or_none("inv:mp")
+
+
+def save_inventario_mp(data):
+    _cfg_set("inv:mp", data)
+
+
+def load_inventario_pt():
+    return _load_or_none("inv:pt")
+
+
+def save_inventario_pt(data):
+    _cfg_set("inv:pt", data)
+
+
+def load_movimientos_inventario():
+    return _load_or_none("inv:movimientos")
+
+
+def save_movimientos_inventario(data):
+    _cfg_set("inv:movimientos", data)
+
+
 def load_registro_diario(fecha_str):
     return _cfg_get(f"gastos:diario:{fecha_str}", {})
 

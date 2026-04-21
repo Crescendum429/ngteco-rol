@@ -28,25 +28,47 @@ from storage import (
     load_all_costos_snapshots,
     load_all_nomina_resumenes,
     load_arrastre,
+    load_beneficios_recurrentes,
+    load_certificados,
+    load_clientes,
+    load_cotizaciones,
+    load_emisor,
     load_empaques,
     load_empleados,
+    load_facturas,
     load_gastos_fijos,
+    load_guias,
+    load_inventario_mp,
+    load_inventario_pt,
     load_materiales,
+    load_movimientos_inventario,
+    load_nomina_overrides,
+    load_ordenes_compra,
     load_productos,
     load_registro_diario,
     load_reporte,
     save_arrastre,
+    save_beneficios_recurrentes,
+    save_certificados,
+    save_clientes,
     save_costos_snapshot,
+    save_cotizaciones,
+    save_emisor,
     save_empaques,
     save_empleados,
+    save_facturas,
     save_gastos_fijos,
+    save_guias,
+    save_inventario_mp,
+    save_inventario_pt,
     save_materiales,
+    save_movimientos_inventario,
     save_nomina_overrides,
     save_nomina_resumen,
+    save_ordenes_compra,
     save_productos,
     save_registro_diario,
     save_reporte,
-    load_nomina_overrides,
 )
 
 APP_VERSION = "4.0"
@@ -440,50 +462,57 @@ def _build_data_jsx():
     banco_por_emp = _banco_por_empleado(emp_db)
     overrides_por_periodo = {rid: load_nomina_overrides(rid) or {} for rid in reps_ids}
 
-    return f"""
-// Datos reales inyectados por el servidor — v{APP_VERSION}
-const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const SBU_2026 = 470;
+    beneficios_rec = load_beneficios_recurrentes() or []
+    clientes_js = load_clientes()
+    inv_mp = load_inventario_mp()
+    inv_pt = load_inventario_pt()
+    cotizaciones = load_cotizaciones()
+    ordenes = load_ordenes_compra()
+    facturas = load_facturas()
+    guias = load_guias()
+    certificados = load_certificados()
+    emisor = load_emisor()
 
-const EMPLEADOS_MOCK = {json.dumps(empleados_js, ensure_ascii=False)};
-const MATERIALES_MOCK = {json.dumps(materiales_js, ensure_ascii=False)};
-const EMPAQUES_MOCK = {json.dumps(empaques_js, ensure_ascii=False)};
-const PRODUCTOS_MOCK = {json.dumps(productos_js, ensure_ascii=False)};
-const GASTOS_FIJOS_MOCK = {json.dumps(gastos_fijos_js, ensure_ascii=False)};
-const GASTOS_DESACTIVADOS = {json.dumps(gastos_desactivados, ensure_ascii=False)};
-const NOMINA_HISTORICA = {json.dumps(nomina_historica, ensure_ascii=False)};
-const NOMINA_ULTIMO = {json.dumps(nomina_ultimo, ensure_ascii=False)};
-const HORAS_DETALLE = {json.dumps(horas_detalle, ensure_ascii=False)};
-const HORAS_POR_PERIODO = {json.dumps(horas_por_periodo, ensure_ascii=False)};
-const NOMINA_POR_PERIODO = {json.dumps(nomina_por_periodo, ensure_ascii=False)};
-const BANCO_POR_EMP = {json.dumps(banco_por_emp, ensure_ascii=False)};
-const OVERRIDES_POR_PERIODO = {json.dumps(overrides_por_periodo, ensure_ascii=False)};
-const LATEST_PERIODO = {json.dumps(latest_id)};
-const ANOMALIAS_MOCK = [];
-const REGISTROS_RECIENTES = {json.dumps(registros, ensure_ascii=False)};
-const COSTOS_EVOLUCION = {{}};
-const COSTOS_EVOLUCION_MESES = NOMINA_HISTORICA.map(m => m.label);
-const PRODUCCION_MES = [];
+    overrides_js = [
+        f"window.EMPLEADOS_MOCK = {json.dumps(empleados_js, ensure_ascii=False)};",
+        f"window.MATERIALES_MOCK = {json.dumps(materiales_js, ensure_ascii=False)};",
+        f"window.EMPAQUES_MOCK = {json.dumps(empaques_js, ensure_ascii=False)};",
+        f"window.PRODUCTOS_MOCK = {json.dumps(productos_js, ensure_ascii=False)};",
+        f"window.GASTOS_FIJOS_MOCK = {json.dumps(gastos_fijos_js, ensure_ascii=False)};",
+        f"window.GASTOS_DESACTIVADOS = {json.dumps(gastos_desactivados, ensure_ascii=False)};",
+        f"window.NOMINA_HISTORICA = {json.dumps(nomina_historica, ensure_ascii=False)};",
+        f"window.NOMINA_ULTIMO = {json.dumps(nomina_ultimo, ensure_ascii=False)};",
+        f"window.HORAS_DETALLE = {json.dumps(horas_detalle, ensure_ascii=False)};",
+        f"window.HORAS_POR_PERIODO = {json.dumps(horas_por_periodo, ensure_ascii=False)};",
+        f"window.NOMINA_POR_PERIODO = {json.dumps(nomina_por_periodo, ensure_ascii=False)};",
+        f"window.BANCO_POR_EMP = {json.dumps(banco_por_emp, ensure_ascii=False)};",
+        f"window.OVERRIDES_POR_PERIODO = {json.dumps(overrides_por_periodo, ensure_ascii=False)};",
+        f"window.LATEST_PERIODO = {json.dumps(latest_id)};",
+        f"window.REGISTROS_RECIENTES = {json.dumps(registros, ensure_ascii=False)};",
+        f"window.COSTOS_EVOLUCION_MESES = window.NOMINA_HISTORICA.map(m => m.label);",
+        f"window.BENEFICIOS_RECURRENTES_MOCK = {json.dumps(beneficios_rec, ensure_ascii=False)};",
+    ]
 
-const fmtMoney = (n, d = 2) =>
-  '$' + Number(n || 0).toLocaleString('es-EC', {{ minimumFractionDigits: d, maximumFractionDigits: d }});
-const fmtMoneyShort = (n) => {{
-  const v = Number(n || 0);
-  if (Math.abs(v) >= 1000) return '$' + (v / 1000).toFixed(1) + 'k';
-  return '$' + v.toFixed(0);
-}};
-const fmtNum = (n, d = 0) =>
-  Number(n || 0).toLocaleString('es-EC', {{ minimumFractionDigits: d, maximumFractionDigits: d }});
+    if clientes_js is not None:
+        overrides_js.append(f"window.CLIENTES_MOCK = {json.dumps(clientes_js, ensure_ascii=False)};")
+    if inv_mp is not None:
+        overrides_js.append(f"window.INVENTARIO_MP_MOCK = {json.dumps(inv_mp, ensure_ascii=False)};")
+    if inv_pt is not None:
+        overrides_js.append(f"window.INVENTARIO_PT_MOCK = {json.dumps(inv_pt, ensure_ascii=False)};")
+    if cotizaciones is not None:
+        overrides_js.append(f"window.COTIZACIONES_MOCK = {json.dumps(cotizaciones, ensure_ascii=False)};")
+    if ordenes is not None:
+        overrides_js.append(f"window.ORDENES_COMPRA_MOCK = {json.dumps(ordenes, ensure_ascii=False)};")
+    if facturas is not None:
+        overrides_js.append(f"window.FACTURAS_MOCK = {json.dumps(facturas, ensure_ascii=False)};")
+    if guias is not None:
+        overrides_js.append(f"window.GUIAS_MOCK = {json.dumps(guias, ensure_ascii=False)};")
+    if certificados is not None:
+        overrides_js.append(f"window.CERTIFICADOS_MOCK = {json.dumps(certificados, ensure_ascii=False)};")
+    if emisor is not None:
+        overrides_js.append(f"window.EMISOR = {json.dumps(emisor, ensure_ascii=False)};")
 
-Object.assign(window, {{
-  MESES, SBU_2026,
-  EMPLEADOS_MOCK, MATERIALES_MOCK, EMPAQUES_MOCK, PRODUCTOS_MOCK,
-  GASTOS_FIJOS_MOCK, GASTOS_DESACTIVADOS, NOMINA_HISTORICA, NOMINA_ULTIMO, HORAS_DETALLE,
-  HORAS_POR_PERIODO, NOMINA_POR_PERIODO, BANCO_POR_EMP, OVERRIDES_POR_PERIODO, LATEST_PERIODO, ANOMALIAS_MOCK,
-  REGISTROS_RECIENTES, COSTOS_EVOLUCION, COSTOS_EVOLUCION_MESES, PRODUCCION_MES,
-  fmtMoney, fmtMoneyShort, fmtNum,
-}});
-"""
+    return "\n// Overrides inyectados por el servidor — v" + APP_VERSION + "\n" + "\n".join(overrides_js) + "\n"
 
 
 def _build_login_patch():
@@ -678,21 +707,44 @@ def _build_login_patch():
       });
       return r.ok;
     },
+    saveRecurrentes: async (empleadoId, rules) => {
+      const r = await fetch('/api/nomina/recurrentes/' + encodeURIComponent(empleadoId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rules }),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    saveCollection: async (kind, data) => {
+      const r = await fetch('/api/collection/' + encodeURIComponent(kind), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    fetchCollection: async (kind) => {
+      const r = await fetch('/api/collection/' + encodeURIComponent(kind), { credentials: 'same-origin' });
+      return r.ok ? r.json() : null;
+    },
   };
 })();
 """
 
 
 def _inject_html(raw_html):
+    # Inyectamos un script de overrides DESPUÉS del data.jsx del handoff.
+    # El HTML ya tiene mocks completos como fallback; sobrescribimos los globales
+    # de window.X con los datos reales del backend.
     data_start = raw_html.find('<script type="text/babel" data-file="data.jsx">')
     data_end = raw_html.find('</script>', data_start) + len('</script>')
-    if data_start >= 0:
-        new_data_script = (
-            '<script type="text/babel" data-file="data.jsx">\n'
-            + _build_data_jsx()
-            + '\n</script>'
+    if data_start >= 0 and data_end > data_start:
+        override_script = (
+            '\n<script>\n' + _build_data_jsx() + '\n</script>\n'
         )
-        raw_html = raw_html[:data_start] + new_data_script + raw_html[data_end:]
+        raw_html = raw_html[:data_end] + override_script + raw_html[data_end:]
 
     old_submit = "    if (!pwd) { setErr('Ingresa la contraseña'); return; }\n    onLogin(role);"
     new_submit = """    if (!pwd) { setErr('Ingresa la contraseña'); return; }
@@ -1406,6 +1458,53 @@ def get_dashboard():
         "ultima_nomina_label": last_lab,
         "registros_mes": len(today_regs),
     })
+
+
+@app.route("/api/nomina/recurrentes/<emp_id>", methods=["PUT"])
+@require_auth
+def put_recurrentes(emp_id):
+    data = request.get_json(force=True) or {}
+    rules = data.get("rules") or []
+    all_rules = load_beneficios_recurrentes() or []
+    kept = [r for r in all_rules if r.get("empleado_id") != emp_id]
+    for r in rules:
+        r["empleado_id"] = emp_id
+    save_beneficios_recurrentes(kept + rules)
+    return jsonify({"ok": True})
+
+
+_COLLECTION_MAP = {
+    "clientes": (load_clientes, save_clientes),
+    "cotizaciones": (load_cotizaciones, save_cotizaciones),
+    "ordenes_compra": (load_ordenes_compra, save_ordenes_compra),
+    "facturas": (load_facturas, save_facturas),
+    "guias": (load_guias, save_guias),
+    "certificados": (load_certificados, save_certificados),
+    "emisor": (load_emisor, save_emisor),
+    "inventario_mp": (load_inventario_mp, save_inventario_mp),
+    "inventario_pt": (load_inventario_pt, save_inventario_pt),
+    "movimientos_inventario": (load_movimientos_inventario, save_movimientos_inventario),
+    "beneficios_recurrentes": (load_beneficios_recurrentes, save_beneficios_recurrentes),
+}
+
+
+@app.route("/api/collection/<kind>", methods=["GET"])
+@require_auth
+def get_collection(kind):
+    if kind not in _COLLECTION_MAP:
+        return jsonify({"error": "Unknown collection"}), 404
+    data = _COLLECTION_MAP[kind][0]()
+    return jsonify(data if data is not None else [])
+
+
+@app.route("/api/collection/<kind>", methods=["PUT"])
+@require_auth
+def put_collection(kind):
+    if kind not in _COLLECTION_MAP:
+        return jsonify({"error": "Unknown collection"}), 404
+    data = request.get_json(force=True)
+    _COLLECTION_MAP[kind][1](data)
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":
