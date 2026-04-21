@@ -41,10 +41,12 @@ from storage import (
     save_empleados,
     save_gastos_fijos,
     save_materiales,
+    save_nomina_overrides,
     save_nomina_resumen,
     save_productos,
     save_registro_diario,
     save_reporte,
+    load_nomina_overrides,
 )
 
 APP_VERSION = "4.0"
@@ -266,15 +268,31 @@ def _build_horas_por_periodo(emp_db):
     return result
 
 
+_OVERRIDE_FIELDS = ("prestamo_iess", "transporte_dia", "descuento_iess", "fondos_reserva")
+
+
+def _apply_overrides(cfg, overrides_emp):
+    """Devuelve cfg con los campos override aplicados."""
+    if not overrides_emp:
+        return dict(cfg)
+    out = dict(cfg)
+    for f in _OVERRIDE_FIELDS:
+        if f in overrides_emp:
+            out[f] = overrides_emp[f]
+    return out
+
+
 def _calc_nomina_one(periodo_id, data_r, cls_r, emp_db):
     if not data_r or not cls_r:
         return []
     matched_r, _, _ = match_empleados(data_r, emp_db)
+    overrides = load_nomina_overrides(periodo_id) or {}
     result = []
     for emp_full, days, nid in data_r:
         name = emp_name(emp_full)
         dk = matched_r.get(name)
-        cfg = emp_db.get(dk, {}) if dk else {}
+        cfg_base = emp_db.get(dk, {}) if dk else {}
+        cfg = _apply_overrides(cfg_base, overrides.get(dk or name, {}))
         if not cfg.get("salario"):
             continue
         base_h = cfg.get("horas_base", 8)
@@ -420,6 +438,7 @@ def _build_data_jsx():
     horas_detalle = horas_por_periodo.get(latest_id, {}) if latest_id else {}
     nomina_ultimo = nomina_por_periodo.get(latest_id, []) if latest_id else []
     banco_por_emp = _banco_por_empleado(emp_db)
+    overrides_por_periodo = {rid: load_nomina_overrides(rid) or {} for rid in reps_ids}
 
     return f"""
 // Datos reales inyectados por el servidor — v{APP_VERSION}
@@ -438,6 +457,7 @@ const HORAS_DETALLE = {json.dumps(horas_detalle, ensure_ascii=False)};
 const HORAS_POR_PERIODO = {json.dumps(horas_por_periodo, ensure_ascii=False)};
 const NOMINA_POR_PERIODO = {json.dumps(nomina_por_periodo, ensure_ascii=False)};
 const BANCO_POR_EMP = {json.dumps(banco_por_emp, ensure_ascii=False)};
+const OVERRIDES_POR_PERIODO = {json.dumps(overrides_por_periodo, ensure_ascii=False)};
 const LATEST_PERIODO = {json.dumps(latest_id)};
 const ANOMALIAS_MOCK = [];
 const REGISTROS_RECIENTES = {json.dumps(registros, ensure_ascii=False)};
@@ -459,7 +479,7 @@ Object.assign(window, {{
   MESES, SBU_2026,
   EMPLEADOS_MOCK, MATERIALES_MOCK, EMPAQUES_MOCK, PRODUCTOS_MOCK,
   GASTOS_FIJOS_MOCK, GASTOS_DESACTIVADOS, NOMINA_HISTORICA, NOMINA_ULTIMO, HORAS_DETALLE,
-  HORAS_POR_PERIODO, NOMINA_POR_PERIODO, BANCO_POR_EMP, LATEST_PERIODO, ANOMALIAS_MOCK,
+  HORAS_POR_PERIODO, NOMINA_POR_PERIODO, BANCO_POR_EMP, OVERRIDES_POR_PERIODO, LATEST_PERIODO, ANOMALIAS_MOCK,
   REGISTROS_RECIENTES, COSTOS_EVOLUCION, COSTOS_EVOLUCION_MESES, PRODUCCION_MES,
   fmtMoney, fmtMoneyShort, fmtNum,
 }});
@@ -607,6 +627,19 @@ def _build_login_patch():
       const r = await fetch('/api/empaques', { credentials: 'same-origin' });
       return r.ok ? r.json() : [];
     },
+    fetchNominaSnapshot: async () => {
+      const r = await fetch('/api/nomina/snapshot', { credentials: 'same-origin' });
+      return r.ok ? r.json() : null;
+    },
+    saveOverrides: async (periodo_id, data) => {
+      const r = await fetch('/api/nomina/overrides/' + encodeURIComponent(periodo_id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok;
+    },
     setGastoDesactivado: async (period, key, desactivado) => {
       const r = await fetch(`/api/gastos_fijos/${encodeURIComponent(period)}/desactivar`, {
         method: 'POST',
@@ -615,6 +648,26 @@ def _build_login_patch():
         credentials: 'same-origin',
       });
       return r.ok;
+    },
+    applySnapshot: (snap) => {
+      if (!snap) return;
+      const replace = (target, src) => {
+        for (const k of Object.keys(target)) delete target[k];
+        Object.assign(target, src || {});
+      };
+      replace(window.HORAS_POR_PERIODO, snap.horas_por_periodo);
+      replace(window.NOMINA_POR_PERIODO, snap.nomina_por_periodo);
+      replace(window.BANCO_POR_EMP, snap.banco_por_emp);
+      replace(window.OVERRIDES_POR_PERIODO, snap.overrides_por_periodo);
+      if (Array.isArray(snap.nomina_historica)) {
+        window.NOMINA_HISTORICA.length = 0;
+        window.NOMINA_HISTORICA.push(...snap.nomina_historica);
+      }
+    },
+    refreshNomina: async () => {
+      const snap = await window._api.fetchNominaSnapshot();
+      window._api.applySnapshot(snap);
+      return snap;
     },
     calcularNomina: async (periodo, extras) => {
       const r = await fetch('/api/nomina/calcular', {
@@ -1145,6 +1198,7 @@ def _compute_nomina_for_periodo(periodo_id, extras_config=None):
         return None, None
     emp_db = load_empleados()
     matched, _, _ = match_empleados(data, emp_db)
+    overrides = load_nomina_overrides(periodo_id) or {}
 
     nomina_list = []
     total = 0.0
@@ -1153,7 +1207,8 @@ def _compute_nomina_for_periodo(periodo_id, extras_config=None):
     for emp_full, days, _ in data:
         name = emp_name(emp_full)
         dk = matched.get(name)
-        cfg = emp_db.get(dk, {}) if dk else {}
+        cfg_base = emp_db.get(dk, {}) if dk else {}
+        cfg = _apply_overrides(cfg_base, overrides.get(dk or name, {}))
         if not cfg.get("salario"):
             continue
         base_h = cfg.get("horas_base", 8)
@@ -1244,6 +1299,63 @@ def nomina_descargar(periodo_id):
 @require_auth
 def get_nomina_resumenes():
     return jsonify(load_all_nomina_resumenes())
+
+
+@app.route("/api/nomina/overrides/<periodo_id>", methods=["GET"])
+@require_auth
+def get_nomina_overrides(periodo_id):
+    return jsonify(load_nomina_overrides(periodo_id) or {})
+
+
+@app.route("/api/nomina/overrides/<periodo_id>", methods=["PUT"])
+@require_auth
+def put_nomina_overrides(periodo_id):
+    data = request.get_json(force=True) or {}
+    save_nomina_overrides(periodo_id, data)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/nomina/snapshot", methods=["GET"])
+@require_auth
+def get_nomina_snapshot():
+    """Retorna todos los datos derivados: horas, nomina, banco, historica, overrides.
+    Permite refrescar en cliente tras una mutacion sin recargar la pagina."""
+    emp_db = load_empleados()
+    horas_por_periodo = _build_horas_por_periodo(emp_db)
+    nomina_por_periodo = _build_nomina_por_periodo(emp_db)
+    banco_por_emp = _banco_por_empleado(emp_db)
+    reps_ids = [r["id"] for r in list_reportes()]
+    overrides_por_periodo = {rid: load_nomina_overrides(rid) or {} for rid in reps_ids}
+
+    resumenes = load_all_nomina_resumenes()
+    ids_all = set(resumenes.keys()) | set(nomina_por_periodo.keys())
+    nomina_historica = []
+    for rid in sorted(ids_all):
+        try:
+            y, m = rid.split("-")
+            label = f"{_MES_NAMES[int(m)-1]} {y}"
+        except Exception:
+            label = rid
+        items = nomina_por_periodo.get(rid, [])
+        total_real = sum(n["total"] for n in items)
+        h50_real = sum(n["h50"] for n in items)
+        h100_real = sum(n["h100"] for n in items)
+        r = resumenes.get(rid, {})
+        total_resumen = float(r.get("total_transferido", 0))
+        nomina_historica.append({
+            "id": rid, "label": label,
+            "total": total_resumen if total_resumen > 0 else total_real,
+            "h50": h50_real, "h100": h100_real,
+            "empleados": len(items) or len(emp_db),
+        })
+
+    return jsonify({
+        "horas_por_periodo": horas_por_periodo,
+        "nomina_por_periodo": nomina_por_periodo,
+        "banco_por_emp": banco_por_emp,
+        "overrides_por_periodo": overrides_por_periodo,
+        "nomina_historica": nomina_historica,
+    })
 
 
 @app.route("/api/costos/calcular", methods=["POST"])

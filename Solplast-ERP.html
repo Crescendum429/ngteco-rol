@@ -2106,6 +2106,38 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
   const empSel = EMPLEADOS_MOCK.find(e => e.id === sel);
   const baseH = empSel?.horas_base || 8;
 
+  const [ovPeriodo, setOvPeriodo] = useState(() => (OVERRIDES_POR_PERIODO[periodoId] || {})[sel] || {});
+  React.useEffect(() => {
+    setOvPeriodo((OVERRIDES_POR_PERIODO[periodoId] || {})[sel] || {});
+  }, [periodoId, sel]);
+
+  const eff = {
+    transporte_dia: ovPeriodo.transporte_dia !== undefined ? ovPeriodo.transporte_dia : (empSel?.transporte ?? 0),
+    prestamo_iess: ovPeriodo.prestamo_iess !== undefined ? ovPeriodo.prestamo_iess : (empSel?.prestamo_iess ?? 0),
+    descuento_iess: ovPeriodo.descuento_iess !== undefined ? ovPeriodo.descuento_iess : (empSel?.descuento_iess !== false),
+    fondos_reserva: ovPeriodo.fondos_reserva !== undefined ? ovPeriodo.fondos_reserva : !!empSel?.fondos_reserva,
+  };
+
+  async function setOverride(field, value, isDefault) {
+    const todos = { ...(OVERRIDES_POR_PERIODO[periodoId] || {}) };
+    const emp_ov = { ...(todos[sel] || {}) };
+    if (isDefault) {
+      delete emp_ov[field];
+    } else {
+      emp_ov[field] = value;
+    }
+    if (Object.keys(emp_ov).length === 0) delete todos[sel];
+    else todos[sel] = emp_ov;
+    setOvPeriodo(emp_ov);
+    OVERRIDES_POR_PERIODO[periodoId] = todos;
+    const ok = await window._api?.saveOverrides(periodoId, todos);
+    if (!ok) { alert('Error guardando override.'); return; }
+    await window._api?.refreshNomina();
+    setOvPeriodo((OVERRIDES_POR_PERIODO[periodoId] || {})[sel] || {});
+  }
+
+  function esOverride(field) { return ovPeriodo[field] !== undefined; }
+
   const bancoEmp = React.useMemo(() => {
     let bal = 0;
     const pids = Object.keys(HORAS_POR_PERIODO);
@@ -2203,6 +2235,45 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
           <div className="small mute" style={{ marginTop: 6 }}>en el período</div>
         </div>
       </div>
+
+      {empSel && (
+        <div className="panel" style={{ marginBottom: 16 }}>
+          <div className="panel-head">
+            <div>
+              <h3 className="panel-title">Beneficios y descuentos del mes</h3>
+              <div className="panel-sub">Valores para {empSel.nombre} este período. Los cambios solo aplican a {periodoLabel}, no alteran los defaults del empleado.</div>
+            </div>
+          </div>
+          <div className="cols-2" style={{ gap: 10 }}>
+            <div className="field">
+              <label>Transporte por día {esOverride('transporte_dia') && <Chip tone="accent" style={{ marginLeft: 6 }}>override</Chip>}</label>
+              <div className="row" style={{ gap: 6 }}>
+                <input className="input" type="number" step="0.5" value={eff.transporte_dia} onChange={e => setOverride('transporte_dia', parseFloat(e.target.value) || 0, false)} />
+                {esOverride('transporte_dia') && <Btn size="sm" variant="ghost" onClick={() => setOverride('transporte_dia', null, true)}>Usar default</Btn>}
+              </div>
+              <div className="xs mute">Default empleado: ${(empSel.transporte ?? 0).toFixed(2)}</div>
+            </div>
+            <div className="field">
+              <label>Préstamo IESS este mes {esOverride('prestamo_iess') && <Chip tone="accent" style={{ marginLeft: 6 }}>override</Chip>}</label>
+              <div className="row" style={{ gap: 6 }}>
+                <input className="input" type="number" step="0.01" value={eff.prestamo_iess} onChange={e => setOverride('prestamo_iess', parseFloat(e.target.value) || 0, false)} />
+                {esOverride('prestamo_iess') && <Btn size="sm" variant="ghost" onClick={() => setOverride('prestamo_iess', null, true)}>Usar default</Btn>}
+              </div>
+              <div className="xs mute">Default empleado: ${(empSel.prestamo_iess ?? 0).toFixed(2)}</div>
+            </div>
+          </div>
+          <div style={{ marginTop: 10, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+            <div className="row" style={{ gap: 6 }}>
+              <Check checked={eff.descuento_iess} onChange={v => setOverride('descuento_iess', v, false)}>Aporte IESS 9.45%</Check>
+              {esOverride('descuento_iess') && <Btn size="sm" variant="ghost" onClick={() => setOverride('descuento_iess', null, true)}>Usar default</Btn>}
+            </div>
+            <div className="row" style={{ gap: 6 }}>
+              <Check checked={eff.fondos_reserva} onChange={v => setOverride('fondos_reserva', v, false)}>Fondos reserva</Check>
+              {esOverride('fondos_reserva') && <Btn size="sm" variant="ghost" onClick={() => setOverride('fondos_reserva', null, true)}>Usar default</Btn>}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="panel">
         <div className="panel-head">
@@ -3869,6 +3940,7 @@ function Empleados() {
       EMPLEADOS_MOCK.length = 0;
       EMPLEADOS_MOCK.push(...visibles);
     }
+    await window._api?.refreshNomina();
   }
 
   async function handleSave() {
@@ -3974,24 +4046,27 @@ function EmpEditor({ form, setForm, sel }) {
         <Input label="Cargo" value={form.cargo} onChange={e => set('cargo', e.target.value)} placeholder={form.isNew ? 'Ej: Operario de línea' : ''} />
       </div>
 
-      <Eyebrow style={{ marginTop: 20 }}>Compensación</Eyebrow>
+      <Eyebrow style={{ marginTop: 20 }}>Datos fijos</Eyebrow>
       <div className="cols-2">
         <Input label="Salario base mensual" type="number" value={form.salario} onChange={e => set('salario', parseFloat(e.target.value) || 0)} hint={`Mín. legal 2026: $${SBU_2026}`} />
-        <Input label="Transporte por día" type="number" step="0.5" value={form.transporte} onChange={e => set('transporte', parseFloat(e.target.value) || 0)} />
         <Input label="Horas base diarias" type="number" value={form.horas_base} onChange={e => set('horas_base', parseInt(e.target.value) || 8)} />
         <Select label="Región (para 14to)" value={form.region} onChange={v => set('region', v)} options={['Sierra/Amazonia', 'Costa/Galápagos']} />
       </div>
 
-      <Eyebrow style={{ marginTop: 20 }}>Beneficios y descuentos</Eyebrow>
+      <Eyebrow style={{ marginTop: 20 }}>Valores por defecto del mes</Eyebrow>
       <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-        <Check checked={form.descuento_iess !== false} onChange={v => set('descuento_iess', v)}>Aporte IESS 9.45% <span className="mute xs">· Descuento obligatorio sobre ingresos</span></Check>
-        <div style={{ marginTop: 10 }}>
-          <Check checked={form.fondos_reserva} onChange={v => set('fondos_reserva', v)}>Recibe fondos de reserva (8.33%) <span className="mute xs">· Después del primer año</span></Check>
+        <div className="xs mute" style={{ marginBottom: 10 }}>
+          Estos se aplican a cada mes nuevo como base. Puedes ajustarlos por mes en "Revisar horas" sin cambiar el default.
         </div>
-        <div className="field" style={{ marginTop: 12 }}>
-          <label>Préstamo IESS (descuento mensual)</label>
-          <input className="input" type="number" step="0.01" value={form.prestamo_iess} onChange={e => set('prestamo_iess', parseFloat(e.target.value) || 0)} />
-          <div className="xs mute">Dejar en 0 si no hay préstamo activo.</div>
+        <div className="cols-2" style={{ gap: 10 }}>
+          <Input label="Transporte por día" type="number" step="0.5" value={form.transporte} onChange={e => set('transporte', parseFloat(e.target.value) || 0)} />
+          <Input label="Préstamo IESS" type="number" step="0.01" value={form.prestamo_iess} onChange={e => set('prestamo_iess', parseFloat(e.target.value) || 0)} />
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <Check checked={form.descuento_iess !== false} onChange={v => set('descuento_iess', v)}>Aporte IESS 9.45%</Check>
+        </div>
+        <div style={{ marginTop: 6 }}>
+          <Check checked={form.fondos_reserva} onChange={v => set('fondos_reserva', v)}>Recibe fondos de reserva (8.33%)</Check>
         </div>
       </div>
 

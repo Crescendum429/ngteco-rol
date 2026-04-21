@@ -367,6 +367,15 @@ def save_gastos_fijos(periodo_id, data):
     _cfg_set(f"gastos:fijos:{periodo_id}", data)
 
 
+def load_nomina_overrides(periodo_id):
+    """Overrides por periodo: {emp_id: {prestamo_iess, transporte_dia, descuento_iess, fondos_reserva}}"""
+    return _cfg_get(f"nomina:overrides:{periodo_id}", {})
+
+
+def save_nomina_overrides(periodo_id, data):
+    _cfg_set(f"nomina:overrides:{periodo_id}", data)
+
+
 def load_registro_diario(fecha_str):
     return _cfg_get(f"gastos:diario:{fecha_str}", {})
 
