@@ -304,17 +304,67 @@ def _apply_overrides(cfg, overrides_emp):
     return out
 
 
+def _vigente_en_periodo(desde: str, hasta: str | None, periodo_id: str) -> bool:
+    """Verifica si una regla con vigencia desde/hasta aplica en periodo_id (YYYY-MM)."""
+    if not periodo_id:
+        return False
+    if desde and periodo_id < desde:
+        return False
+    if hasta and periodo_id > hasta:
+        return False
+    return True
+
+
+def _apply_recurrentes(cfg, empleado_id, periodo_id, recurrentes_all):
+    """Aplica reglas de beneficios recurrentes vigentes al cfg.
+
+    Las reglas tipo prestamo_iess y prestamo_empresa se suman a prestamo_iess.
+    transporte_bono se suma al transporte_dia.
+    alimentacion, comision, otro_ben se registran como bonos adicionales.
+    """
+    out = dict(cfg)
+    prestamo_total = 0.0
+    transporte_extra = 0.0
+    bonos = 0.0
+    otros_desc = 0.0
+    for regla in (recurrentes_all or []):
+        if regla.get("empleado_id") != empleado_id:
+            continue
+        if not _vigente_en_periodo(regla.get("desde"), regla.get("hasta"), periodo_id):
+            continue
+        tipo = regla.get("tipo")
+        monto = float(regla.get("monto", 0))
+        if tipo in ("prestamo_iess", "prestamo_empresa"):
+            prestamo_total += monto
+        elif tipo == "transporte_bono":
+            transporte_extra += monto
+        elif tipo in ("alimentacion", "comision", "otro_ben"):
+            bonos += monto
+        elif tipo == "otro_desc":
+            otros_desc += monto
+    if prestamo_total > 0:
+        out["prestamo_iess"] = float(out.get("prestamo_iess", 0)) + prestamo_total
+    if transporte_extra > 0:
+        out["transporte_dia"] = float(out.get("transporte_dia", 0)) + transporte_extra
+    if bonos > 0 or otros_desc > 0:
+        out["_bonos_recurrentes"] = bonos
+        out["_otros_desc_recurrentes"] = otros_desc
+    return out
+
+
 def _calc_nomina_one(periodo_id, data_r, cls_r, emp_db):
     if not data_r or not cls_r:
         return []
     matched_r, _, _ = match_empleados(data_r, emp_db)
     overrides = load_nomina_overrides(periodo_id) or {}
+    recurrentes = load_beneficios_recurrentes() or []
     result = []
     for emp_full, days, nid in data_r:
         name = emp_name(emp_full)
         dk = matched_r.get(name)
         cfg_base = emp_db.get(dk, {}) if dk else {}
         cfg = _apply_overrides(cfg_base, overrides.get(dk or name, {}))
+        cfg = _apply_recurrentes(cfg, dk or name, periodo_id, recurrentes)
         if not cfg.get("salario"):
             continue
         base_h = cfg.get("horas_base", 8)
@@ -691,6 +741,7 @@ def _build_login_patch():
       if (Array.isArray(snap.nomina_historica)) {
         window.NOMINA_HISTORICA.length = 0;
         window.NOMINA_HISTORICA.push(...snap.nomina_historica);
+        window.COSTOS_EVOLUCION_MESES = window.NOMINA_HISTORICA.map(m => m.label);
       }
     },
     refreshNomina: async () => {
@@ -729,6 +780,22 @@ def _build_login_patch():
       const r = await fetch('/api/collection/' + encodeURIComponent(kind), { credentials: 'same-origin' });
       return r.ok ? r.json() : null;
     },
+    emitirFactura: async (factura_id) => {
+      const r = await fetch('/api/sri/emitir/' + encodeURIComponent(factura_id), {
+        method: 'POST', credentials: 'same-origin',
+      });
+      return r.ok ? r.json() : { error: 'Error en emision' };
+    },
+    consultarAutorizacion: async (clave) => {
+      const r = await fetch('/api/sri/autorizar/' + encodeURIComponent(clave), { credentials: 'same-origin' });
+      return r.ok ? r.json() : null;
+    },
+    getSriConfig: async () => {
+      const r = await fetch('/api/sri/config', { credentials: 'same-origin' });
+      return r.ok ? r.json() : null;
+    },
+    urlPdfFactura: (factura_id) => '/api/sri/pdf/' + encodeURIComponent(factura_id),
+    urlXmlFactura: (factura_id) => '/api/sri/xml/' + encodeURIComponent(factura_id),
   };
 })();
 """
@@ -1251,6 +1318,7 @@ def _compute_nomina_for_periodo(periodo_id, extras_config=None):
     emp_db = load_empleados()
     matched, _, _ = match_empleados(data, emp_db)
     overrides = load_nomina_overrides(periodo_id) or {}
+    recurrentes = load_beneficios_recurrentes() or []
 
     nomina_list = []
     total = 0.0
@@ -1261,6 +1329,7 @@ def _compute_nomina_for_periodo(periodo_id, extras_config=None):
         dk = matched.get(name)
         cfg_base = emp_db.get(dk, {}) if dk else {}
         cfg = _apply_overrides(cfg_base, overrides.get(dk or name, {}))
+        cfg = _apply_recurrentes(cfg, dk or name, periodo_id, recurrentes)
         if not cfg.get("salario"):
             continue
         base_h = cfg.get("horas_base", 8)
@@ -1505,6 +1574,168 @@ def put_collection(kind):
     data = request.get_json(force=True)
     _COLLECTION_MAP[kind][1](data)
     return jsonify({"ok": True})
+
+
+# ═══════════════════════════════════════════════════════════════
+# SRI — Facturacion electronica
+# ═══════════════════════════════════════════════════════════════
+
+def _buscar_factura(factura_id):
+    facturas = load_facturas() or []
+    for f in facturas:
+        if f.get("id") == factura_id:
+            return f, facturas
+    return None, facturas
+
+
+def _buscar_cliente(cliente_id):
+    clientes = load_clientes() or []
+    for c in clientes:
+        if c.get("id") == cliente_id:
+            return c
+    return None
+
+
+@app.route("/api/sri/emitir/<path:factura_id>", methods=["POST"])
+@require_auth
+def sri_emitir(factura_id):
+    """Genera clave de acceso, XML, firma y envia al SRI. Actualiza la factura."""
+    import sri
+    factura, facturas = _buscar_factura(factura_id)
+    if not factura:
+        return jsonify({"error": "Factura no encontrada"}), 404
+
+    emisor = load_emisor() or {}
+    if not emisor.get("ruc"):
+        return jsonify({"error": "Configura los datos del emisor (RUC) antes de emitir"}), 400
+
+    cliente = _buscar_cliente(factura.get("cliente")) or {}
+
+    ambiente = os.environ.get("SRI_AMBIENTE", sri.AMBIENTE_PRUEBAS)
+    fecha_em = factura.get("fecha_emision") or date.today().isoformat()
+    try:
+        fecha_dt = datetime.strptime(fecha_em, "%Y-%m-%d")
+    except Exception:
+        fecha_dt = datetime.now()
+    fecha_str = fecha_dt.strftime("%d%m%Y")
+
+    clave = sri.generar_clave_acceso(
+        fecha_emision=fecha_str,
+        cod_doc=sri.COD_DOC["factura"],
+        ruc_emisor=emisor["ruc"],
+        ambiente=ambiente,
+        estab=str(factura.get("establecimiento", "001")),
+        pto_emision=str(factura.get("punto_emision", "001")),
+        secuencial=str(factura.get("secuencial", "1")),
+    )
+
+    factura["clave_acceso"] = clave
+    factura["ambiente"] = ambiente
+
+    xml_str = sri.build_factura_xml(factura, emisor, cliente, ambiente=ambiente)
+    xml_firmado, firma_estado = sri.firmar_xml(xml_str)
+    factura["xml_firma_estado"] = firma_estado
+
+    rec = sri.enviar_recepcion(xml_firmado, ambiente=ambiente)
+    factura["sri_recepcion"] = rec
+
+    aut = sri.consultar_autorizacion(clave, ambiente=ambiente)
+    factura["estado_sri"] = aut.get("estado", "EN_PROCESO")
+    factura["autorizacion_sri"] = aut.get("numero_autorizacion", "")
+    factura["fecha_autorizacion"] = aut.get("fecha_autorizacion", "")
+    factura["sri_mensajes"] = aut.get("mensajes", []) + rec.get("mensajes", [])
+
+    # Guardar XML en storage (Supabase config)
+    try:
+        from storage import _cfg_set
+        _cfg_set(f"sri:xml:{clave}", {"xml": xml_firmado, "factura_id": factura_id})
+    except Exception:
+        pass
+
+    # Upsert factura
+    idx = next((i for i, f in enumerate(facturas) if f.get("id") == factura_id), None)
+    if idx is not None:
+        facturas[idx] = factura
+    save_facturas(facturas)
+
+    return jsonify({
+        "ok": True,
+        "clave_acceso": clave,
+        "estado_sri": factura["estado_sri"],
+        "autorizacion_sri": factura["autorizacion_sri"],
+        "fecha_autorizacion": factura["fecha_autorizacion"],
+        "firma_estado": firma_estado,
+        "mensajes": factura["sri_mensajes"],
+    })
+
+
+@app.route("/api/sri/autorizar/<clave>", methods=["GET"])
+@require_auth
+def sri_autorizar(clave):
+    """Consulta estado de autorizacion al SRI."""
+    import sri
+    ambiente = os.environ.get("SRI_AMBIENTE", sri.AMBIENTE_PRUEBAS)
+    return jsonify(sri.consultar_autorizacion(clave, ambiente=ambiente))
+
+
+@app.route("/api/sri/pdf/<path:factura_id>", methods=["GET"])
+@require_auth
+def sri_pdf(factura_id):
+    import sri
+    factura, _ = _buscar_factura(factura_id)
+    if not factura:
+        return jsonify({"error": "Factura no encontrada"}), 404
+    emisor = load_emisor() or {}
+    cliente = _buscar_cliente(factura.get("cliente")) or {}
+
+    tmp_path = tempfile.mkstemp(suffix=".pdf")[1]
+    try:
+        sri.render_factura_pdf(
+            factura, emisor, cliente, tmp_path,
+            estado_sri=factura.get("estado_sri", "PENDIENTE"),
+            numero_autorizacion=factura.get("autorizacion_sri", ""),
+            fecha_autorizacion=factura.get("fecha_autorizacion", ""),
+        )
+        return send_file(tmp_path, as_attachment=True, download_name=f"factura_{factura_id}.pdf", mimetype="application/pdf")
+    except Exception as e:
+        return jsonify({"error": f"Error generando PDF: {e}"}), 500
+
+
+@app.route("/api/sri/xml/<path:factura_id>", methods=["GET"])
+@require_auth
+def sri_xml(factura_id):
+    factura, _ = _buscar_factura(factura_id)
+    if not factura:
+        return jsonify({"error": "Factura no encontrada"}), 404
+    clave = factura.get("clave_acceso")
+    if not clave:
+        return jsonify({"error": "Factura sin clave de acceso. Emitela primero."}), 400
+    try:
+        from storage import _cfg_get
+        rec = _cfg_get(f"sri:xml:{clave}", None)
+        if not rec:
+            return jsonify({"error": "XML no encontrado en storage"}), 404
+        xml = rec.get("xml", "")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    tmp_path = tempfile.mkstemp(suffix=".xml")[1]
+    with open(tmp_path, "w", encoding="utf-8") as fp:
+        fp.write(xml)
+    return send_file(tmp_path, as_attachment=True, download_name=f"factura_{factura_id}.xml", mimetype="application/xml")
+
+
+@app.route("/api/sri/config", methods=["GET"])
+@require_auth
+def sri_config():
+    """Retorna configuracion actual del SRI (sin el password del cert)."""
+    import sri
+    return jsonify({
+        "ambiente": os.environ.get("SRI_AMBIENTE", sri.AMBIENTE_PRUEBAS),
+        "ambiente_nombre": "PRODUCCION" if os.environ.get("SRI_AMBIENTE") == "2" else "PRUEBAS",
+        "cert_configurado": bool(os.environ.get("SRI_CERT_PATH") and os.path.exists(os.environ.get("SRI_CERT_PATH", ""))),
+        "simulado": os.environ.get("SRI_SIMULADO", "true").lower() in ("1", "true", "yes"),
+    })
 
 
 if __name__ == "__main__":

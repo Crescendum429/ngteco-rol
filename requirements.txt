@@ -4,3 +4,6 @@ supabase==2.15.2
 fpdf2==2.8.2
 flask>=3.0.0
 gunicorn>=22.0.0
+python-barcode>=0.15.1
+lxml>=5.0.0
+Pillow>=10.0.0

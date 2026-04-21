@@ -6237,8 +6237,23 @@ function FacturaDetalle({ factura, onBack }) {
         </div>
         <div className="row">
           <EstadoChip estado={factura.estado_sri} />
-          <Btn variant="ghost"><Icon name="download" size={14}/> XML</Btn>
-          <Btn variant="primary" onClick={() => setDocOpen('ride')}><Icon name="download" size={14}/> Ver RIDE</Btn>
+          {!factura.autorizacion_sri && (
+            <Btn variant="primary" onClick={async () => {
+              if (!confirm('Emitir esta factura al SRI?')) return;
+              const r = await window._api?.emitirFactura(factura.id);
+              if (r?.ok) { alert('Emitida. Estado: ' + r.estado_sri); location.reload(); }
+              else alert((r && r.error) || 'Error en emision');
+            }}><Icon name="upload" size={14}/> Emitir al SRI</Btn>
+          )}
+          {factura.clave_acceso && (
+            <a className="btn" href={window._api?.urlXmlFactura(factura.id) || '#'} download style={{ textDecoration: 'none' }}>
+              <Icon name="download" size={14}/> XML
+            </a>
+          )}
+          <a className="btn" href={window._api?.urlPdfFactura(factura.id) || '#'} download style={{ textDecoration: 'none' }}>
+            <Icon name="download" size={14}/> PDF
+          </a>
+          <Btn variant="primary" onClick={() => setDocOpen('ride')}><Icon name="eye" size={14}/> Ver RIDE</Btn>
         </div>
       </div>
 
@@ -6418,20 +6433,30 @@ function Clientes() {
     setDraft(blank); setSel(null); setModo('nuevo');
   };
   const cancelar = () => { setModo('ver'); setDraft(null); };
-  const guardar = () => {
+  const persistir = async (lista) => {
+    window.CLIENTES_MOCK = lista;
+    if (window._api?.saveCollection) await window._api.saveCollection('clientes', lista);
+  };
+  const guardar = async () => {
+    let lista;
     if (modo === 'nuevo') {
-      setClientes([draft, ...clientes]);
+      lista = [draft, ...clientes];
+      setClientes(lista);
       setSel(draft.id);
     } else {
-      setClientes(clientes.map(c => c.id === draft.id ? draft : c));
+      lista = clientes.map(c => c.id === draft.id ? draft : c);
+      setClientes(lista);
     }
+    await persistir(lista);
     setModo('ver');
     setDraft(null);
   };
-  const eliminar = () => {
+  const eliminar = async () => {
     if (!current) return;
     if (!window.confirm(`Eliminar a "${current.razon_social}"? Las facturas y cotizaciones asociadas se conservan.`)) return;
-    setClientes(clientes.filter(c => c.id !== current.id));
+    const lista = clientes.filter(c => c.id !== current.id);
+    setClientes(lista);
+    await persistir(lista);
     setSel(null);
   };
 
@@ -7555,7 +7580,7 @@ function WizardNuevaCotizacion({ onClose, onCreated }) {
 
   const canNext = (step === 1 && !!clienteId) || (step === 2 && items.length > 0) || step === 3;
 
-  const crear = () => {
+  const crear = async () => {
     // Genera un ID incremental tipo COT-YYYY-NNNN
     const year = new Date().getFullYear();
     const lastNum = COTIZACIONES_MOCK
@@ -7572,7 +7597,9 @@ function WizardNuevaCotizacion({ onClose, onCreated }) {
       items: items.map(it => ({ prod_id: it.prod_id, cant_cajas: Number(it.cant_cajas) || 0, precio_caja: Number(it.precio_caja) || 0 })),
       observaciones,
     };
-    COTIZACIONES_MOCK.unshift(nueva);
+    const lista = [nueva, ...(window.COTIZACIONES_MOCK || [])];
+    window.COTIZACIONES_MOCK = lista;
+    if (window._api?.saveCollection) await window._api.saveCollection('cotizaciones', lista);
     if (onCreated) onCreated(nuevaId);
     onClose();
   };
