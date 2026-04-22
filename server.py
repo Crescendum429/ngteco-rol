@@ -803,13 +803,17 @@ def _build_login_patch():
 
 def _inject_html(raw_html):
     # Inyectamos un script de overrides DESPUÉS del data.jsx del handoff.
-    # El HTML ya tiene mocks completos como fallback; sobrescribimos los globales
-    # de window.X con los datos reales del backend.
+    # IMPORTANTE: debe ser type="text/babel" para que Babel Standalone lo ejecute
+    # DESPUES de data.jsx (los scripts text/babel se ejecutan en orden DOM despues
+    # de los scripts planos). Si fuera <script> plano, se ejecutaria antes y
+    # data.jsx le sobrescribiria los valores con los mocks.
     data_start = raw_html.find('<script type="text/babel" data-file="data.jsx">')
     data_end = raw_html.find('</script>', data_start) + len('</script>')
     if data_start >= 0 and data_end > data_start:
         override_script = (
-            '\n<script>\n' + _build_data_jsx() + '\n</script>\n'
+            '\n<script type="text/babel" data-file="data-overrides.jsx">\n'
+            + _build_data_jsx()
+            + '\n</script>\n'
         )
         raw_html = raw_html[:data_end] + override_script + raw_html[data_end:]
 
