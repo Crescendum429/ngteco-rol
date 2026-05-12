@@ -261,6 +261,48 @@ def test_e2e_anticipo_descuenta_segunda_quincena():
     assert abs(nom["transf_fin"] - 132.63) < 0.01
 
 
+def test_e2e_feriado_se_paga_100_si_trabaja():
+    """1 mayo (Dia del Trabajo) — feriado. Trabajar = 100% si modo=pagar."""
+    # 1 mayo 2026 es viernes (dia laboral). Debe tratarse como feriado.
+    cls = {"26-05-01": _dia(420, 720, 780, 960, modo_extra="pagar")}  # 8h
+    hrs = calc_horas_periodo(cls, base_h=8)
+    assert hrs["horas_100"] == 8.0
+    assert hrs["horas_regular"] == 0.0
+    assert hrs["horas_50"] == 0.0
+
+
+def test_e2e_feriado_default_banco():
+    """Mismo feriado modo=banco — todo al banco."""
+    cls = {"26-05-01": _dia(420, 720, 780, 960)}  # 8h sin modo explicito
+    hrs = calc_horas_periodo(cls, base_h=8)
+    assert hrs["banco_excedente"] == 8.0
+
+
+def test_e2e_tope_semanal_12h_genera_alerta():
+    """Trabajar 4h extras x 4 dias (lun-jue) = 16h/sem > 12h tope.
+    Sistema paga las 16h al 50% pero ALERTA al contador.
+    h4=1200 (20:00) → mañana 5h + tarde 7h = 12h total → 4h extras."""
+    cls = {
+        "26-03-02": _dia(420, 720, 780, 1200, modo_extra="pagar"),  # 12h lun (4h extras)
+        "26-03-03": _dia(420, 720, 780, 1200, modo_extra="pagar"),
+        "26-03-04": _dia(420, 720, 780, 1200, modo_extra="pagar"),
+        "26-03-05": _dia(420, 720, 780, 1200, modo_extra="pagar"),
+    }
+    hrs = calc_horas_periodo(cls, base_h=8)
+    assert hrs["horas_50"] == 16.0  # 4×4=16
+    assert any("supera tope legal" in a for a in hrs["alertas"])
+
+
+def test_e2e_semana_normal_8h_no_alerta():
+    cls = {
+        "26-03-02": _dia(420, 720, 780, 960, modo_extra="pagar"),  # 8h
+        "26-03-03": _dia(420, 720, 780, 960, modo_extra="pagar"),
+    }
+    hrs = calc_horas_periodo(cls, base_h=8)
+    assert hrs["horas_50"] == 0.0
+    assert hrs["alertas"] == []
+
+
 def test_e2e_dias_trabajados_vs_pagados_transporte():
     """Si un dia esta cubierto por banco sin timbres, dias_trab=N pero
     transporte NO se paga ese dia."""

@@ -21,6 +21,77 @@ MES_NAMES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct
 
 OVERRIDE_FIELDS = ("prestamo_iess", "transporte_dia", "descuento_iess", "fondos_reserva")
 
+# Feriados nacionales obligatorios de Ecuador (Codigo del Trabajo Art. 65 +
+# Ley de Reforma a la Ley Organica para la Optimizacion y Eficiencia de
+# Tramites Administrativos, 2016 — feriados con dia trasladable). Trabajar
+# en estos dias se paga al 100% como hora extraordinaria (Art. 55).
+#
+# Algunos feriados son trasladables; verificar cada anio el calendario oficial
+# publicado por el MDT. Esta lista es conservadora — preferimos marcar de mas
+# (que el contador desmarque) que marcar de menos (pagar menos de lo debido).
+FERIADOS_ECUADOR = {
+    # 2025
+    "2025-01-01",  # Anio Nuevo
+    "2025-03-03", "2025-03-04",  # Carnaval (lun-mar)
+    "2025-04-18",  # Viernes Santo
+    "2025-05-01",  # Dia del Trabajo
+    "2025-05-23",  # Batalla de Pichincha (trasladado de 24 a 23, viernes)
+    "2025-08-08",  # Primer Grito Independencia (trasladado de 10 a 8, viernes)
+    "2025-10-10",  # Independencia Guayaquil (trasladado de 9 a 10, viernes)
+    "2025-11-03",  # Independencia Cuenca (trasladado de 3 noviembre)
+    "2025-12-25",  # Navidad
+    # Dia de los Difuntos: 2 noviembre — observado segun calendario
+    # 2026 (verificar oficial — esta lista es preliminar)
+    "2026-01-01",
+    "2026-02-16", "2026-02-17",  # Carnaval
+    "2026-04-03",  # Viernes Santo
+    "2026-05-01",
+    "2026-05-22",  # Pichincha trasladado a viernes
+    "2026-08-10",
+    "2026-10-09",
+    "2026-11-02",  # Difuntos
+    "2026-11-03",  # Cuenca
+    "2026-12-25",
+    # 2027 — agregar cuando MDT publique calendario oficial
+}
+
+# Topes legales Art. 55 Codigo del Trabajo
+MAX_SUPLEMENTARIAS_DIA = 4.0
+MAX_SUPLEMENTARIAS_SEMANA = 12.0
+
+
+def es_feriado_ds(ds):
+    """Retorna True si el dia es feriado nacional (formato yy-mm-dd interno o YYYY-MM-DD)."""
+    if not ds:
+        return False
+    parts = ds.split("-")
+    if len(parts) != 3:
+        return False
+    try:
+        y = int(parts[0])
+        y_full = 2000 + y if y < 100 else y
+        fecha_iso = f"{y_full}-{int(parts[1]):02d}-{int(parts[2]):02d}"
+        return fecha_iso in FERIADOS_ECUADOR
+    except Exception:
+        return False
+
+
+def semana_iso_ds(ds):
+    """Retorna (year, week) ISO para agrupar horas por semana laboral."""
+    if not ds:
+        return (0, 0)
+    parts = ds.split("-")
+    if len(parts) != 3:
+        return (0, 0)
+    try:
+        y = int(parts[0])
+        y_full = 2000 + y if y < 100 else y
+        d = date(y_full, int(parts[1]), int(parts[2]))
+        iso = d.isocalendar()
+        return (iso[0], iso[1])  # (anio_iso, semana_iso)
+    except Exception:
+        return (0, 0)
+
 
 # ─── helpers atomicos ───
 
@@ -166,71 +237,91 @@ def horas_detalle_one(data_r, cls_r, emp_db):
 
 
 def calc_horas_periodo(cls_emp, base_h):
-    """Calcula horas considerando modo_extra y cubrir_banco por dia.
+    """Calcula horas considerando modo_extra, cubrir_banco, feriados y tope
+    semanal de horas suplementarias.
 
     Returns dict con:
-    - dias            : dias en que el empleado trabajo EFECTIVAMENTE (timbres reales).
-                        Se usa para transporte (Art. 42 Codigo de Trabajo —
-                        bonificacion por dia trabajado).
-    - dias_pagados    : dias que entran en el calculo de salario (efectivos +
-                        cubiertos por banco). Para reporting visual.
-    - horas_regular   : horas regulares pagadas (incluye cobertura de banco).
-    - horas_50/100    : horas extras pagadas.
-    - banco_excedente : horas que van al banco este periodo.
-    - horas_cubiertas : horas que se descuentan del banco este periodo.
-    - dias_anomalia   : dias con flag REVISAR no resuelto.
+    - dias            : dias trabajados EFECTIVAMENTE (timbres reales). Para
+                        transporte (Art. 42).
+    - dias_pagados    : efectivos + cubiertos por banco.
+    - horas_regular   : horas regulares pagadas.
+    - horas_50/100    : horas extras pagadas. Feriados y findes van al 100%.
+    - banco_excedente : horas al banco este periodo.
+    - horas_cubiertas : horas descontadas del banco.
+    - dias_anomalia   : dias con REVISAR no resuelto.
+    - alertas         : strings de problemas legales (ej. excedio 12h/sem).
+
+    Tratamiento de feriados nacionales (FERIADOS_ECUADOR):
+    - Trabajar en feriado = 100% como hora extraordinaria (Art. 55).
+    - Cap semanal 12h aplica a suplementarias (no a 100%).
     """
     res = {
         "dias": 0, "dias_pagados": 0, "dias_anomalia": 0,
         "horas_regular": 0.0, "horas_50": 0.0, "horas_100": 0.0,
         "banco_excedente": 0.0, "horas_cubiertas": 0.0,
         "horas_total": 0.0,
+        "alertas": [],
     }
+    # Para tope semanal: acumular suplementarias por (anio, semana ISO)
+    sup_por_semana = {}  # (year, week) -> suma horas_50 contadas
     for ds, d in cls_emp.items():
         horas = horas_dia_dict(d)
         modo = d.get("modo_extra", "banco")
         cubrir = bool(d.get("cubrir_banco", False))
         flags = d.get("flags") or []
-        finde = es_finde_ds(ds)
+        es_finde_o_feriado = es_finde_ds(ds) or es_feriado_ds(ds)
 
         if horas > 0:
-            res["dias"] += 1            # dia trabajado realmente
+            res["dias"] += 1
             res["dias_pagados"] += 1
             if any(f.startswith("REVISAR:") for f in flags):
                 res["dias_anomalia"] += 1
             res["horas_total"] += horas
 
-        if finde:
+        if es_finde_o_feriado:
+            # Findes y feriados — todo al 100% si modo=pagar, sino al banco
             if horas > 0:
                 if modo == "pagar":
                     res["horas_100"] += horas
                 else:
                     res["banco_excedente"] += horas
         else:
+            # Dia laboral normal
             if horas > 0:
                 reg = min(horas, base_h)
                 res["horas_regular"] += reg
                 excedente = max(0.0, horas - base_h)
                 if excedente > 0:
                     if modo == "pagar":
-                        res["horas_50"] += min(excedente, 4.0)
-                        res["horas_100"] += max(0.0, excedente - 4.0)
+                        h50_dia = min(excedente, MAX_SUPLEMENTARIAS_DIA)
+                        h100_dia = max(0.0, excedente - MAX_SUPLEMENTARIAS_DIA)
+                        res["horas_50"] += h50_dia
+                        res["horas_100"] += h100_dia
+                        # Acumular para tope semanal
+                        wk = semana_iso_ds(ds)
+                        sup_por_semana[wk] = sup_por_semana.get(wk, 0) + h50_dia
                     else:
                         res["banco_excedente"] += excedente
                 elif horas < base_h and cubrir:
                     deficit = base_h - horas
                     res["horas_regular"] += deficit
                     res["horas_cubiertas"] += deficit
-                    # NOTA: dias NO se incrementa — el dia ya cuenta arriba.
-                    # dias_pagados ya esta sumado.
             elif cubrir:
-                # Dia sin timbres pero cubierto por banco. Las horas se pagan,
-                # PERO no se cuenta como dia trabajado (no se paga transporte
-                # del Art. 42). dias_pagados sí incluye para reporting.
+                # Dia sin timbres cubierto por banco — NO cuenta para transporte
                 res["horas_regular"] += base_h
                 res["horas_cubiertas"] += base_h
                 res["dias_pagados"] += 1
-                # res["dias"] NO se incrementa — el empleado no fue al sitio.
+
+    # Validar tope semanal de suplementarias (Art. 55: max 12h/semana)
+    for (anio, sem), horas_sem in sup_por_semana.items():
+        if horas_sem > MAX_SUPLEMENTARIAS_SEMANA:
+            exceso = horas_sem - MAX_SUPLEMENTARIAS_SEMANA
+            res["alertas"].append(
+                f"Semana {anio}-W{sem}: {horas_sem:.1f}h suplementarias supera tope "
+                f"legal de {MAX_SUPLEMENTARIAS_SEMANA}h (exceso {exceso:.1f}h). "
+                f"Art. 55 Codigo del Trabajo. Decida con contador: pagar al 50% "
+                f"igual, reclasificar a 100%, o no pagar."
+            )
 
     for k in ("horas_regular", "horas_50", "horas_100", "banco_excedente", "horas_cubiertas", "horas_total"):
         res[k] = round(res[k], 2)
