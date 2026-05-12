@@ -475,6 +475,67 @@ def save_movimientos_inventario(data):
     _cfg_set("inv:movimientos", data)
 
 
+# ═══ Esquema de inventario nuevo (alineado con operación real) ═══
+
+def load_inv_piezas():
+    """Stock de piezas sueltas. Estructura: [{id, pieza, estado, cliente_id?, unidades, minimo, ultima_actualizacion}]
+    pieza ∈ {canula, piston, tapon, acordeon_nuevo, acordeon_antiguo, gotero_base, capuchon}
+    estado ∈ {cruda, impresa}
+    cliente_id opcional cuando estado=impresa."""
+    return _load_or_none("inv:piezas") or []
+
+
+def save_inv_piezas(data):
+    _cfg_set("inv:piezas", data)
+
+
+def load_inv_molido():
+    """Stock de molido segregado. Estructura: {tipo: kg}.
+    tipo ∈ {canula, vaso, piston, tapon, acordeon, alta, baja, mazarota}"""
+    return _load_or_none("inv:molido") or {}
+
+
+def save_inv_molido(data):
+    _cfg_set("inv:molido", data)
+
+
+def load_inv_auxiliar():
+    """Stock de material auxiliar. Estructura: {item_id: {nombre, actual, minimo, unidad}}.
+    item_id ∈ {rollo_empacadora, cartones, fundas_vasos, fundas_jeringas, fundas_cucharas, pintura, guantes, cintas, esparadrapos}"""
+    return _load_or_none("inv:auxiliar") or {}
+
+
+def save_inv_auxiliar(data):
+    _cfg_set("inv:auxiliar", data)
+
+
+def load_inv_lotes():
+    """Lotes de producto terminado. Estructura: [{id, producto_id, cliente_id?, fecha_elaboracion, fecha_caducidad, cantidad_cajas, unidades_caja, peso_neto, peso_total, responsable, despachado, despachado_en}]"""
+    return _load_or_none("inv:lotes") or []
+
+
+def save_inv_lotes(data):
+    _cfg_set("inv:lotes", data)
+
+
+def load_bom():
+    """Bill of materials por producto. Estructura: {producto_id: {pieza: cantidad_por_caja, ...}}"""
+    return _load_or_none("catalogo:bom") or {}
+
+
+def save_bom(data):
+    _cfg_set("catalogo:bom", data)
+
+
+def load_cambios_molde():
+    """Historial de cambios de molde. Estructura: [{fecha, maquina, de_producto, a_producto, responsable}]"""
+    return _load_or_none("inv:cambios_molde") or []
+
+
+def save_cambios_molde(data):
+    _cfg_set("inv:cambios_molde", data)
+
+
 def load_registro_diario(fecha_str):
     return _cfg_get(f"gastos:diario:{fecha_str}", {})
 

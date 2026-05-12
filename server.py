@@ -69,6 +69,18 @@ from storage import (
     save_productos,
     save_registro_diario,
     save_reporte,
+    load_inv_piezas,
+    save_inv_piezas,
+    load_inv_molido,
+    save_inv_molido,
+    load_inv_auxiliar,
+    save_inv_auxiliar,
+    load_inv_lotes,
+    save_inv_lotes,
+    load_bom,
+    save_bom,
+    load_cambios_molde,
+    save_cambios_molde,
 )
 
 APP_VERSION = "4.0"
@@ -522,6 +534,12 @@ def _build_data_jsx():
     guias = load_guias()
     certificados = load_certificados()
     emisor = load_emisor()
+    inv_piezas = load_inv_piezas() or []
+    inv_molido = load_inv_molido() or {}
+    inv_auxiliar = load_inv_auxiliar() or {}
+    inv_lotes = load_inv_lotes() or []
+    bom_map = load_bom() or {}
+    cambios_molde_hist = load_cambios_molde() or []
 
     overrides_js = [
         f"window.EMPLEADOS_MOCK = {json.dumps(empleados_js, ensure_ascii=False)};",
@@ -561,6 +579,12 @@ def _build_data_jsx():
         overrides_js.append(f"window.CERTIFICADOS_MOCK = {json.dumps(certificados, ensure_ascii=False)};")
     if emisor is not None:
         overrides_js.append(f"window.EMISOR = {json.dumps(emisor, ensure_ascii=False)};")
+    overrides_js.append(f"window.INV_PIEZAS = {json.dumps(inv_piezas, ensure_ascii=False)};")
+    overrides_js.append(f"window.INV_MOLIDO = {json.dumps(inv_molido, ensure_ascii=False)};")
+    overrides_js.append(f"window.INV_AUXILIAR = {json.dumps(inv_auxiliar, ensure_ascii=False)};")
+    overrides_js.append(f"window.INV_LOTES = {json.dumps(inv_lotes, ensure_ascii=False)};")
+    overrides_js.append(f"window.BOM = {json.dumps(bom_map, ensure_ascii=False)};")
+    overrides_js.append(f"window.CAMBIOS_MOLDE = {json.dumps(cambios_molde_hist, ensure_ascii=False)};")
 
     helpers = """
 window.solpExportCSV = (filename, headers, rows) => {
@@ -814,6 +838,48 @@ def _build_login_patch():
     },
     urlPdfFactura: (factura_id) => '/api/sri/pdf/' + encodeURIComponent(factura_id),
     urlXmlFactura: (factura_id) => '/api/sri/xml/' + encodeURIComponent(factura_id),
+    saveRegistroV2: async (data) => {
+      const r = await fetch('/api/registros/v2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        credentials: 'same-origin',
+      });
+      return r.ok ? r.json() : { error: 'Error' };
+    },
+    fetchRegistroV2: async (fecha) => {
+      const r = await fetch('/api/registros/v2/' + encodeURIComponent(fecha), { credentials: 'same-origin' });
+      return r.ok ? r.json() : null;
+    },
+    fetchLotes: async (params) => {
+      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      const r = await fetch('/api/inventario/lotes' + q, { credentials: 'same-origin' });
+      return r.ok ? r.json() : [];
+    },
+    crearLote: async (data) => {
+      const r = await fetch('/api/inventario/lotes', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data), credentials: 'same-origin',
+      });
+      return r.ok ? r.json() : { error: 'Error' };
+    },
+    despacharLote: async (lote_id) => {
+      const r = await fetch('/api/inventario/lotes/' + encodeURIComponent(lote_id) + '/despachar', {
+        method: 'POST', credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    saveBom: async (prod_id, bom) => {
+      const r = await fetch('/api/bom/' + encodeURIComponent(prod_id), {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bom), credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    fetchBom: async (prod_id) => {
+      const r = await fetch('/api/bom/' + encodeURIComponent(prod_id), { credentials: 'same-origin' });
+      return r.ok ? r.json() : {};
+    },
   };
 })();
 """
@@ -1596,6 +1662,370 @@ def put_collection(kind):
     data = request.get_json(force=True)
     _COLLECTION_MAP[kind][1](data)
     return jsonify({"ok": True})
+
+
+# ═══════════════════════════════════════════════════════════════
+# Inventario — esquema nuevo (piezas, molido, lotes, auxiliar, BOM)
+# ═══════════════════════════════════════════════════════════════
+
+def _now_iso():
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def _append_mov(clase, tipo, item_id, cantidad, unidad, ref="", nota=""):
+    """Anade un movimiento atomico al log."""
+    movs = load_movimientos_inventario() or []
+    nid = (max([int(m.get("id", 0)) for m in movs], default=0)) + 1
+    movs.insert(0, {
+        "id": nid,
+        "fecha": date.today().isoformat(),
+        "tipo": tipo,
+        "clase": clase,
+        "item_id": item_id,
+        "cantidad": float(cantidad),
+        "unidad": unidad,
+        "ref": ref,
+        "nota": nota,
+    })
+    save_movimientos_inventario(movs)
+    return nid
+
+
+def _piezas_inc(pieza, estado, cliente_id, unidades, minimo=0):
+    """Incrementa stock de una pieza (estado cruda o impresa-cliente). Retorna stock final."""
+    if unidades == 0:
+        return
+    items = load_inv_piezas() or []
+    cli = cliente_id if estado == "impresa" else None
+    found = None
+    for it in items:
+        if it.get("pieza") == pieza and it.get("estado") == estado and it.get("cliente_id") == cli:
+            found = it
+            break
+    if found:
+        found["unidades"] = float(found.get("unidades", 0)) + float(unidades)
+        found["ultima_actualizacion"] = _now_iso()
+    else:
+        items.append({
+            "id": f"{pieza}_{estado}_{cli or 'na'}",
+            "pieza": pieza, "estado": estado, "cliente_id": cli,
+            "unidades": float(unidades), "minimo": float(minimo),
+            "ultima_actualizacion": _now_iso(),
+        })
+    save_inv_piezas(items)
+
+
+def _molido_inc(tipo, kg):
+    """Incrementa molido por tipo."""
+    if kg == 0:
+        return
+    mol = load_inv_molido() or {}
+    mol[tipo] = round(float(mol.get(tipo, 0)) + float(kg), 3)
+    save_inv_molido(mol)
+
+
+def _aux_inc(item_id, cantidad):
+    if cantidad == 0:
+        return
+    aux = load_inv_auxiliar() or {}
+    cur = aux.get(item_id) or {"nombre": item_id, "actual": 0, "minimo": 0, "unidad": "unid"}
+    cur["actual"] = float(cur.get("actual", 0)) + float(cantidad)
+    aux[item_id] = cur
+    save_inv_auxiliar(aux)
+
+
+def _gen_lote_id(producto_id, cliente_codigo, secuencial):
+    """Genera ID de lote estilo JD10FARBIO-2003."""
+    pid = (producto_id or "").upper().replace(" ", "")[:8]
+    cli = (cliente_codigo or "").upper().replace(" ", "")[:8]
+    return f"{pid}-{cli}-{int(secuencial):04d}" if cli else f"{pid}-{int(secuencial):04d}"
+
+
+@app.route("/api/inventario/piezas", methods=["GET"])
+@require_auth
+def get_inv_piezas():
+    return jsonify(load_inv_piezas() or [])
+
+
+@app.route("/api/inventario/piezas", methods=["PUT"])
+@require_auth
+def put_inv_piezas():
+    data = request.get_json(force=True) or []
+    save_inv_piezas(data)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/inventario/molido", methods=["GET"])
+@require_auth
+def get_inv_molido():
+    return jsonify(load_inv_molido() or {})
+
+
+@app.route("/api/inventario/molido", methods=["PUT"])
+@require_auth
+def put_inv_molido():
+    data = request.get_json(force=True) or {}
+    save_inv_molido(data)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/inventario/auxiliar", methods=["GET"])
+@require_auth
+def get_inv_auxiliar():
+    return jsonify(load_inv_auxiliar() or {})
+
+
+@app.route("/api/inventario/auxiliar", methods=["PUT"])
+@require_auth
+def put_inv_auxiliar():
+    data = request.get_json(force=True) or {}
+    save_inv_auxiliar(data)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/inventario/lotes", methods=["GET"])
+@require_auth
+def get_inv_lotes():
+    producto = request.args.get("producto")
+    cliente = request.args.get("cliente")
+    solo_disponibles = request.args.get("disponibles") == "1"
+    lotes = load_inv_lotes() or []
+    if producto:
+        lotes = [l for l in lotes if l.get("producto_id") == producto]
+    if cliente:
+        lotes = [l for l in lotes if l.get("cliente_id") == cliente]
+    if solo_disponibles:
+        lotes = [l for l in lotes if not l.get("despachado")]
+    # FIFO por fecha_elaboracion ASC
+    lotes.sort(key=lambda l: l.get("fecha_elaboracion", "9999-99-99"))
+    return jsonify(lotes)
+
+
+@app.route("/api/inventario/lotes", methods=["POST"])
+@require_auth
+def create_lote():
+    """Crea un lote nuevo (empaque registrado)."""
+    data = request.get_json(force=True) or {}
+    lotes = load_inv_lotes() or []
+    secuencial = (max([int(re.findall(r"\d+", l.get("id", "0"))[-1]) for l in lotes if re.findall(r"\d+", l.get("id", "0"))], default=2000)) + 1
+    cliente_id = data.get("cliente_id") or ""
+    lote_id = data.get("id") or _gen_lote_id(data.get("producto_id", ""), cliente_id.upper(), secuencial)
+    nuevo = {
+        "id": lote_id,
+        "producto_id": data.get("producto_id"),
+        "cliente_id": cliente_id or None,
+        "fecha_elaboracion": data.get("fecha_elaboracion") or date.today().isoformat(),
+        "fecha_caducidad": data.get("fecha_caducidad") or "",
+        "cantidad_cajas": int(data.get("cantidad_cajas", 1)),
+        "unidades_caja": int(data.get("unidades_caja", 0)),
+        "peso_neto": float(data.get("peso_neto", 0)),
+        "peso_total": float(data.get("peso_total", 0)),
+        "responsable": data.get("responsable", ""),
+        "despachado": False,
+        "despachado_en": "",
+    }
+    lotes.append(nuevo)
+    save_inv_lotes(lotes)
+    _append_mov("pt", "produccion", nuevo["producto_id"], nuevo["cantidad_cajas"], "cajas",
+                ref=nuevo["id"], nota=f"Lote {nuevo['id']} creado")
+    return jsonify({"ok": True, "lote": nuevo})
+
+
+@app.route("/api/inventario/lotes/<lote_id>/despachar", methods=["POST"])
+@require_auth
+def despachar_lote(lote_id):
+    lotes = load_inv_lotes() or []
+    cambiado = False
+    for l in lotes:
+        if l.get("id") == lote_id and not l.get("despachado"):
+            l["despachado"] = True
+            l["despachado_en"] = _now_iso()
+            cambiado = True
+            _append_mov("pt", "salida", l.get("producto_id"), l.get("cantidad_cajas", 0), "cajas",
+                        ref=lote_id, nota="Despacho")
+            break
+    if cambiado:
+        save_inv_lotes(lotes)
+    return jsonify({"ok": cambiado})
+
+
+@app.route("/api/bom/<prod_id>", methods=["GET"])
+@require_auth
+def get_bom(prod_id):
+    bom = load_bom() or {}
+    return jsonify(bom.get(prod_id) or {})
+
+
+@app.route("/api/bom/<prod_id>", methods=["PUT"])
+@require_auth
+def put_bom(prod_id):
+    data = request.get_json(force=True) or {}
+    bom = load_bom() or {}
+    bom[prod_id] = data
+    save_bom(bom)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/cambios_molde", methods=["GET"])
+@require_auth
+def get_cambios_molde():
+    return jsonify(load_cambios_molde() or [])
+
+
+# ═══════════════════════════════════════════════════════════════
+# Registro Diario v2 — extendido con piezas / molido / lotes / auxiliar
+# ═══════════════════════════════════════════════════════════════
+
+@app.route("/api/registros/v2", methods=["POST"])
+@require_auth
+def save_registro_v2():
+    """Guarda un registro extendido y actualiza inventario de forma atomica.
+
+    Payload esperado:
+    {
+      fecha: '2026-05-12',
+      responsables: ['Alicia', 'Fernando'],
+      piezas: [{pieza, estado, cliente_id?, unidades}],
+      empaques: [{producto_id, cliente_id?, cajas, unidades_caja, peso_neto?, peso_total?}],
+      material_virgen: {clarificado_kg, pe_alta_kg, pe_baja_kg, pp_homo_kg, pvc_kg, ...},
+      molido_reusado: {canula, vaso, piston, tapon, acordeon, alta, baja, mazarota},
+      desechos_maquina: {canula_kg, piston_kg, tapon_kg, acordeon_kg, vaso_kg, mazarota_kg},
+      desecho_empacadora: unidades,
+      auxiliar_consumido: {rollo_empacadora, cartones, ...},
+      cambios_molde: [{maquina, de_producto, a_producto}],
+      obs: ''
+    }
+    """
+    data = request.get_json(force=True) or {}
+    fecha = data.get("fecha") or date.today().isoformat()
+
+    # 1. Piezas producidas → stock + mov
+    for p in data.get("piezas") or []:
+        unidades = float(p.get("unidades", 0))
+        if unidades == 0:
+            continue
+        _piezas_inc(p.get("pieza"), p.get("estado", "cruda"), p.get("cliente_id"), unidades)
+        _append_mov("pieza", "produccion", p.get("pieza"), unidades, "unidades",
+                    ref=fecha, nota=f"{p.get('estado','cruda')} {p.get('cliente_id') or ''}".strip())
+
+    # 2. Empaque → lotes + mov + consume piezas según BOM
+    bom = load_bom() or {}
+    lotes_existentes = load_inv_lotes() or []
+    for e in data.get("empaques") or []:
+        cajas = int(e.get("cajas", 0))
+        if cajas <= 0:
+            continue
+        prod_id = e.get("producto_id")
+        cliente_id = e.get("cliente_id") or ""
+        unidades_caja = int(e.get("unidades_caja", 0))
+        # Generar lote
+        secuencial = (max([int((re.findall(r"\d+", l.get("id", "0")) or ["0"])[-1]) for l in lotes_existentes], default=2000)) + 1
+        lote_id = _gen_lote_id(prod_id, cliente_id.upper(), secuencial)
+        nuevo_lote = {
+            "id": lote_id,
+            "producto_id": prod_id,
+            "cliente_id": cliente_id or None,
+            "fecha_elaboracion": fecha,
+            "fecha_caducidad": "",
+            "cantidad_cajas": cajas,
+            "unidades_caja": unidades_caja,
+            "peso_neto": float(e.get("peso_neto", 0)),
+            "peso_total": float(e.get("peso_total", 0)),
+            "responsable": ", ".join(data.get("responsables") or []),
+            "despachado": False,
+            "despachado_en": "",
+        }
+        lotes_existentes.append(nuevo_lote)
+        _append_mov("pt", "produccion", prod_id, cajas, "cajas", ref=lote_id, nota=fecha)
+        # Consumir piezas según BOM
+        receta = bom.get(prod_id) or {}
+        for pieza, cant_por_caja in receta.items():
+            unidades_consumidas = float(cant_por_caja) * cajas * (unidades_caja or 1)
+            _piezas_inc(pieza, "impresa" if cliente_id else "cruda", cliente_id or None, -unidades_consumidas)
+            _append_mov("pieza", "consumo", pieza, unidades_consumidas, "unidades",
+                        ref=lote_id, nota=f"empaque {prod_id}")
+    save_inv_lotes(lotes_existentes)
+
+    # 3. Material virgen consumido → mov
+    for mat_key, kg in (data.get("material_virgen") or {}).items():
+        if not kg:
+            continue
+        mat_id = mat_key.replace("_kg", "")
+        _append_mov("mp", "consumo", mat_id, float(kg), "kg", ref=fecha, nota="virgen")
+
+    # 4. Molido reusado → mov + descontar de stock molido
+    mol = load_inv_molido() or {}
+    for tipo, kg in (data.get("molido_reusado") or {}).items():
+        if not kg:
+            continue
+        mol[tipo] = round(float(mol.get(tipo, 0)) - float(kg), 3)
+        _append_mov("molido", "consumo", tipo, float(kg), "kg", ref=fecha, nota="reuso")
+    save_inv_molido(mol)
+
+    # 5. Desechos de maquina → vuelven a molido + mov
+    for pieza_key, kg in (data.get("desechos_maquina") or {}).items():
+        if not kg:
+            continue
+        tipo = pieza_key.replace("_kg", "")
+        _molido_inc(tipo, float(kg))
+        _append_mov("molido", "entrada", tipo, float(kg), "kg", ref=fecha, nota="desecho_maquina")
+
+    # 6. Desecho empacadora → descarte definitivo (solo registro)
+    if data.get("desecho_empacadora"):
+        _append_mov("descarte", "baja", "empacadora", float(data["desecho_empacadora"]), "unidades",
+                    ref=fecha, nota="empacadora")
+
+    # 7. Auxiliar consumido → descontar de stock
+    aux = load_inv_auxiliar() or {}
+    for item_id, cant in (data.get("auxiliar_consumido") or {}).items():
+        if not cant:
+            continue
+        cur = aux.get(item_id) or {"nombre": item_id, "actual": 0, "minimo": 0, "unidad": "unid"}
+        cur["actual"] = float(cur.get("actual", 0)) - float(cant)
+        aux[item_id] = cur
+        _append_mov("auxiliar", "consumo", item_id, float(cant), cur.get("unidad", "unid"), ref=fecha)
+    save_inv_auxiliar(aux)
+
+    # 8. Cambios de molde
+    if data.get("cambios_molde"):
+        historial = load_cambios_molde() or []
+        for c in data["cambios_molde"]:
+            historial.insert(0, {
+                "fecha": fecha,
+                "maquina": c.get("maquina", ""),
+                "de_producto": c.get("de_producto", ""),
+                "a_producto": c.get("a_producto", ""),
+                "responsable": ", ".join(data.get("responsables") or []),
+            })
+        save_cambios_molde(historial)
+
+    # 9. Guardar registro completo (raw) en el storage de registros diarios
+    payload = {
+        "fecha": fecha,
+        "responsables": data.get("responsables") or [],
+        "piezas": data.get("piezas") or [],
+        "empaques": data.get("empaques") or [],
+        "material_virgen": data.get("material_virgen") or {},
+        "molido_reusado": data.get("molido_reusado") or {},
+        "desechos_maquina": data.get("desechos_maquina") or {},
+        "desecho_empacadora": data.get("desecho_empacadora") or 0,
+        "auxiliar_consumido": data.get("auxiliar_consumido") or {},
+        "cambios_molde": data.get("cambios_molde") or [],
+        "observaciones": data.get("obs", ""),
+        "raw": data,
+        "total_material_kg": sum(float(v or 0) for v in (data.get("material_virgen") or {}).values()),
+        "total_cajas": sum(int(e.get("cajas", 0)) for e in (data.get("empaques") or [])),
+        "merma_pct": 0,
+    }
+    save_registro_diario(fecha, payload)
+    return jsonify({"ok": True, "fecha": fecha})
+
+
+@app.route("/api/registros/v2/<fecha>", methods=["GET"])
+@require_auth
+def get_registro_v2(fecha):
+    reg = load_registro_diario(fecha) or {}
+    return jsonify(reg)
 
 
 # ═══════════════════════════════════════════════════════════════
