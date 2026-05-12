@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "4.0"
+APP_VERSION = "4.1.1"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "solplast-dev-secret-2026")
 
@@ -585,6 +585,7 @@ def _build_data_jsx():
     overrides_js.append(f"window.INV_LOTES = {json.dumps(inv_lotes, ensure_ascii=False)};")
     overrides_js.append(f"window.BOM = {json.dumps(bom_map, ensure_ascii=False)};")
     overrides_js.append(f"window.CAMBIOS_MOLDE = {json.dumps(cambios_molde_hist, ensure_ascii=False)};")
+    overrides_js.append(f"window.APP_VERSION = {json.dumps(APP_VERSION)};")
 
     helpers = """
 window.solpExportCSV = (filename, headers, rows) => {
