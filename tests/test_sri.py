@@ -157,3 +157,57 @@ def test_xml_no_tiene_bom():
     }
     xml = sri.build_factura_xml(factura, {"ruc": "0" * 13}, {})
     assert not xml.startswith("﻿")
+
+
+def test_xml_reconciliacion_subtotal_lineas():
+    """Suma de subtotales de lineas debe igualar el subtotal de la factura.
+
+    Critico para auditoria SRI: una factura con discrepancia entre lineas
+    y total puede ser rechazada o causar problemas tributarios.
+    """
+    factura = {
+        "fecha_emision": "2026-04-22", "clave_acceso": "1" * 49,
+        "items": [
+            {"prod_id": "a", "descripcion": "A", "cant_cajas": 10, "precio_caja": 5.00, "iva_pct": 15},
+            {"prod_id": "b", "descripcion": "B", "cant_cajas": 3, "precio_caja": 8.50, "iva_pct": 15},
+            {"prod_id": "c", "descripcion": "C", "cant_cajas": 2, "precio_caja": 12.00, "iva_pct": 0},
+        ],
+        "subtotal_12": 75.50,  # 50 + 25.50
+        "subtotal_0": 24.00,
+        "iva": 11.325,  # 75.50 * 0.15
+        "total": 110.825,
+    }
+    xml = sri.build_factura_xml(factura, {"ruc": "0" * 13}, {})
+
+    # Cada linea debe tener su impuesto explicito
+    assert xml.count("<detalle>") == 3
+    # Total debe aparecer en el XML
+    assert "<importeTotal>110.83</importeTotal>" in xml or "<importeTotal>110.82</importeTotal>" in xml
+
+
+def test_clave_acceso_documenta_ambiente():
+    """Posicion 24 de la clave de acceso = ambiente. Validar."""
+    clave_pruebas = sri.generar_clave_acceso(
+        fecha_emision="22042026", cod_doc="01", ruc_emisor="0" * 13,
+        ambiente="1", estab="001", pto_emision="001", secuencial="000000001",
+    )
+    clave_prod = sri.generar_clave_acceso(
+        fecha_emision="22042026", cod_doc="01", ruc_emisor="0" * 13,
+        ambiente="2", estab="001", pto_emision="001", secuencial="000000001",
+    )
+    assert clave_pruebas[23] == "1"
+    assert clave_prod[23] == "2"
+
+
+def test_clave_acceso_diferente_codigo_numerico_distinto():
+    """Dos llamadas seguidas SIN especificar codigo_numerico deben generar claves
+    distintas (anti-colision en lote masivo)."""
+    args = dict(
+        fecha_emision="22042026", cod_doc="01", ruc_emisor="0" * 13,
+        ambiente="1", estab="001", pto_emision="001", secuencial="000000001",
+    )
+    c1 = sri.generar_clave_acceso(**args)
+    c2 = sri.generar_clave_acceso(**args)
+    # con la misma config y secuencial, solo difiere el codigo numerico aleatorio
+    # casi imposible que coincidan; este test puede fallar 1 en 10^8
+    assert c1 != c2

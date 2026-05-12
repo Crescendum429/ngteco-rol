@@ -159,6 +159,13 @@ def update_producto(prod_id):
     p["unidades_caja"] = int(data.get("unidades_caja", p.get("unidades_caja", 1000)))
     p["peso_g"] = float(data.get("peso_g", p.get("peso_g", 0)))
     p["factor_complejidad"] = float(data.get("factor", p.get("factor_complejidad", 1.0)))
+    # IVA por producto (Decreto 198/2024: tarifa general 15%). Validamos a
+    # valores admitidos por el SRI.
+    if "iva_pct" in data:
+        iva = float(data["iva_pct"])
+        if iva not in (0, 5, 15):
+            return jsonify({"error": f"IVA invalido: {iva}. Permitidos: 0, 5, 15"}), 400
+        p["iva_pct"] = iva
     save_productos(prods)
     return jsonify({"ok": True})
 

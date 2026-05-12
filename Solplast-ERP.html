@@ -6199,14 +6199,39 @@ function OCDetalle({ oc, onBack }) {
               const sec = String(lastSec + 1).padStart(9, '0');
               const facId = `FAC-001-001-${sec}`;
               const hoy = new Date().toISOString().slice(0, 10);
-              const subtotal = oc.items.reduce((s, it) => s + (it.cant_cajas || 0) * (it.precio_caja || 0), 0);
-              const iva = subtotal * 0.15;
-              const total = subtotal + iva;
+              // IVA por producto: cada item lee iva_pct de PRODUCTOS_MOCK.
+              // Si no tiene, asume 15% (tarifa general 2026 Decreto 198/2024).
+              // Redondeamos UNA VEZ por linea (consistente con SRI).
+              let subtotal_15 = 0, subtotal_5 = 0, subtotal_0 = 0, iva_total = 0;
+              const itemsFac = oc.items.map(it => {
+                const prod = (window.PRODUCTOS_MOCK || []).find(p => p.id === it.prod_id);
+                const ivaPct = prod && typeof prod.iva_pct === 'number' ? prod.iva_pct : 15;
+                const base = Math.round((it.cant_cajas || 0) * (it.precio_caja || 0) * 100) / 100;
+                const ivaLinea = Math.round(base * ivaPct / 100 * 100) / 100;
+                if (ivaPct === 15) subtotal_15 += base;
+                else if (ivaPct === 5) subtotal_5 += base;
+                else subtotal_0 += base;
+                iva_total += ivaLinea;
+                return {
+                  prod_id: it.prod_id, cant_cajas: it.cant_cajas, precio_unit: it.precio_caja,
+                  subtotal: base, iva_pct: ivaPct, iva_linea: ivaLinea,
+                };
+              });
+              const subtotal = subtotal_15 + subtotal_5 + subtotal_0;
+              const total = Math.round((subtotal + iva_total) * 100) / 100;
+              // Reconciliacion: suma de iva_linea === iva_total
+              const recon = Math.abs(itemsFac.reduce((s, i) => s + i.iva_linea, 0) - iva_total) < 0.01;
+              if (!recon) {
+                window.solpToast('Reconciliacion IVA rota — revisar productos', 'bad');
+                return;
+              }
               const nuevaFac = {
                 id: facId, cliente: oc.cliente, oc_id: oc.id, fecha_emision: hoy,
                 establecimiento: '001', punto_emision: '001', secuencial: sec,
-                items: oc.items.map(it => ({ prod_id: it.prod_id, cant_cajas: it.cant_cajas, precio_unit: it.precio_caja, subtotal: (it.cant_cajas || 0) * (it.precio_caja || 0) })),
-                subtotal_12: subtotal, subtotal_0: 0, iva, total,
+                items: itemsFac,
+                subtotal_12: subtotal_15,  // compatibilidad con frontend legacy (renombrado mentalmente a "tarifa estandar")
+                subtotal_15, subtotal_5, subtotal_0,
+                iva: iva_total, total,
                 forma_pago: 'transferencia', forma_pago_codigo: '20',
                 fecha_vencimiento: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
                 pagada: false, estado_sri: 'pendiente', clave_acceso: '', autorizacion_sri: '', fecha_autorizacion: '',

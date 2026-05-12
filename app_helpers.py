@@ -55,6 +55,7 @@ def prod_to_js(key, prod):
         "factor": float(prod.get("factor_complejidad", 1.0)),
         "costo_unit": float(prod.get("costo_unit", 0)),
         "costo_caja": float(prod.get("costo_caja", 0)),
+        "iva_pct": float(prod.get("iva_pct", 15)),  # IVA aplicable: 0, 5, 15
         "desactivado": bool(prod.get("desactivado", False)),
     }
 
