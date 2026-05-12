@@ -2804,7 +2804,7 @@ function NomStepSubir({ periodoId, onNext, onSelectPeriodo }) {
       return;
     }
     setUploading(false);
-    alert((result && result.error) || 'Error subiendo el archivo.');
+    window.solpToast((result && result.error) || 'Error subiendo el archivo.');
   }
 
   function handleFile(file) {
@@ -2953,7 +2953,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
       applyFlagLocal(sel, idx, nuevoFlag);
       if (HORAS_POR_PERIODO[periodoId]?.[sel]?.[idx]) HORAS_POR_PERIODO[periodoId][sel][idx].flag = nuevoFlag;
     } else {
-      alert('Error actualizando observación.');
+      window.solpToast('Error actualizando observación.');
     }
   }
 
@@ -2992,7 +2992,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
       });
       setEdits({});
     } else {
-      alert('Error guardando correcciones.');
+      window.solpToast('Error guardando correcciones.');
     }
   }
 
@@ -3030,7 +3030,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
     setOvPeriodo(emp_ov);
     OVERRIDES_POR_PERIODO[periodoId] = todos;
     const ok = await window._api?.saveOverrides(periodoId, todos);
-    if (!ok) { alert('Error guardando override.'); return; }
+    if (!ok) { window.solpToast('Error guardando override.'); return; }
     await window._api?.refreshNomina();
     setOvPeriodo((OVERRIDES_POR_PERIODO[periodoId] || {})[sel] || {});
   }
@@ -3070,7 +3070,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
         [sel]: h[sel].map((d, i) => i === idx ? { ...d, modo_extra: nuevoModo } : d),
       }));
       if (HORAS_POR_PERIODO[periodoId]?.[sel]?.[idx]) HORAS_POR_PERIODO[periodoId][sel][idx].modo_extra = nuevoModo;
-    } else { alert('Error.'); }
+    } else { window.solpToast('Error.'); }
   }
 
   async function toggleCubrir(idx) {
@@ -3086,7 +3086,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
         [sel]: h[sel].map((d, i) => i === idx ? { ...d, cubrir_banco: nuevo } : d),
       }));
       if (HORAS_POR_PERIODO[periodoId]?.[sel]?.[idx]) HORAS_POR_PERIODO[periodoId][sel][idx].cubrir_banco = nuevo;
-    } else { alert('Error.'); }
+    } else { window.solpToast('Error.'); }
   }
 
   function updateCell(idx, field, value) {
@@ -3185,16 +3185,6 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
             <div className="panel-sub">Horas extras van al banco por defecto (compensatorias). Toggle para pagarlas como extras.</div>
           </div>
           <div className="row" style={{ gap: 12, alignItems: 'center' }}>
-            <Btn size="sm" variant="ghost" title="El reloj NGTeco guarda las horas del primer dia del mes en el ultimo dia del mes anterior. Este boton trae esas horas como dia 1 de este mes." onClick={async () => {
-              if (!confirm('Importar horas del ultimo dia del mes anterior como dia 1 de este mes? (Soluciona el desfase del reloj NGTeco.)')) return;
-              const r = await window._api?.importarPrimerDia(periodoId);
-              if (r?.ok) {
-                alert(`Importadas horas de ${r.updates} empleados desde ${r.desde_periodo}.`);
-                location.reload();
-              } else {
-                alert((r && r.error) || 'Error importando.');
-              }
-            }}><Icon name="arrow_l" size={12}/> Importar día 1</Btn>
             <div style={{ textAlign: 'right' }}>
               <div className="xs mute">Banco del empleado</div>
               <div style={{ fontFamily: 'var(--serif)', fontSize: 18, color: bancoEmp >= 0 ? 'var(--good)' : 'var(--bad)' }}>{bancoEmp.toFixed(1)}h</div>
@@ -3391,12 +3381,12 @@ function NomStepSueldos({ periodoId, periodoLabel, onBack }) {
   const totalPagado   = nominaList.reduce((a, e) => a + e.total, 0) + d13Extra + d14Extra;
 
   async function guardarCalculo() {
-    if (!periodoId) { alert('No hay reporte cargado'); return; }
+    if (!periodoId) { window.solpToast('No hay reporte cargado'); return; }
     setGuardando(true);
     const ok = await window._api?.calcularNomina(periodoId, { d13, d14 });
     setGuardando(false);
-    if (ok) alert('Nómina guardada');
-    else alert('Error guardando nómina');
+    if (ok) window.solpToast('Nómina guardada');
+    else window.solpToast('Error guardando nómina');
   }
 
   return (
@@ -3603,7 +3593,7 @@ function RecurrentesModal({ empleadoId, onClose }) {
   }
 
   async function eliminar(id) {
-    if (!confirm('¿Eliminar esta regla recurrente?')) return;
+    if (!await window.solpConfirm('¿Eliminar esta regla recurrente?')) return;
     const next = items.filter(x => x.id !== id);
     setItems(next);
     const all = window.BENEFICIOS_RECURRENTES_MOCK || [];
@@ -4492,7 +4482,7 @@ function TabProductos({ nuevoTick }) {
     if (!sel || sel.isNew) return;
     const nuevoEstado = !sel.desactivado;
     const ok = await window._api?.setDesactivado('productos', sel.id, nuevoEstado);
-    if (!ok) { alert('Error cambiando estado.'); return; }
+    if (!ok) { window.solpToast('Error cambiando estado.'); return; }
     setItems(list => list.map(p => p.id === sel.id ? { ...p, desactivado: nuevoEstado } : p));
     const idx = PRODUCTOS_MOCK.findIndex(p => p.id === sel.id);
     if (idx >= 0) PRODUCTOS_MOCK[idx].desactivado = nuevoEstado;
@@ -4618,7 +4608,7 @@ function TabMateriales({ nuevoTick }) {
 
   async function handleSave() {
     if (!form || !sel) return;
-    if (sel.isNew && !form.id) { alert('Código interno requerido'); return; }
+    if (sel.isNew && !form.id) { window.solpToast('Código interno requerido'); return; }
     setSaving(true);
     await window._api?.saveMaterial(sel.isNew ? form.id : sel.id, form);
     setSaving(false);
@@ -4630,7 +4620,7 @@ function TabMateriales({ nuevoTick }) {
     if (!sel || sel.isNew) return;
     const nuevoEstado = !sel.desactivado;
     const ok = await window._api?.setDesactivado('materiales', sel.id, nuevoEstado);
-    if (!ok) { alert('Error cambiando estado.'); return; }
+    if (!ok) { window.solpToast('Error cambiando estado.'); return; }
     setItems(list => list.map(m => m.id === sel.id ? { ...m, desactivado: nuevoEstado } : m));
     const idx = MATERIALES_MOCK.findIndex(m => m.id === sel.id);
     if (idx >= 0) MATERIALES_MOCK[idx].desactivado = nuevoEstado;
@@ -4725,7 +4715,7 @@ function TabEmpaques({ nuevoTick }) {
 
   async function handleSave() {
     if (!form || !sel) return;
-    if (sel.isNew && !form.id) { alert('Código interno requerido'); return; }
+    if (sel.isNew && !form.id) { window.solpToast('Código interno requerido'); return; }
     setSaving(true);
     await window._api?.saveEmpaque(sel.isNew ? form.id : sel.id, form);
     setSaving(false);
@@ -4737,7 +4727,7 @@ function TabEmpaques({ nuevoTick }) {
     if (!sel || sel.isNew) return;
     const nuevoEstado = !sel.desactivado;
     const ok = await window._api?.setDesactivado('empaques', sel.id, nuevoEstado);
-    if (!ok) { alert('Error cambiando estado.'); return; }
+    if (!ok) { window.solpToast('Error cambiando estado.'); return; }
     setItems(list => list.map(e => e.id === sel.id ? { ...e, desactivado: nuevoEstado } : e));
     const idx = EMPAQUES_MOCK.findIndex(e => e.id === sel.id);
     if (idx >= 0) EMPAQUES_MOCK[idx].desactivado = nuevoEstado;
@@ -4823,7 +4813,7 @@ function TabGastos() {
   async function toggleDesact(key) {
     const nuevo = !desactivados.has(key);
     const ok = await window._api?.setGastoDesactivado(period, key, nuevo);
-    if (!ok) { alert('Error cambiando estado.'); return; }
+    if (!ok) { window.solpToast('Error cambiando estado.'); return; }
     setDesactivados(s => {
       const ns = new Set(s);
       if (nuevo) ns.add(key); else ns.delete(key);
@@ -5258,13 +5248,13 @@ function Empleados() {
       await refresh();
       setSel(null); setForm(null);
     } else {
-      alert('Error guardando.');
+      window.solpToast('Error guardando.');
     }
   }
 
   async function handleDelete() {
     if (!sel || sel.isNew) return;
-    if (!confirm(`¿Desactivar a ${sel.nombre}? Se eliminará de la nómina.`)) return;
+    if (!await window.solpConfirm(`¿Desactivar a ${sel.nombre}? Se eliminará de la nómina.`)) return;
     await window._api?.deleteEmpleado(sel.id);
     await refresh();
     setSel(null); setForm(null);
@@ -5470,7 +5460,7 @@ function Inventario() {
             const next = [{ id, fecha, tipo, clase, item_id, cantidad, unidad, ref: 'manual', nota }, ...movs];
             window.MOV_INVENTARIO_MOCK = next;
             if (window._api?.saveCollection) window._api.saveCollection('movimientos_inventario', next);
-            alert(`Movimiento ${id} registrado.`);
+            window.solpToast(`Movimiento ${id} registrado.`);
           }}><Icon name="plus" size={14}/> Nuevo movimiento</Btn>
         </div>
       </div>
@@ -6043,12 +6033,12 @@ function CotizacionDetalle({ cot, onBack }) {
               const lista = (window.COTIZACIONES_MOCK || []).map(c => c.id === cot.id ? { ...c, estado: 'enviada' } : c);
               window.COTIZACIONES_MOCK = lista;
               if (window._api?.saveCollection) await window._api.saveCollection('cotizaciones', lista);
-              alert('Cotización marcada como enviada. (Envío por email pendiente — usa "Ver proforma" para descargar y mandar.)');
+              window.solpToast('Cotización marcada como enviada. (Envío por email pendiente — usa "Ver proforma" para descargar y mandar.)');
             }}><Icon name="send" size={14}/> Marcar enviada</Btn>
           )}
           {cot.estado === 'aprobada' && !cot.oc_asociada && (
             <Btn variant="primary" onClick={async () => {
-              if (!confirm('Crear orden de compra desde esta cotización?')) return;
+              if (!await window.solpConfirm('Crear orden de compra desde esta cotización?')) return;
               const year = new Date().getFullYear();
               const ocs = window.ORDENES_COMPRA_MOCK || [];
               const lastNum = ocs.filter(o => o.id.startsWith(`OC-${year}-`)).map(o => Number(o.id.split('-')[2]) || 0).reduce((m, n) => Math.max(m, n), 0);
@@ -6066,7 +6056,7 @@ function CotizacionDetalle({ cot, onBack }) {
               const cotList = (window.COTIZACIONES_MOCK || []).map(c => c.id === cot.id ? { ...c, oc_asociada: ocId } : c);
               window.COTIZACIONES_MOCK = cotList;
               if (window._api?.saveCollection) await window._api.saveCollection('cotizaciones', cotList);
-              alert(`OC ${ocId} creada.`);
+              window.solpToast(`OC ${ocId} creada.`);
               location.reload();
             }}><Icon name="arrow_r" size={14}/> Convertir a OC</Btn>
           )}
@@ -6193,7 +6183,7 @@ function OCDetalle({ oc, onBack }) {
           <EstadoChip estado={oc.estado} />
           {oc.estado === 'lista' && !oc.factura_asociada && (
             <Btn variant="primary" onClick={async () => {
-              if (!confirm('Crear factura desde esta OC y emitirla al SRI?')) return;
+              if (!await window.solpConfirm('Crear factura desde esta OC y emitirla al SRI?')) return;
               const facts = window.FACTURAS_MOCK || [];
               const lastSec = facts.map(f => Number(f.secuencial) || 0).reduce((m, n) => Math.max(m, n), 1000);
               const sec = String(lastSec + 1).padStart(9, '0');
@@ -6218,8 +6208,8 @@ function OCDetalle({ oc, onBack }) {
               window.ORDENES_COMPRA_MOCK = ocList;
               if (window._api?.saveCollection) await window._api.saveCollection('ordenes_compra', ocList);
               const r = await window._api?.emitirFactura(facId);
-              if (r?.ok) alert(`Factura ${facId} creada y enviada al SRI. Estado: ${r.estado_sri}`);
-              else alert(`Factura ${facId} creada pero hubo problema emitiendo: ${r?.error || 'desconocido'}`);
+              if (r?.ok) window.solpToast(`Factura ${facId} creada y enviada al SRI. Estado: ${r.estado_sri}`);
+              else window.solpToast(`Factura ${facId} creada pero hubo problema emitiendo: ${r?.error || 'desconocido'}`);
               location.reload();
             }}><Icon name="receipt" size={14}/> Emitir factura SRI</Btn>
           )}
@@ -6362,10 +6352,10 @@ function FacturaDetalle({ factura, onBack }) {
           <EstadoChip estado={factura.estado_sri} />
           {!factura.autorizacion_sri && (
             <Btn variant="primary" onClick={async () => {
-              if (!confirm('Emitir esta factura al SRI?')) return;
+              if (!await window.solpConfirm('Emitir esta factura al SRI?')) return;
               const r = await window._api?.emitirFactura(factura.id);
-              if (r?.ok) { alert('Emitida. Estado: ' + r.estado_sri); location.reload(); }
-              else alert((r && r.error) || 'Error en emision');
+              if (r?.ok) { window.solpToast('Emitida. Estado: ' + r.estado_sri); location.reload(); }
+              else window.solpToast((r && r.error) || 'Error en emision');
             }}><Icon name="upload" size={14}/> Emitir al SRI</Btn>
           )}
           {factura.clave_acceso && (
@@ -6576,7 +6566,7 @@ function Clientes() {
   };
   const eliminar = async () => {
     if (!current) return;
-    if (!window.confirm(`Eliminar a "${current.razon_social}"? Las facturas y cotizaciones asociadas se conservan.`)) return;
+    if (!await window.solpConfirm(`Eliminar a "${current.razon_social}"? Las facturas y cotizaciones asociadas se conservan.`)) return;
     const lista = clientes.filter(c => c.id !== current.id);
     setClientes(lista);
     await persistir(lista);

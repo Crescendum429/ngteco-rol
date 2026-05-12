@@ -72,10 +72,16 @@ def parse_xls(path):
             cur_day = None
 
         elif emp and row[0] in WEEKDAYS and row[1]:
+            # NGTeco asigna las marcaciones al "día laboral anterior" en su modelo
+            # interno. Para que el reporte de mayo contenga las horas trabajadas en
+            # mayo (no las del 30/abr al 30/may), sumamos +1 dia. El XLS de marzo
+            # dice 'SUN 26-03-01' (domingo 1 marzo) pero las horas de esa fila son
+            # las realmente trabajadas el lunes 2 de marzo.
             raw_date = str(row[1])
             try:
                 p = raw_date.split('-')
-                cur_day = date(2000 + int(p[0]), int(p[1]), int(p[2])).strftime('%y-%m-%d')
+                corrected = date(2000 + int(p[0]), int(p[1]), int(p[2])) + timedelta(days=1)
+                cur_day = corrected.strftime('%y-%m-%d')
             except Exception:
                 cur_day = raw_date
             in_t = to_mins(row[2])

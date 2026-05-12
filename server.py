@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "4.1.1"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "4.1.2"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "solplast-dev-secret-2026")
 
@@ -603,6 +603,67 @@ window.solpExportCSV = (filename, headers, rows) => {
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
+};
+
+// Toast no-bloqueante. type: 'ok' | 'warn' | 'bad' | 'info'
+window.solpToast = (msg, type) => {
+  type = type || 'info';
+  const colors = {
+    ok:   { bg: 'var(--good-soft)',  br: 'var(--good)', fg: 'var(--good)' },
+    warn: { bg: 'var(--warn-soft)',  br: 'var(--warn)', fg: 'var(--warn)' },
+    bad:  { bg: 'var(--bad-soft)',   br: 'var(--bad)',  fg: 'var(--bad)'  },
+    info: { bg: 'var(--accent-soft)',br: 'var(--accent)', fg: 'var(--accent-hi)' },
+  };
+  const c = colors[type] || colors.info;
+  let host = document.getElementById('solp-toast-host');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'solp-toast-host';
+    host.style.cssText = 'position:fixed;top:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none';
+    document.body.appendChild(host);
+  }
+  const el = document.createElement('div');
+  el.style.cssText = `background:${c.bg};border:1px solid ${c.br};color:${c.fg};padding:10px 14px;border-radius:8px;font:500 13px var(--sans);max-width:380px;box-shadow:var(--shadow-md);pointer-events:auto;opacity:0;transform:translateY(-6px);transition:opacity 180ms,transform 180ms`;
+  el.textContent = msg;
+  host.appendChild(el);
+  requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translateY(0)'; });
+  setTimeout(() => {
+    el.style.opacity = '0'; el.style.transform = 'translateY(-6px)';
+    setTimeout(() => el.remove(), 200);
+  }, 3500);
+};
+
+// Confirm no-bloqueante. Devuelve Promise<boolean>
+window.solpConfirm = (msg, opts) => {
+  opts = opts || {};
+  return new Promise(resolve => {
+    const back = document.createElement('div');
+    back.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:grid;place-items:center;font:var(--sans)';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--bg-raised);border:1px solid var(--line);border-radius:var(--radius-md);max-width:440px;width:90%;padding:20px;box-shadow:var(--shadow-md);font-family:var(--sans);color:var(--text)';
+    const text = document.createElement('div');
+    text.style.cssText = 'font-size:14px;line-height:1.5;margin-bottom:16px;white-space:pre-wrap';
+    text.textContent = msg;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;justify-content:flex-end;gap:8px';
+    const cancel = document.createElement('button');
+    cancel.textContent = opts.cancelLabel || 'Cancelar';
+    cancel.className = 'btn';
+    cancel.style.cssText = 'padding:6px 12px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--text);cursor:pointer;font:500 13px var(--sans)';
+    const ok = document.createElement('button');
+    ok.textContent = opts.okLabel || 'Confirmar';
+    ok.className = 'btn primary';
+    ok.style.cssText = 'padding:6px 12px;border:0;border-radius:6px;background:var(--accent);color:var(--bg);cursor:pointer;font:600 13px var(--sans)';
+    const close = (v) => { back.remove(); resolve(v); };
+    cancel.onclick = () => close(false);
+    ok.onclick = () => close(true);
+    back.onclick = (e) => { if (e.target === back) close(false); };
+    row.appendChild(cancel); row.appendChild(ok);
+    card.appendChild(text); card.appendChild(row);
+    back.appendChild(card);
+    document.body.appendChild(back);
+    setTimeout(() => ok.focus(), 50);
+  });
 };
 """
     return "\n// Overrides inyectados por el servidor — v" + APP_VERSION + "\n" + "\n".join(overrides_js) + "\n" + helpers
