@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "4.2.2"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "4.2.3"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -328,6 +328,10 @@ def _build_data_jsx():
     overrides_js.append(f"window.BOM = {json.dumps(bom_map, ensure_ascii=False)};")
     overrides_js.append(f"window.CAMBIOS_MOLDE = {json.dumps(cambios_molde_hist, ensure_ascii=False)};")
     overrides_js.append(f"window.APP_VERSION = {json.dumps(APP_VERSION)};")
+    # Override SBU del frontend con el valor real del backend (env var SBU_VIGENTE
+    # o 470 default). Asi no se desincronizan.
+    from procesar_rol import SBU_2026 as _SBU
+    overrides_js.append(f"window.SBU_2026 = {_SBU};")
 
     helpers = """
 window.solpExportCSV = (filename, headers, rows) => {

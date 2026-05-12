@@ -6,8 +6,34 @@ from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-SBU_2026 = 482.0
+# SBU = Salario Basico Unificado. Lo fija el MDT cada anio en diciembre.
+# 2025 = $470 (Resolucion MDT-2024-179). 2026: leer del env var SBU_VIGENTE
+# si esta seteado, o usar el default conservador (470). El contador debe
+# actualizar este valor cuando el MDT publique el oficial 2026.
+import os as _os
+try:
+    SBU_2026 = float(_os.environ.get("SBU_VIGENTE", "470"))
+except (TypeError, ValueError):
+    SBU_2026 = 470.0
+
+# Tasa de aporte personal IESS — Resolucion C.D. 501 IESS.
+# Materia gravada: sueldo, sobresueldos, comisiones, horas extras, participacion
+# de utilidades y otras remuneraciones accesorias.
+# NO incluye: 13ro, 14to, fondos de reserva (cuando se pagan), viaticos,
+# alimentacion, transporte (si no es parte del salario).
 IESS_EMPLEADO = 0.0945
+
+# Topes legales horas extras — Codigo del Trabajo Art. 55
+MAX_SUPLEMENTARIAS_DIA = 4.0  # max horas suplementarias por dia
+MAX_SUPLEMENTARIAS_SEMANA = 12.0  # max horas suplementarias por semana
+
+# Politica de exceso semanal — opciones:
+#   "alertar_pero_pagar": paga las primeras 12h al 50%, alerta sobre el exceso
+#                         pero lo paga al 50% tambien (postura empresarial)
+#   "reclasificar_100":   paga las primeras 12h al 50%, el exceso al 100%
+#                         (postura pro-empleado, mas conservadora legalmente)
+# Default: alertar_pero_pagar — pide al usuario decidir caso por caso
+POLITICA_EXCESO_SEMANAL = _os.environ.get("POLITICA_EXCESO_SEMANAL", "alertar_pero_pagar")
 
 MORN_MIN  = 5 * 60
 MORN_MAX  = 8 * 60 + 45

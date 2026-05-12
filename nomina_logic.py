@@ -4,6 +4,7 @@ Importable por blueprints y por server.py.
 """
 from datetime import date, datetime, timedelta
 
+from logger import get_logger
 from procesar_rol import calcular_nomina, emp_name, match_empleados
 from storage import (
     load_arrastre,
@@ -13,6 +14,8 @@ from storage import (
     load_reporte,
     list_reportes,
 )
+
+_log = get_logger("nomina_logic")
 
 MES_NAMES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
 
@@ -215,12 +218,18 @@ def calc_horas_periodo(cls_emp, base_h):
 
 
 def banco_por_empleado(emp_db):
+    """Suma cronologica del banco por empleado. Si un reporte falla al cargar,
+    lo loggea y devuelve None para banco — NO silencia, porque banco erroneo =
+    pago erroneo."""
     balances = {k: 0.0 for k in emp_db}
+    errors = []
     reps = sorted([r["id"] for r in list_reportes()])
     for rid in reps:
         try:
             data_r, cls_r = load_reporte(rid)
         except Exception:
+            _log.exception(f"banco_por_empleado: error cargando reporte {rid}")
+            errors.append(rid)
             continue
         if not data_r or not cls_r:
             continue
@@ -233,18 +242,23 @@ def banco_por_empleado(emp_db):
             base = emp_db[dk].get("horas_base", 8)
             hrs = calc_horas_periodo(cls_r.get(name, {}), base)
             balances[dk] += hrs["banco_excedente"] - hrs["horas_cubiertas"]
+    if errors:
+        _log.warning(f"banco_por_empleado: {len(errors)} reportes fallaron: {errors}")
     return {k: round(v, 2) for k, v in balances.items()}
 
 
 def build_horas_por_periodo(emp_db):
-    """Retorna {periodo_id: {emp_id: [days]}}."""
+    """Retorna {periodo_id: {emp_id: [days]}}. Si un reporte falla al cargar,
+    queda como dict vacio Y se loggea para diagnostico."""
     result = {}
     for rep in list_reportes():
+        rid = rep["id"]
         try:
-            data_r, cls_r = load_reporte(rep["id"])
-            result[rep["id"]] = horas_detalle_one(data_r, cls_r, emp_db)
+            data_r, cls_r = load_reporte(rid)
+            result[rid] = horas_detalle_one(data_r, cls_r, emp_db)
         except Exception:
-            result[rep["id"]] = {}
+            _log.exception(f"build_horas_por_periodo: error en reporte {rid}")
+            result[rid] = {}
     return result
 
 
@@ -298,11 +312,13 @@ def calc_nomina_one(periodo_id, data_r, cls_r, emp_db):
 def build_nomina_por_periodo(emp_db):
     result = {}
     for rep in list_reportes():
+        rid = rep["id"]
         try:
-            data_r, cls_r = load_reporte(rep["id"])
-            result[rep["id"]] = calc_nomina_one(rep["id"], data_r, cls_r, emp_db)
+            data_r, cls_r = load_reporte(rid)
+            result[rid] = calc_nomina_one(rid, data_r, cls_r, emp_db)
         except Exception:
-            result[rep["id"]] = []
+            _log.exception(f"build_nomina_por_periodo: error en {rid}")
+            result[rid] = []
     return result
 
 
