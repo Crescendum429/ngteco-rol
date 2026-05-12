@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "4.1.5"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "4.1.6"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -160,28 +160,9 @@ def _handle_unexpected(e):
     raise e
 
 
-@app.route("/api/health")
-def health():
-    """Health check basico — siempre responde si el servidor corre."""
-    return jsonify({"status": "ok", "version": APP_VERSION}), 200
-
-
-@app.route("/api/ready")
-def ready():
-    """Readiness check — valida conectividad con DB."""
-    checks = {"version": APP_VERSION, "warnings": _STARTUP_WARNINGS}
-    try:
-        from storage import USE_SUPABASE, _supabase
-        if USE_SUPABASE:
-            _supabase().table("config").select("key").limit(1).execute()
-            checks["db"] = "ok"
-        else:
-            checks["db"] = "no_configurada"
-        return jsonify({"status": "ready", **checks}), 200
-    except Exception as e:
-        log.error(f"Readiness check failed: {e}")
-        checks["db"] = "error"
-        return jsonify({"status": "degraded", **checks}), 503
+# Health/ready registrados como Blueprint
+from app_routes.health_bp import health_bp
+app.register_blueprint(health_bp)
 
 HTML_PATH = os.path.join(os.path.dirname(__file__), "Solplast-ERP.html")
 
@@ -2350,165 +2331,10 @@ def get_registro_v2(fecha):
 
 
 # ═══════════════════════════════════════════════════════════════
-# SRI — Facturacion electronica
+# SRI — registrado como Blueprint en app_routes/sri_bp.py
 # ═══════════════════════════════════════════════════════════════
-
-def _buscar_factura(factura_id):
-    facturas = load_facturas() or []
-    for f in facturas:
-        if f.get("id") == factura_id:
-            return f, facturas
-    return None, facturas
-
-
-def _buscar_cliente(cliente_id):
-    clientes = load_clientes() or []
-    for c in clientes:
-        if c.get("id") == cliente_id:
-            return c
-    return None
-
-
-@app.route("/api/sri/emitir/<path:factura_id>", methods=["POST"])
-@require_auth
-def sri_emitir(factura_id):
-    """Genera clave de acceso, XML, firma y envia al SRI. Actualiza la factura."""
-    import sri
-    factura, facturas = _buscar_factura(factura_id)
-    if not factura:
-        return jsonify({"error": "Factura no encontrada"}), 404
-
-    emisor = load_emisor() or {}
-    if not emisor.get("ruc"):
-        return jsonify({"error": "Configura los datos del emisor (RUC) antes de emitir"}), 400
-
-    cliente = _buscar_cliente(factura.get("cliente")) or {}
-
-    ambiente = os.environ.get("SRI_AMBIENTE", sri.AMBIENTE_PRUEBAS)
-    fecha_em = factura.get("fecha_emision") or date.today().isoformat()
-    try:
-        fecha_dt = datetime.strptime(fecha_em, "%Y-%m-%d")
-    except Exception:
-        fecha_dt = datetime.now()
-    fecha_str = fecha_dt.strftime("%d%m%Y")
-
-    clave = sri.generar_clave_acceso(
-        fecha_emision=fecha_str,
-        cod_doc=sri.COD_DOC["factura"],
-        ruc_emisor=emisor["ruc"],
-        ambiente=ambiente,
-        estab=str(factura.get("establecimiento", "001")),
-        pto_emision=str(factura.get("punto_emision", "001")),
-        secuencial=str(factura.get("secuencial", "1")),
-    )
-
-    factura["clave_acceso"] = clave
-    factura["ambiente"] = ambiente
-
-    xml_str = sri.build_factura_xml(factura, emisor, cliente, ambiente=ambiente)
-    xml_firmado, firma_estado = sri.firmar_xml(xml_str)
-    factura["xml_firma_estado"] = firma_estado
-
-    rec = sri.enviar_recepcion(xml_firmado, ambiente=ambiente)
-    factura["sri_recepcion"] = rec
-
-    aut = sri.consultar_autorizacion(clave, ambiente=ambiente)
-    factura["estado_sri"] = aut.get("estado", "EN_PROCESO")
-    factura["autorizacion_sri"] = aut.get("numero_autorizacion", "")
-    factura["fecha_autorizacion"] = aut.get("fecha_autorizacion", "")
-    factura["sri_mensajes"] = aut.get("mensajes", []) + rec.get("mensajes", [])
-
-    # Guardar XML en storage (Supabase config)
-    try:
-        from storage import _cfg_set
-        _cfg_set(f"sri:xml:{clave}", {"xml": xml_firmado, "factura_id": factura_id})
-    except Exception:
-        pass
-
-    # Upsert factura
-    idx = next((i for i, f in enumerate(facturas) if f.get("id") == factura_id), None)
-    if idx is not None:
-        facturas[idx] = factura
-    save_facturas(facturas)
-
-    return jsonify({
-        "ok": True,
-        "clave_acceso": clave,
-        "estado_sri": factura["estado_sri"],
-        "autorizacion_sri": factura["autorizacion_sri"],
-        "fecha_autorizacion": factura["fecha_autorizacion"],
-        "firma_estado": firma_estado,
-        "mensajes": factura["sri_mensajes"],
-    })
-
-
-@app.route("/api/sri/autorizar/<clave>", methods=["GET"])
-@require_auth
-def sri_autorizar(clave):
-    """Consulta estado de autorizacion al SRI."""
-    import sri
-    ambiente = os.environ.get("SRI_AMBIENTE", sri.AMBIENTE_PRUEBAS)
-    return jsonify(sri.consultar_autorizacion(clave, ambiente=ambiente))
-
-
-@app.route("/api/sri/pdf/<path:factura_id>", methods=["GET"])
-@require_auth
-def sri_pdf(factura_id):
-    import sri
-    factura, _ = _buscar_factura(factura_id)
-    if not factura:
-        return jsonify({"error": "Factura no encontrada"}), 404
-    emisor = load_emisor() or {}
-    cliente = _buscar_cliente(factura.get("cliente")) or {}
-
-    tmp_path = tempfile.mkstemp(suffix=".pdf")[1]
-    try:
-        sri.render_factura_pdf(
-            factura, emisor, cliente, tmp_path,
-            estado_sri=factura.get("estado_sri", "PENDIENTE"),
-            numero_autorizacion=factura.get("autorizacion_sri", ""),
-            fecha_autorizacion=factura.get("fecha_autorizacion", ""),
-        )
-        return send_file(tmp_path, as_attachment=True, download_name=f"factura_{factura_id}.pdf", mimetype="application/pdf")
-    except Exception as e:
-        return jsonify({"error": f"Error generando PDF: {e}"}), 500
-
-
-@app.route("/api/sri/xml/<path:factura_id>", methods=["GET"])
-@require_auth
-def sri_xml(factura_id):
-    factura, _ = _buscar_factura(factura_id)
-    if not factura:
-        return jsonify({"error": "Factura no encontrada"}), 404
-    clave = factura.get("clave_acceso")
-    if not clave:
-        return jsonify({"error": "Factura sin clave de acceso. Emitela primero."}), 400
-    try:
-        from storage import _cfg_get
-        rec = _cfg_get(f"sri:xml:{clave}", None)
-        if not rec:
-            return jsonify({"error": "XML no encontrado en storage"}), 404
-        xml = rec.get("xml", "")
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    tmp_path = tempfile.mkstemp(suffix=".xml")[1]
-    with open(tmp_path, "w", encoding="utf-8") as fp:
-        fp.write(xml)
-    return send_file(tmp_path, as_attachment=True, download_name=f"factura_{factura_id}.xml", mimetype="application/xml")
-
-
-@app.route("/api/sri/config", methods=["GET"])
-@require_auth
-def sri_config():
-    """Retorna configuracion actual del SRI (sin el password del cert)."""
-    import sri
-    return jsonify({
-        "ambiente": os.environ.get("SRI_AMBIENTE", sri.AMBIENTE_PRUEBAS),
-        "ambiente_nombre": "PRODUCCION" if os.environ.get("SRI_AMBIENTE") == "2" else "PRUEBAS",
-        "cert_configurado": bool(os.environ.get("SRI_CERT_PATH") and os.path.exists(os.environ.get("SRI_CERT_PATH", ""))),
-        "simulado": os.environ.get("SRI_SIMULADO", "true").lower() in ("1", "true", "yes"),
-    })
+from app_routes.sri_bp import sri_bp
+app.register_blueprint(sri_bp)
 
 
 if __name__ == "__main__":
