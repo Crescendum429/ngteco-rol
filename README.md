@@ -1,105 +1,130 @@
-# SOLPLAST — Sistema de Gestion ERP
+# Solplast ERP
 
-Aplicacion web para la gestion operativa de SOLPLAST (Soluciones Plasticas del Ecuador). Centraliza nomina, costos de produccion, registro diario del operario y metricas historicas en una sola interfaz.
-
-## Problema
-
-La empresa manejaba manualmente cuatro procesos desconectados:
-
-- **Asistencia**: los relojes NGTeco exportan XLS con errores frecuentes (entrada no registrada, missing OUT, fechas cruzadas). Corregirlos en Excel tomaba tiempo y generaba errores.
-- **Nomina**: el calculo de quincenas, horas extras, IESS, fondos de reserva y prestamos se hacia en Excel sin formula consistente.
-- **Costos**: el costo real por unidad de cada producto (vaso, jeringa, gotero, cuchara) no estaba calculado, dificultando decisiones de precio.
-- **Registro diario**: no habia trazabilidad del material usado, desechos ni produccion por dia.
-
-## Modulos
-
-### Roles y Nomina
-- Sube el XLS del reloj NGTeco y detecta anomalias automaticamente (entrada faltante, missing OUT, fechas cruzadas).
-- Tabla editable por empleado para corregir horas antes de calcular.
-- Calculo completo de nomina segun ley ecuatoriana:
-  - Horas suplementarias al 50% (dias laborables, max 4h/dia, Art. 55)
-  - Horas extraordinarias al 100% (fines de semana o exceso de 12h, Art. 55)
-  - Quincenas (primera y segunda)
-  - Aporte IESS empleado (9.45%)
-  - Prestamo IESS (monto fijo configurable por empleado)
-  - Fondos de reserva (1/12 del ingreso, para empleados con mas de 1 año)
-  - Transporte/alimentacion por dias trabajados
-- Arrastre de horas compensatorias entre meses.
-- Exporta Excel de nomina con formato formal (ingresos, egresos, valor a recibir, detalle de transferencias) y PDF.
-
-### Gastos y Costos de Produccion
-- Configuracion de materias primas (PP Homopolimero, PP Clarificado, PE Alta/Baja densidad, PVC) con precio por kg editable.
-- Configuracion de productos con composicion exacta por componente (peso en gramos, material o mezcla con proporciones).
-- Configuracion de empaques (caja, funda individual, funda exterior, cinta, tinta de tampo).
-- Calculo de costo unitario real por producto: material + empaque + nomina + gastos indirectos.
-- Los gastos indirectos y nomina se distribuyen por factor de complejidad del producto.
-- Merma configurable por material (default 3%) o calculada automaticamente desde registros diarios.
-- Gastos fijos mensuales editables (electricidad, agua, tinta, solvente, transporte, mantenimiento).
-
-### Registro Diario (Operario)
-- Interfaz simplificada para que el operario ingrese al cierre de jornada:
-  - Material usado por tipo (kg)
-  - Desechos por producto y subproducto
-  - Material molido recuperado
-  - Cajas producidas por producto
-- Con estos datos el sistema calcula la merma real por material mes a mes.
-
-### Metricas
-- Indicadores historicos de nomina: total pagado, promedio mensual, delta mes a mes.
-- Grafico de evolucion de nomina (area + linea + puntos).
-- Detalle de pago por empleado con grafico de barras horizontales (escala secuencial).
-- Horas extras por mes con barras agrupadas (50% vs 100%).
-- Snapshot de costos por periodo para comparar evolucion del costo unitario.
-
-### Empleados
-- Alta, edicion y baja de empleados.
-- Campos: nombre, salario, horas base, transporte/dia, region, cargo, prestamo IESS, fondos de reserva.
-- Matching automatico por nombre al subir el XLS (sin necesidad de ID del reloj).
-- Alertas cuando aparece un nombre nuevo en el reporte o un empleado de la base no aparece.
-- Exportacion e importacion JSON para respaldo.
-
-## Usuarios y roles
-
-- **Admin**: acceso completo a todos los modulos.
-- **Operario**: acceso exclusivo al Registro Diario.
-
-Las contrasenas se configuran via variables de entorno (`APP_PASSWORD`, `APP_PASSWORD_OP`).
+Sistema de gestión interno para Solplast: nómina (reloj NGTeco), inventario por piezas/lotes, comercial (cotizaciones, OC, facturas SRI, guías), catálogo, costos.
 
 ## Stack
 
-- Python 3.11
-- Streamlit 1.56 — interfaz web
-- Altair — graficos
-- xlrd / openpyxl — lectura y escritura de Excel
-- fpdf2 — generacion de PDF
-- Supabase — base de datos (tabla `config` tipo key-value + tabla `reportes`)
-- Docker — empaquetado
-- Deploy: Streamlit Cloud con auto-deploy desde GitHub
+- **Backend**: Flask 3 + Gunicorn (Render)
+- **Frontend**: HTML monolítico con React 18 vía Babel Standalone (sin build pipeline)
+- **DB**: Supabase (PostgreSQL) — storage key-value en tabla `config` + tabla `reportes`
+- **SRI**: módulo `sri.py` con clave de acceso, XML 2.1.0, firma XAdES-BES (requiere cert .p12)
 
-## Ejecucion local
+## Estructura
+
+```
+.
+├── server.py                 # App factory + middleware + _build_data_jsx + _inject_html
+├── nomina_logic.py           # Lógica pura de cálculo de nómina
+├── app_helpers.py            # Serializers compartidos (emp/mat/prod a JS)
+├── procesar_rol.py           # Parser XLS NGTeco + cálculo nómina + write Excel
+├── costos.py                 # Cálculo de costos unitarios
+├── storage.py                # Wrapper Supabase (key-value en `config` + `reportes`)
+├── sri.py                    # SRI Ecuador: clave acceso, XML, firma, PDF RIDE
+├── validation.py             # Helpers de validación de inputs
+├── logger.py                 # Logging estructurado
+├── Solplast-ERP.html         # SPA monolítica (servida con _inject_html)
+├── app_routes/
+│   ├── _auth.py              # Decorador require_auth compartido
+│   ├── auth_bp.py            # /api/auth/* + rate limit login
+│   ├── catalogo_bp.py        # empleados, materiales, productos, empaques, gastos
+│   ├── comercial_bp.py       # collection genérico + recurrentes
+│   ├── health_bp.py          # /api/health, /api/ready
+│   ├── inventario_bp.py      # piezas, molido, auxiliar, lotes, BOM, registros v2
+│   ├── nomina_bp.py          # upload XLS, corregir, calcular, snapshot, migración
+│   ├── observability_bp.py   # /api/metrics, /api/config, /api/admin/backup
+│   └── sri_bp.py             # emitir, autorizar, pdf, xml
+├── tests/                    # pytest suite
+├── docs/                     # documentación arquitectura
+├── .github/workflows/test.yml
+├── Dockerfile / Procfile
+└── requirements.txt / requirements-dev.txt
+```
+
+## Variables de entorno
+
+| Var | Requerido | Default | Descripción |
+|---|---|---|---|
+| `SUPABASE_URL` | Sí prod | `""` | URL del proyecto Supabase |
+| `SUPABASE_KEY` | Sí prod | `""` | **Service role key** (bypasea RLS) |
+| `SECRET_KEY` | Sí prod | dev-default | Firma de cookies de sesión Flask |
+| `APP_PASSWORD` | Recomendado | `""` | Contraseña rol admin |
+| `APP_PASSWORD_OP` | Recomendado | `""` | Contraseña rol operario |
+| `SRI_AMBIENTE` | No | `1` | `1`=pruebas, `2`=producción |
+| `SRI_CERT_PATH` | Solo firma real | `""` | Ruta al `.p12` |
+| `SRI_CERT_PASSWORD` | Solo firma real | `""` | Password del `.p12` |
+| `SRI_SIMULADO` | No | `true` | `true` devuelve respuestas SRI simuladas |
+| `LOG_LEVEL` | No | `INFO` | DEBUG / INFO / WARNING / ERROR |
+| `PORT` | Render lo setea | `8080` | Puerto HTTP |
+| `FLASK_ENV` | No | `production` | `development` desactiva cookies Secure |
+
+## Endpoints clave
+
+- `GET /` — sirve el HTML con datos reales inyectados
+- `GET /api/health` — health check (sin auth)
+- `GET /api/ready` — readiness con verificación de DB
+- `POST /api/auth/login` — rate limit 10/5min por IP
+- `POST /api/nomina/upload` — sube XLS del reloj
+- `POST /api/nomina/calcular` — calcula nómina del período
+- `POST /api/sri/emitir/<factura_id>` — emite factura al SRI
+- `GET /api/metrics` — contadores internos por entidad
+- `GET /api/admin/backup` — exporta TODO como JSON
+
+## Versión
+
+`APP_VERSION` en `server.py` línea 86. Semver: MAJOR.MINOR.PATCH.
+- **PATCH**: bug fix, ajuste pequeño
+- **MINOR**: feature nueva retrocompatible
+- **MAJOR**: cambio que rompe compatibilidad
+
+Visible en el sidebar del frontend (`v4.x.x`).
+
+## Tests
 
 ```bash
-pip install -r requirements.txt
-streamlit run app.py
+pip install -r requirements-dev.txt
+pytest
 ```
 
-Variables de entorno necesarias para conectar Supabase:
+20 tests cubren nómina lógica, SRI (clave acceso, XML, mod 11), validación, health.
+CI corre en cada push a `main` via GitHub Actions.
 
-```
-SUPABASE_URL=...
-SUPABASE_KEY=...
-APP_PASSWORD=...          # contrasena admin (opcional)
-APP_PASSWORD_OP=...       # contrasena operario (opcional)
-```
+## Deploy
 
-Sin variables de entorno el sistema funciona en modo local usando archivos JSON.
+Push a `main` → Render auto-deploy (~1-3 min). Verifica:
+1. Sidebar muestra el `APP_VERSION` esperado
+2. `/api/health` responde 200
+3. `/api/ready` responde 200 con `db: "ok"`
 
-## Docker
+## Backup
+
+`GET /api/admin/backup` (con auth admin) devuelve JSON con todo el sistema. Para automatizar:
 
 ```bash
-docker build -t solplast-erp .
-docker run -p 8501:8501 \
-  -e SUPABASE_URL=... \
-  -e SUPABASE_KEY=... \
-  solplast-erp
+curl -b cookies.txt https://<tu-app>.onrender.com/api/admin/backup > backup_$(date +%Y%m%d).json
 ```
+
+## SRI — paso a producción
+
+1. Comprar `.p12` (BCE, Security Data, ANF AC, o Uanataca)
+2. Subirlo al servidor / agregarlo como secret de Render
+3. Setear:
+   - `SRI_CERT_PATH=/path/al/cert.p12`
+   - `SRI_CERT_PASSWORD=<password>`
+   - `SRI_AMBIENTE=2` (cuando estés listo)
+   - `SRI_SIMULADO=false`
+4. Agregar a `requirements.txt`: `zeep`, `signxml`, `cryptography`
+5. Probar contra `celcer.sri.gob.ec` primero (`SRI_AMBIENTE=1`)
+
+Detalle técnico en `sri.py` y `docs/sri-notes.md`.
+
+## Roadmap
+
+- **Sprint B (pendiente)**: migración key-value JSON → tablas relacionales en Supabase. Plan en `docs/db-migration-proposal.md`.
+- **Integración SRI live**: pendiente certificado del usuario.
+- **Rediseño de UI** (en proceso con Claude Design): registro diario por piezas, inventario por tabs, pre-despacho con lotes FIFO.
+
+## Histórico
+
+- v4.0: handoff inicial Flask + handoff Design v1
+- v4.1.x: SRI infra + banco horas + overrides + inventario v2 + módulos comercial/inventario/imprimibles
+- v4.2.x: refactor a blueprints + observability + test suite
