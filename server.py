@@ -83,12 +83,105 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "4.1.3"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "4.1.4"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+
+from logger import log, get_logger
+from validation import ValidationError, make_error_response
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "solplast-dev-secret-2026")
+app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB max upload (XLS reloj suele ser <500KB)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("FLASK_ENV") != "development"
 
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 APP_PASSWORD_OP = os.environ.get("APP_PASSWORD_OP", "")
+
+# Validacion de secrets al startup — falla rapido si algo critico falta en prod
+_STARTUP_WARNINGS = []
+if not app.secret_key or app.secret_key == "solplast-dev-secret-2026":
+    if os.environ.get("FLASK_ENV") != "development":
+        _STARTUP_WARNINGS.append("SECRET_KEY no configurada (usando default — INSEGURO en produccion)")
+if not os.environ.get("SUPABASE_URL"):
+    _STARTUP_WARNINGS.append("SUPABASE_URL no configurada — storage funcionara solo en memoria")
+if not os.environ.get("SUPABASE_KEY"):
+    _STARTUP_WARNINGS.append("SUPABASE_KEY no configurada — storage funcionara solo en memoria")
+for w in _STARTUP_WARNINGS:
+    log.warning(w)
+log.info(f"Solplast ERP v{APP_VERSION} iniciado (ambiente: {os.environ.get('FLASK_ENV', 'production')})")
+
+
+# Rate limiting en memoria — suficiente para 1 worker, no escala a N workers
+# pero es mejor que nada y para 8 usuarios sirve
+from collections import defaultdict
+from time import time as _time
+_rate_buckets = defaultdict(list)
+
+
+def _rate_limit_check(key: str, max_attempts: int, window_seconds: int) -> bool:
+    """Retorna True si esta dentro del limite, False si excedio."""
+    now = _time()
+    bucket = _rate_buckets[key]
+    # Limpia entradas viejas
+    _rate_buckets[key] = [t for t in bucket if now - t < window_seconds]
+    if len(_rate_buckets[key]) >= max_attempts:
+        return False
+    _rate_buckets[key].append(now)
+    return True
+
+
+@app.errorhandler(ValidationError)
+def _handle_validation_error(e):
+    log.info(f"Validation error on {request.path}: {e.message}")
+    return make_error_response(e)
+
+
+@app.errorhandler(404)
+def _handle_404(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Endpoint no encontrado"}), 404
+    return e
+
+
+@app.errorhandler(413)
+def _handle_413(e):
+    return jsonify({"error": "Archivo demasiado grande (max 20MB)"}), 413
+
+
+@app.errorhandler(Exception)
+def _handle_unexpected(e):
+    """Captura cualquier excepcion no manejada. Loggea stack trace pero no fuga al cliente."""
+    log.exception(f"Error no manejado en {request.method} {request.path}")
+    # Para endpoints JSON, devuelve mensaje generico
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Error interno del servidor"}), 500
+    # Para resto, deja que Flask muestre su pagina default
+    raise e
+
+
+@app.route("/api/health")
+def health():
+    """Health check basico — siempre responde si el servidor corre."""
+    return jsonify({"status": "ok", "version": APP_VERSION}), 200
+
+
+@app.route("/api/ready")
+def ready():
+    """Readiness check — valida conectividad con DB."""
+    checks = {"version": APP_VERSION, "warnings": _STARTUP_WARNINGS}
+    try:
+        from storage import USE_SUPABASE, _supabase
+        if USE_SUPABASE:
+            _supabase().table("config").select("key").limit(1).execute()
+            checks["db"] = "ok"
+        else:
+            checks["db"] = "no_configurada"
+        return jsonify({"status": "ready", **checks}), 200
+    except Exception as e:
+        log.error(f"Readiness check failed: {e}")
+        checks["db"] = "error"
+        return jsonify({"status": "degraded", **checks}), 503
 
 HTML_PATH = os.path.join(os.path.dirname(__file__), "Solplast-ERP.html")
 
@@ -1021,11 +1114,20 @@ def index():
 
 @app.route("/api/auth/login", methods=["POST"])
 def auth_login():
-    data = request.get_json(force=True) or {}
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "unknown").split(",")[0].strip()
+    if not _rate_limit_check(f"login:{ip}", max_attempts=10, window_seconds=300):
+        log.warning(f"Login rate limit excedido para IP {ip}")
+        return jsonify({"error": "Demasiados intentos. Espera 5 minutos."}), 429
+
+    data = request.get_json(silent=True) or {}
     role = data.get("role", "admin")
     pwd = data.get("password", "")
 
+    if role not in ("admin", "operario"):
+        return jsonify({"error": "Rol invalido"}), 400
+
     if not APP_PASSWORD and not APP_PASSWORD_OP:
+        log.warning("Login sin contrasena configurada — admitiendo cualquier credencial (modo dev)")
         session["_auth"] = True
         session["_role"] = role
         return jsonify({"role": role})
@@ -1033,12 +1135,15 @@ def auth_login():
     if role == "admin" and APP_PASSWORD and pwd == APP_PASSWORD:
         session["_auth"] = True
         session["_role"] = "admin"
+        log.info(f"Login exitoso admin desde {ip}")
         return jsonify({"role": "admin"})
     if role == "operario" and APP_PASSWORD_OP and pwd == APP_PASSWORD_OP:
         session["_auth"] = True
         session["_role"] = "operario"
+        log.info(f"Login exitoso operario desde {ip}")
         return jsonify({"role": "operario"})
 
+    log.info(f"Login fallido para rol={role} desde {ip}")
     return jsonify({"error": "Credenciales incorrectas"}), 401
 
 
