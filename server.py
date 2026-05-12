@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "4.1.7"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "4.1.8"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -166,58 +166,8 @@ app.register_blueprint(health_bp)
 
 HTML_PATH = os.path.join(os.path.dirname(__file__), "Solplast-ERP.html")
 
-_EMP_COLORS = [
-    "oklch(72% 0.14 295)", "oklch(72% 0.14 30)",  "oklch(72% 0.14 200)",
-    "oklch(72% 0.14 140)", "oklch(72% 0.14 70)",  "oklch(72% 0.14 330)",
-    "oklch(72% 0.14 260)", "oklch(72% 0.14 100)",
-]
-
-
-def _emp_to_js(key, emp, idx=0):
-    nombre = emp.get("nombre", key)
-    words = nombre.split()
-    iniciales = "".join(w[0].upper() for w in words[:2]) if len(words) >= 2 else nombre[:2].upper()
-    return {
-        "id": key,
-        "nombre": nombre,
-        "cargo": emp.get("cargo", ""),
-        "iniciales": iniciales,
-        "color": _EMP_COLORS[idx % len(_EMP_COLORS)],
-        "salario": float(emp.get("salario", 0)),
-        "transporte": float(emp.get("transporte_dia", 0)),
-        "horas_base": int(emp.get("horas_base", 8)),
-        "region": emp.get("region", "Sierra/Amazonia"),
-        "fondos_reserva": bool(emp.get("fondos_reserva", False)),
-        "prestamo_iess": float(emp.get("prestamo_iess", 0)),
-        "descuento_iess": bool(emp.get("descuento_iess", True)),
-        "ocultar": bool(emp.get("ocultar", False)),
-    }
-
-
-def _mat_to_js(key, mat):
-    return {
-        "id": key,
-        "nombre": mat.get("nombre", key),
-        "costo_kg": float(mat.get("costo_kg", 0)),
-        "merma": float(mat.get("merma_pct", 3.0)),
-        "color": "oklch(70% 0.12 220)",
-        "desactivado": bool(mat.get("desactivado", False)),
-    }
-
-
-def _prod_to_js(key, prod):
-    return {
-        "id": key,
-        "kind": prod.get("kind", "vaso"),
-        "nombre": prod.get("nombre", key),
-        "unidades_caja": int(prod.get("unidades_caja", 1000)),
-        "peso_g": float(prod.get("peso_g", 0)),
-        "material": prod.get("material_desc", ""),
-        "factor": float(prod.get("factor_complejidad", 1.0)),
-        "costo_unit": float(prod.get("costo_unit", 0)),
-        "costo_caja": float(prod.get("costo_caja", 0)),
-        "desactivado": bool(prod.get("desactivado", False)),
-    }
+# Helpers de serializacion movidos a app_helpers.py — alias para compatibilidad con codigo existente
+from app_helpers import emp_to_js as _emp_to_js, mat_to_js as _mat_to_js, prod_to_js as _prod_to_js, EMP_COLORS as _EMP_COLORS
 
 
 def _min_to_hhmm(mins):
@@ -1146,230 +1096,6 @@ def auth_me():
     return jsonify({"role": session.get("_role", "admin")})
 
 
-@app.route("/api/empleados", methods=["GET"])
-@require_auth
-def get_empleados():
-    emp_db = load_empleados()
-    result = [_emp_to_js(k, v, i) for i, (k, v) in enumerate(emp_db.items())]
-    return jsonify(result)
-
-
-@app.route("/api/empleados", methods=["POST"])
-@require_auth
-def create_empleado():
-    data = request.get_json(force=True) or {}
-    emp_db = load_empleados()
-    nombre = data.get("nombre", "").strip()
-    if not nombre:
-        return jsonify({"error": "Nombre requerido"}), 400
-    key = normalize(nombre)
-    emp_db[key] = {
-        "nombre": nombre,
-        "cargo": data.get("cargo", ""),
-        "salario": float(data.get("salario", 0)),
-        "horas_base": int(data.get("horas_base", 8)),
-        "transporte_dia": float(data.get("transporte", 0)),
-        "region": data.get("region", "Sierra/Amazonia"),
-        "fondos_reserva": bool(data.get("fondos_reserva", False)),
-        "prestamo_iess": float(data.get("prestamo_iess", 0)),
-        "descuento_iess": bool(data.get("descuento_iess", True)),
-        "ocultar": False,
-    }
-    save_empleados(emp_db)
-    return jsonify({"id": key})
-
-
-@app.route("/api/empleados/<emp_id>", methods=["PUT"])
-@require_auth
-def update_empleado(emp_id):
-    data = request.get_json(force=True) or {}
-    emp_db = load_empleados()
-    if emp_id not in emp_db:
-        return jsonify({"error": "No encontrado"}), 404
-    emp = emp_db[emp_id]
-    emp["nombre"] = data.get("nombre", emp.get("nombre", ""))
-    emp["cargo"] = data.get("cargo", emp.get("cargo", ""))
-    emp["salario"] = float(data.get("salario", emp.get("salario", 0)))
-    emp["horas_base"] = int(data.get("horas_base", emp.get("horas_base", 8)))
-    emp["transporte_dia"] = float(data.get("transporte", emp.get("transporte_dia", 0)))
-    emp["region"] = data.get("region", emp.get("region", "Sierra/Amazonia"))
-    emp["fondos_reserva"] = bool(data.get("fondos_reserva", emp.get("fondos_reserva", False)))
-    emp["prestamo_iess"] = float(data.get("prestamo_iess", emp.get("prestamo_iess", 0)))
-    emp["descuento_iess"] = bool(data.get("descuento_iess", emp.get("descuento_iess", True)))
-    save_empleados(emp_db)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/empleados/<emp_id>", methods=["DELETE"])
-@require_auth
-def delete_empleado(emp_id):
-    emp_db = load_empleados()
-    if emp_id not in emp_db:
-        return jsonify({"error": "No encontrado"}), 404
-    del emp_db[emp_id]
-    save_empleados(emp_db)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/materiales", methods=["GET"])
-@require_auth
-def get_materiales():
-    mats = load_materiales()
-    return jsonify([_mat_to_js(k, v) for k, v in mats.items()])
-
-
-@app.route("/api/materiales/<mat_id>", methods=["PUT"])
-@require_auth
-def update_material(mat_id):
-    data = request.get_json(force=True) or {}
-    mats = load_materiales()
-    if mat_id not in mats:
-        mats[mat_id] = {}
-    mats[mat_id].update({
-        "nombre": data.get("nombre", mats[mat_id].get("nombre", mat_id)),
-        "costo_kg": float(data.get("costo_kg", mats[mat_id].get("costo_kg", 0))),
-        "merma_pct": float(data.get("merma", mats[mat_id].get("merma_pct", 3.0))),
-    })
-    save_materiales(mats)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/productos", methods=["GET"])
-@require_auth
-def get_productos():
-    prods = load_productos()
-    return jsonify([_prod_to_js(k, v) for k, v in prods.items()])
-
-
-@app.route("/api/productos/<prod_id>", methods=["PUT"])
-@require_auth
-def update_producto(prod_id):
-    data = request.get_json(force=True) or {}
-    prods = load_productos()
-    if prod_id not in prods:
-        prods[prod_id] = {}
-    p = prods[prod_id]
-    p["nombre"] = data.get("nombre", p.get("nombre", prod_id))
-    p["kind"] = data.get("kind", p.get("kind", "vaso"))
-    p["unidades_caja"] = int(data.get("unidades_caja", p.get("unidades_caja", 1000)))
-    p["peso_g"] = float(data.get("peso_g", p.get("peso_g", 0)))
-    p["factor_complejidad"] = float(data.get("factor", p.get("factor_complejidad", 1.0)))
-    save_productos(prods)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/productos", methods=["POST"])
-@require_auth
-def create_producto():
-    data = request.get_json(force=True) or {}
-    nombre = (data.get("nombre") or "").strip()
-    if not nombre:
-        return jsonify({"error": "Nombre requerido"}), 400
-    prods = load_productos()
-    key = normalize(nombre).replace(' ', '_')
-    prods[key] = {
-        "nombre": nombre,
-        "kind": data.get("kind", "vaso"),
-        "unidades_caja": int(data.get("unidades_caja", 1000)),
-        "peso_g": float(data.get("peso_g", 0)),
-        "factor_complejidad": float(data.get("factor", 1.0)),
-    }
-    save_productos(prods)
-    return jsonify({"id": key})
-
-
-@app.route("/api/productos/<prod_id>/desactivar", methods=["POST"])
-@require_auth
-def toggle_producto_desactivado(prod_id):
-    data = request.get_json(force=True) or {}
-    prods = load_productos()
-    if prod_id not in prods:
-        return jsonify({"error": "No encontrado"}), 404
-    prods[prod_id]["desactivado"] = bool(data.get("desactivado", True))
-    save_productos(prods)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/materiales/<mat_id>/desactivar", methods=["POST"])
-@require_auth
-def toggle_material_desactivado(mat_id):
-    data = request.get_json(force=True) or {}
-    mats = load_materiales()
-    if mat_id not in mats:
-        return jsonify({"error": "No encontrado"}), 404
-    mats[mat_id]["desactivado"] = bool(data.get("desactivado", True))
-    save_materiales(mats)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/empaques/<emp_id>/desactivar", methods=["POST"])
-@require_auth
-def toggle_empaque_desactivado(emp_id):
-    data = request.get_json(force=True) or {}
-    empaques = load_empaques()
-    if emp_id not in empaques:
-        return jsonify({"error": "No encontrado"}), 404
-    empaques[emp_id]["desactivado"] = bool(data.get("desactivado", True))
-    save_empaques(empaques)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/gastos_fijos/<period>/desactivar", methods=["POST"])
-@require_auth
-def toggle_gasto_desactivado(period):
-    data = request.get_json(force=True) or {}
-    key = data.get("key")
-    if not key:
-        return jsonify({"error": "Key requerida"}), 400
-    gf = load_gastos_fijos(period)
-    desact = set(gf.get("_desactivados", []))
-    if bool(data.get("desactivado", True)):
-        desact.add(key)
-    else:
-        desact.discard(key)
-    gf["_desactivados"] = list(desact)
-    save_gastos_fijos(period, gf)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/empaques", methods=["GET"])
-@require_auth
-def get_empaques():
-    empaques = load_empaques()
-    return jsonify([
-        {"id": k, "nombre": v.get("nombre", k), "costo": float(v.get("costo", 0)), "unidad": v.get("unidad", "unidad")}
-        for k, v in empaques.items()
-    ])
-
-
-@app.route("/api/empaques/<emp_id>", methods=["PUT"])
-@require_auth
-def update_empaque(emp_id):
-    data = request.get_json(force=True) or {}
-    empaques = load_empaques()
-    if emp_id not in empaques:
-        empaques[emp_id] = {}
-    empaques[emp_id].update({
-        "nombre": data.get("nombre", empaques[emp_id].get("nombre", emp_id)),
-        "costo": float(data.get("costo", empaques[emp_id].get("costo", 0))),
-        "unidad": data.get("unidad", empaques[emp_id].get("unidad", "unidad")),
-    })
-    save_empaques(empaques)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/gastos_fijos/<period>", methods=["GET"])
-@require_auth
-def get_gastos_fijos(period):
-    return jsonify(load_gastos_fijos(period))
-
-
-@app.route("/api/gastos_fijos/<period>", methods=["PUT"])
-@require_auth
-def update_gastos_fijos(period):
-    data = request.get_json(force=True) or {}
-    save_gastos_fijos(period, data)
-    return jsonify({"ok": True})
 
 
 @app.route("/api/registros", methods=["POST"])
@@ -1919,23 +1645,18 @@ def get_dashboard():
     })
 
 
-# Comercial endpoints como Blueprint
+# ═══════════════════════════════════════════════════════════════
+# Blueprints — registrados al final para que helpers y decoradores
+# definidos arriba ya esten disponibles si los blueprints los importan
+# ═══════════════════════════════════════════════════════════════
+from app_routes.catalogo_bp import catalogo_bp
 from app_routes.comercial_bp import comercial_bp
-app.register_blueprint(comercial_bp)
-
-
-# ═══════════════════════════════════════════════════════════════
-# Inventario v2 — registrado como Blueprint en app_routes/inventario_bp.py
-# ═══════════════════════════════════════════════════════════════
 from app_routes.inventario_bp import inventario_bp
-app.register_blueprint(inventario_bp)
-
-
-
-# ═══════════════════════════════════════════════════════════════
-# SRI — registrado como Blueprint en app_routes/sri_bp.py
-# ═══════════════════════════════════════════════════════════════
 from app_routes.sri_bp import sri_bp
+
+app.register_blueprint(catalogo_bp)
+app.register_blueprint(comercial_bp)
+app.register_blueprint(inventario_bp)
 app.register_blueprint(sri_bp)
 
 
