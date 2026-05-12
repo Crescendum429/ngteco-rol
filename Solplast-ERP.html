@@ -2857,8 +2857,18 @@ function NomStepSubir({ periodoId, onNext, onSelectPeriodo }) {
       </div>
 
       <div className="panel panel-flush">
-        <div style={{ padding: '18px', borderBottom: '1px solid var(--line)' }}>
+        <div style={{ padding: '18px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <PanelHead title="Períodos guardados" sub="Selecciona uno para revisar o recalcular" />
+          <Btn size="sm" variant="ghost" title="Aplica +1 dia a las fechas de los reportes ya subidos (soluciona offset del reloj NGTeco sin re-subir XLS). Idempotente." onClick={async () => {
+            if (!await window.solpConfirm('Aplicar corrección de offset +1 día a TODOS los reportes históricos guardados?\n\nSolo se ejecuta una vez por reporte (es idempotente). No re-subir XLS después de esto.')) return;
+            const r = await window._api?.migrarOffsetHistorico();
+            if (r?.migrados !== undefined) {
+              window.solpToast(`${r.total} reporte(s) migrados. ${r.saltados_ya_migrados?.length || 0} ya estaban listos.`, 'ok');
+              setTimeout(() => location.reload(), 1500);
+            } else {
+              window.solpToast(r?.error || 'Error en migración', 'bad');
+            }
+          }}><Icon name="arrow_l" size={12}/> Corregir offset histórico</Btn>
         </div>
         {periodos.length === 0 && <div className="xs mute" style={{ padding: 18 }}>Sin reportes guardados.</div>}
         {periodos.map((r, i) => {

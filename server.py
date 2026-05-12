@@ -2,7 +2,7 @@ import io
 import json
 import os
 import tempfile
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import wraps
 
 from flask import Flask, jsonify, request, send_file, session
@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "4.1.2"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "4.1.3"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "solplast-dev-secret-2026")
 
@@ -900,6 +900,10 @@ def _build_login_patch():
     },
     urlPdfFactura: (factura_id) => '/api/sri/pdf/' + encodeURIComponent(factura_id),
     urlXmlFactura: (factura_id) => '/api/sri/xml/' + encodeURIComponent(factura_id),
+    migrarOffsetHistorico: async () => {
+      const r = await fetch('/api/nomina/migrar-offset', { method: 'POST', credentials: 'same-origin' });
+      return r.ok ? r.json() : { error: 'Error' };
+    },
     importarPrimerDia: async (periodo_id) => {
       const r = await fetch('/api/nomina/importar-primer-dia/' + encodeURIComponent(periodo_id), {
         method: 'POST', credentials: 'same-origin',
@@ -1590,6 +1594,65 @@ def put_nomina_overrides(periodo_id):
     data = request.get_json(force=True) or {}
     save_nomina_overrides(periodo_id, data)
     return jsonify({"ok": True})
+
+
+@app.route("/api/nomina/migrar-offset", methods=["POST"])
+@require_auth
+def migrar_offset_reportes():
+    """Aplica shift +1 dia a TODAS las fechas de los reportes guardados.
+
+    Soluciona reportes subidos antes del fix del parser. Idempotente: marca
+    cada reporte como migrado en un flag de storage para no aplicarse dos veces.
+    """
+    from storage import _cfg_get, _cfg_set
+    reps = list_reportes()
+    migrados = []
+    saltados = []
+
+    def _shift(ds_str):
+        parts = ds_str.split("-")
+        if len(parts) != 3:
+            return ds_str
+        try:
+            d = date(2000 + int(parts[0]), int(parts[1]), int(parts[2])) + timedelta(days=1)
+            return d.strftime("%y-%m-%d")
+        except Exception:
+            return ds_str
+
+    for rep in reps:
+        rid = rep["id"]
+        flag_key = f"nomina:offset_migrado:{rid}"
+        if _cfg_get(flag_key, False):
+            saltados.append(rid)
+            continue
+        try:
+            data, cls = load_reporte(rid)
+        except Exception:
+            saltados.append(rid)
+            continue
+        if not data or cls is None:
+            saltados.append(rid)
+            continue
+
+        new_data = []
+        for emp, days, nid in data:
+            new_days = {_shift(ds): pairs for ds, pairs in days.items()}
+            new_data.append((emp, new_days, nid))
+
+        new_cls = {}
+        for emp_name_x, days_cls in cls.items():
+            new_cls[emp_name_x] = {_shift(ds): d for ds, d in days_cls.items()}
+
+        try:
+            y, m = rid.split("-")
+            label = f"{_MES_NAMES[int(m)-1]} {y}"
+        except Exception:
+            label = rid
+        save_reporte(rid, label, new_data, new_cls)
+        _cfg_set(flag_key, True)
+        migrados.append(rid)
+
+    return jsonify({"migrados": migrados, "saltados_ya_migrados": saltados, "total": len(migrados)})
 
 
 @app.route("/api/nomina/importar-primer-dia/<periodo_id>", methods=["POST"])
