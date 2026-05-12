@@ -3185,6 +3185,16 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
             <div className="panel-sub">Horas extras van al banco por defecto (compensatorias). Toggle para pagarlas como extras.</div>
           </div>
           <div className="row" style={{ gap: 12, alignItems: 'center' }}>
+            <Btn size="sm" variant="ghost" title="El reloj NGTeco guarda las horas del primer dia del mes en el ultimo dia del mes anterior. Este boton trae esas horas como dia 1 de este mes." onClick={async () => {
+              if (!confirm('Importar horas del ultimo dia del mes anterior como dia 1 de este mes? (Soluciona el desfase del reloj NGTeco.)')) return;
+              const r = await window._api?.importarPrimerDia(periodoId);
+              if (r?.ok) {
+                alert(`Importadas horas de ${r.updates} empleados desde ${r.desde_periodo}.`);
+                location.reload();
+              } else {
+                alert((r && r.error) || 'Error importando.');
+              }
+            }}><Icon name="arrow_l" size={12}/> Importar día 1</Btn>
             <div style={{ textAlign: 'right' }}>
               <div className="xs mute">Banco del empleado</div>
               <div style={{ fontFamily: 'var(--serif)', fontSize: 18, color: bancoEmp >= 0 ? 'var(--good)' : 'var(--bad)' }}>{bancoEmp.toFixed(1)}h</div>

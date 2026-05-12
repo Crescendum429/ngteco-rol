@@ -838,6 +838,12 @@ def _build_login_patch():
     },
     urlPdfFactura: (factura_id) => '/api/sri/pdf/' + encodeURIComponent(factura_id),
     urlXmlFactura: (factura_id) => '/api/sri/xml/' + encodeURIComponent(factura_id),
+    importarPrimerDia: async (periodo_id) => {
+      const r = await fetch('/api/nomina/importar-primer-dia/' + encodeURIComponent(periodo_id), {
+        method: 'POST', credentials: 'same-origin',
+      });
+      return r.ok ? r.json() : { error: 'Error' };
+    },
     saveRegistroV2: async (data) => {
       const r = await fetch('/api/registros/v2', {
         method: 'POST',
@@ -1522,6 +1528,57 @@ def put_nomina_overrides(periodo_id):
     data = request.get_json(force=True) or {}
     save_nomina_overrides(periodo_id, data)
     return jsonify({"ok": True})
+
+
+@app.route("/api/nomina/importar-primer-dia/<periodo_id>", methods=["POST"])
+@require_auth
+def importar_primer_dia(periodo_id):
+    """Copia las horas del ultimo dia del reporte anterior al primer dia del reporte actual.
+
+    Soluciona el caso del reloj NGTeco que guarda las horas del primer dia del mes
+    en el ultimo dia del mes anterior.
+    """
+    data_act, cls_act = load_reporte(periodo_id)
+    if not data_act or cls_act is None:
+        return jsonify({"error": "Reporte actual no encontrado"}), 404
+
+    try:
+        y, m = periodo_id.split("-")
+        y_int, m_int = int(y), int(m)
+        m_prev = m_int - 1
+        y_prev = y_int
+        if m_prev == 0:
+            m_prev = 12
+            y_prev -= 1
+        periodo_prev = f"{y_prev}-{m_prev:02d}"
+    except Exception:
+        return jsonify({"error": "Periodo invalido"}), 400
+
+    data_prev, cls_prev = load_reporte(periodo_prev)
+    if not data_prev or not cls_prev:
+        return jsonify({"error": f"No hay reporte guardado para {periodo_prev}"}), 404
+
+    primer_dia_ds = f"{y[-2:]}-{m}-01"
+    n_updates = 0
+    for emp_name_x, days_prev in cls_prev.items():
+        if not days_prev:
+            continue
+        ult_ds = max(days_prev.keys())
+        ult_dia = days_prev[ult_ds]
+        cls_act.setdefault(emp_name_x, {})
+        cls_act[emp_name_x][primer_dia_ds] = {
+            "h1": ult_dia.get("h1"),
+            "h2": ult_dia.get("h2"),
+            "h3": ult_dia.get("h3"),
+            "h4": ult_dia.get("h4"),
+            "flags": ["IMPORTADO DEL MES ANTERIOR"],
+            "modo_extra": ult_dia.get("modo_extra", "banco"),
+        }
+        n_updates += 1
+
+    label = f"{_MES_NAMES[m_int-1]} {y}"
+    save_reporte(periodo_id, label, data_act, cls_act)
+    return jsonify({"ok": True, "updates": n_updates, "desde_periodo": periodo_prev})
 
 
 @app.route("/api/nomina/snapshot", methods=["GET"])
