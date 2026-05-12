@@ -2,26 +2,17 @@
 import os
 import tempfile
 from datetime import date, datetime
-from functools import wraps
 
-from flask import Blueprint, jsonify, send_file, session
+from flask import Blueprint, jsonify, send_file
 
 import sri as sri_mod
+from app_routes._auth import require_auth
 from logger import get_logger
 from storage import _cfg_get, _cfg_set, load_clientes, load_emisor, load_facturas, save_facturas
 
 log = get_logger("sri")
 
 sri_bp = Blueprint("sri", __name__)
-
-
-def _require_auth(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if os.environ.get("APP_PASSWORD") and not session.get("_auth"):
-            return jsonify({"error": "No autorizado"}), 401
-        return f(*args, **kwargs)
-    return decorated
 
 
 def _find_factura(factura_id):
@@ -41,7 +32,7 @@ def _find_cliente(cliente_id):
 
 
 @sri_bp.route("/api/sri/emitir/<path:factura_id>", methods=["POST"])
-@_require_auth
+@require_auth
 def sri_emitir(factura_id):
     """Genera clave de acceso, XML, firma y envia al SRI. Actualiza la factura."""
     factura, facturas = _find_factura(factura_id)
@@ -114,7 +105,7 @@ def sri_emitir(factura_id):
 
 
 @sri_bp.route("/api/sri/autorizar/<clave>", methods=["GET"])
-@_require_auth
+@require_auth
 def sri_autorizar(clave):
     """Consulta estado de autorizacion al SRI."""
     ambiente = os.environ.get("SRI_AMBIENTE", sri_mod.AMBIENTE_PRUEBAS)
@@ -122,7 +113,7 @@ def sri_autorizar(clave):
 
 
 @sri_bp.route("/api/sri/pdf/<path:factura_id>", methods=["GET"])
-@_require_auth
+@require_auth
 def sri_pdf(factura_id):
     factura, _ = _find_factura(factura_id)
     if not factura:
@@ -145,7 +136,7 @@ def sri_pdf(factura_id):
 
 
 @sri_bp.route("/api/sri/xml/<path:factura_id>", methods=["GET"])
-@_require_auth
+@require_auth
 def sri_xml(factura_id):
     factura, _ = _find_factura(factura_id)
     if not factura:
@@ -169,7 +160,7 @@ def sri_xml(factura_id):
 
 
 @sri_bp.route("/api/sri/config", methods=["GET"])
-@_require_auth
+@require_auth
 def sri_config():
     """Retorna configuracion actual del SRI (sin password del cert)."""
     return jsonify({
