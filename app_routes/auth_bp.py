@@ -46,16 +46,19 @@ def auth_login():
 
     if not APP_PASSWORD and not APP_PASSWORD_OP:
         log.warning("Login sin contrasena configurada — admitiendo cualquier credencial (modo dev)")
+        session.permanent = True  # Persiste 30 dias, configurado en server.py
         session["_auth"] = True
         session["_role"] = role
         return jsonify({"role": role})
 
     if role == "admin" and APP_PASSWORD and pwd == APP_PASSWORD:
+        session.permanent = True
         session["_auth"] = True
         session["_role"] = "admin"
         log.info(f"Login exitoso admin desde {ip}")
         return jsonify({"role": "admin"})
     if role == "operario" and APP_PASSWORD_OP and pwd == APP_PASSWORD_OP:
+        session.permanent = True
         session["_auth"] = True
         session["_role"] = "operario"
         log.info(f"Login exitoso operario desde {ip}")

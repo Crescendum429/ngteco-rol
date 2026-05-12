@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "4.2.8"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "4.2.9"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -94,6 +94,11 @@ app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB max upload (XLS rel
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("FLASK_ENV") != "development"
+# Sesion permanente de 30 dias para que coincida con el localStorage del frontend.
+# Sin esto, la sesion se pierde al cerrar el navegador pero el localStorage
+# persiste, causando que la UI muestre logueado pero el backend rechace todo.
+from datetime import timedelta as _timedelta
+app.permanent_session_lifetime = _timedelta(days=30)
 
 APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
 APP_PASSWORD_OP = os.environ.get("APP_PASSWORD_OP", "")
@@ -419,6 +424,22 @@ def _build_login_patch():
     return """
 // Auth patch — injected by server
 (function() {
+  // Interceptor global de fetch: si recibe 401, limpia localStorage y
+  // recarga para forzar re-login. Sin esto, la UI muestra logueado pero
+  // todas las llamadas API fallan silenciosamente.
+  const _originalFetch = window.fetch;
+  window.fetch = async function(input, init) {
+    const r = await _originalFetch(input, init);
+    if (r.status === 401 && String(input).startsWith('/api/') && !String(input).startsWith('/api/auth/')) {
+      // No autorizado en endpoint protegido — sesion expirada
+      try { localStorage.removeItem('solplast.logged'); } catch {}
+      if (window.solpToast) window.solpToast('Sesion expirada. Recarga la pagina.', 'warn');
+      // Recargar tras 1s para dar tiempo de leer el toast
+      setTimeout(() => location.reload(), 1500);
+    }
+    return r;
+  };
+
   window._api = {
     logout: async () => {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
