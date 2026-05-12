@@ -111,6 +111,46 @@ def test_apply_recurrentes_fuera_de_vigencia():
     assert out["prestamo_iess"] == 0
 
 
+def test_fondos_aplica_sin_fecha_legacy():
+    """Sin fecha de ingreso, asume legacy y aplica (conservador)."""
+    from nomina_logic import fondos_aplica
+    assert fondos_aplica("", "2026-05") is True
+
+
+def test_fondos_aplica_menos_de_1_anio():
+    """Empleado ingreso en febrero 2026, periodo mayo 2026 → solo 3 meses."""
+    from nomina_logic import fondos_aplica
+    assert fondos_aplica("2026-02-01", "2026-05") is False
+
+
+def test_fondos_aplica_mas_de_1_anio():
+    """Empleado ingreso enero 2025, periodo mayo 2026 → +1 anio."""
+    from nomina_logic import fondos_aplica
+    assert fondos_aplica("2025-01-15", "2026-05") is True
+
+
+def test_decimo_14to_proporcional_anio_completo():
+    """Ingreso anterior al ciclo (1 ago 2025 - 31 jul 2026) — paga 1 SBU completo."""
+    from nomina_logic import decimo_14to_proporcional
+    assert decimo_14to_proporcional("2024-05-01", "2026-08", 470) == 470
+
+
+def test_decimo_14to_proporcional_medio_anio():
+    """Ingreso 1 feb 2026 — pertenece al ciclo agosto 2025-julio 2026.
+    Solo trabaja desde feb a jul = 6 meses = 180 dias."""
+    from nomina_logic import decimo_14to_proporcional
+    # Desde 1 feb 2026 hasta 31 jul 2026 = 181 dias (incluyendo ambos)
+    # 470 * 181/360 = 236.36
+    val = decimo_14to_proporcional("2026-02-01", "2026-08", 470)
+    assert 230 < val < 245
+
+
+def test_decimo_14to_proporcional_ingreso_futuro():
+    """Ingreso despues del fin del ciclo — paga 0."""
+    from nomina_logic import decimo_14to_proporcional
+    assert decimo_14to_proporcional("2026-09-01", "2026-08", 470) == 0
+
+
 def test_calc_horas_periodo_dia_normal():
     # Un dia de 8h sin extras
     cls_emp = {

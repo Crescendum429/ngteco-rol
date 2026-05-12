@@ -22,11 +22,13 @@ def emp_to_js(key, emp, idx=0):
         "color": EMP_COLORS[idx % len(EMP_COLORS)],
         "salario": float(emp.get("salario", 0)),
         "transporte": float(emp.get("transporte_dia", 0)),
+        "transporte_gravable": bool(emp.get("transporte_gravable", True)),
         "horas_base": int(emp.get("horas_base", 8)),
         "region": emp.get("region", "Sierra/Amazonia"),
         "fondos_reserva": bool(emp.get("fondos_reserva", False)),
         "prestamo_iess": float(emp.get("prestamo_iess", 0)),
         "descuento_iess": bool(emp.get("descuento_iess", True)),
+        "fecha_ingreso": emp.get("fecha_ingreso", ""),  # YYYY-MM-DD
         "ocultar": bool(emp.get("ocultar", False)),
     }
 

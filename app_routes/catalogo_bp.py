@@ -48,10 +48,12 @@ def create_empleado():
         "salario": float(data.get("salario", 0)),
         "horas_base": int(data.get("horas_base", 8)),
         "transporte_dia": float(data.get("transporte", 0)),
+        "transporte_gravable": bool(data.get("transporte_gravable", True)),
         "region": data.get("region", "Sierra/Amazonia"),
         "fondos_reserva": bool(data.get("fondos_reserva", False)),
         "prestamo_iess": float(data.get("prestamo_iess", 0)),
         "descuento_iess": bool(data.get("descuento_iess", True)),
+        "fecha_ingreso": data.get("fecha_ingreso", "") or "",
         "ocultar": False,
     }
     save_empleados(emp_db)
@@ -72,10 +74,12 @@ def update_empleado(emp_id):
     emp["salario"] = float(data.get("salario", emp.get("salario", 0)))
     emp["horas_base"] = int(data.get("horas_base", emp.get("horas_base", 8)))
     emp["transporte_dia"] = float(data.get("transporte", emp.get("transporte_dia", 0)))
+    emp["transporte_gravable"] = bool(data.get("transporte_gravable", emp.get("transporte_gravable", True)))
     emp["region"] = data.get("region", emp.get("region", "Sierra/Amazonia"))
     emp["fondos_reserva"] = bool(data.get("fondos_reserva", emp.get("fondos_reserva", False)))
     emp["prestamo_iess"] = float(data.get("prestamo_iess", emp.get("prestamo_iess", 0)))
     emp["descuento_iess"] = bool(data.get("descuento_iess", emp.get("descuento_iess", True)))
+    emp["fecha_ingreso"] = data.get("fecha_ingreso", emp.get("fecha_ingreso", ""))
     save_empleados(emp_db)
     return jsonify({"ok": True})
 

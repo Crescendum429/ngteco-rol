@@ -137,6 +137,64 @@ def periodo_de_data(data):
     return None, None
 
 
+def fondos_aplica(fecha_ingreso, periodo_id):
+    """Determina si los fondos de reserva aplican legalmente (Art. 196 Codigo
+    del Trabajo): solo despues del PRIMER ANIO de servicio.
+
+    Args:
+        fecha_ingreso: 'YYYY-MM-DD' o '' (vacio = se desconoce, se asume que
+                       SI aplica para mantener comportamiento legacy).
+        periodo_id: 'YYYY-MM' del periodo de nomina.
+
+    Returns:
+        True si: no hay fecha (legacy) O ya transcurrio mas de 1 anio.
+    """
+    if not fecha_ingreso:
+        return True  # legacy/desconocido — conservador a favor del empleado
+    try:
+        y, m, d = fecha_ingreso.split("-")
+        ingreso = date(int(y), int(m), int(d))
+    except Exception:
+        return True
+    try:
+        py, pm = periodo_id.split("-")
+        # fin del periodo = ultimo dia del mes
+        fin_periodo = date(int(py), int(pm), 28)  # 28 es seguro para todos los meses
+    except Exception:
+        return True
+    diff_dias = (fin_periodo - ingreso).days
+    return diff_dias >= 365
+
+
+def decimo_14to_proporcional(fecha_ingreso, periodo_id, sbu):
+    """Calcula 14to proporcional al tiempo trabajado en el periodo anual.
+
+    Periodo de calculo del 14to en Sierra/Amazonia: 1 ago del anio anterior al
+    31 jul del anio actual (Art. 113 Codigo del Trabajo). Pago hasta 15 ago.
+
+    Si ingreso < 1 anio en el periodo: prorratea.
+    Si fecha_ingreso vacia: asume 1 SBU completo (legacy).
+    """
+    if not fecha_ingreso:
+        return sbu
+    try:
+        y, m, d = fecha_ingreso.split("-")
+        ingreso = date(int(y), int(m), int(d))
+        py = int(periodo_id.split("-")[0])
+    except Exception:
+        return sbu
+
+    inicio_ciclo = date(py - 1, 8, 1)
+    fin_ciclo = date(py, 7, 31)
+    if ingreso > fin_ciclo:
+        return 0
+    inicio_calc = max(ingreso, inicio_ciclo)
+    dias_trabajados = (fin_ciclo - inicio_calc).days + 1
+    dias_ciclo = 360  # convencion contable ecuatoriana
+    proporcional = sbu * min(dias_trabajados / dias_ciclo, 1.0)
+    return round(proporcional, 2)
+
+
 def vigente_en_periodo(desde, hasta, periodo_id):
     if not periodo_id:
         return False
@@ -388,6 +446,14 @@ def calc_nomina_one(periodo_id, data_r, cls_r, emp_db):
         cfg = apply_recurrentes(cfg, dk or name, periodo_id, recurrentes)
         if not cfg.get("salario"):
             continue
+
+        # Fondos de reserva: derivar de fecha_ingreso si esta configurada
+        # (Art. 196 — aplica desde el 2do anio). El campo cfg["fondos_reserva"]
+        # del empleado es el flag base; si fecha_ingreso < 1 anio, fuerza a False.
+        if cfg.get("fondos_reserva") and not fondos_aplica(cfg.get("fecha_ingreso", ""), periodo_id):
+            cfg = dict(cfg)
+            cfg["fondos_reserva"] = False
+
         base_h = cfg.get("horas_base", 8)
         hrs = calc_horas_periodo(cls_r.get(name, {}), base_h)
         hrs_for_nomina = {
@@ -456,6 +522,10 @@ def compute_nomina_for_periodo(periodo_id, extras_config=None):
         cfg = apply_recurrentes(cfg, dk or name, periodo_id, recurrentes)
         if not cfg.get("salario"):
             continue
+        # Fondos derivado de fecha_ingreso
+        if cfg.get("fondos_reserva") and not fondos_aplica(cfg.get("fecha_ingreso", ""), periodo_id):
+            cfg = dict(cfg)
+            cfg["fondos_reserva"] = False
         base_h = cfg.get("horas_base", 8)
         hrs_detail = calc_horas_periodo(cls.get(name, {}), base_h)
         hrs_for_nomina = {
