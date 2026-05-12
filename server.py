@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "4.1.4"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "4.1.5"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -995,7 +995,12 @@ def _build_login_patch():
     urlXmlFactura: (factura_id) => '/api/sri/xml/' + encodeURIComponent(factura_id),
     migrarOffsetHistorico: async () => {
       const r = await fetch('/api/nomina/migrar-offset', { method: 'POST', credentials: 'same-origin' });
-      return r.ok ? r.json() : { error: 'Error' };
+      try {
+        const j = await r.json();
+        return r.ok ? j : { error: j.error || `HTTP ${r.status}` };
+      } catch {
+        return { error: `HTTP ${r.status} (respuesta no es JSON)` };
+      }
     },
     importarPrimerDia: async (periodo_id) => {
       const r = await fetch('/api/nomina/importar-primer-dia/' + encodeURIComponent(periodo_id), {
@@ -1710,11 +1715,19 @@ def migrar_offset_reportes():
     cada reporte como migrado en un flag de storage para no aplicarse dos veces.
     """
     from storage import _cfg_get, _cfg_set
-    reps = list_reportes()
+    try:
+        reps = list_reportes() or []
+    except Exception as e:
+        log.exception("migrar-offset: error listando reportes")
+        return jsonify({"error": f"No se pudo listar reportes: {e}"}), 500
+
     migrados = []
     saltados = []
+    fallidos = []
 
     def _shift(ds_str):
+        if not isinstance(ds_str, str):
+            return ds_str
         parts = ds_str.split("-")
         if len(parts) != 3:
             return ds_str
@@ -1724,40 +1737,61 @@ def migrar_offset_reportes():
         except Exception:
             return ds_str
 
+    log.info(f"migrar-offset: encontrados {len(reps)} reportes")
     for rep in reps:
-        rid = rep["id"]
-        flag_key = f"nomina:offset_migrado:{rid}"
-        if _cfg_get(flag_key, False):
-            saltados.append(rid)
+        rid = rep.get("id") if isinstance(rep, dict) else None
+        if not rid:
             continue
+        flag_key = f"nomina:offset_migrado:{rid}"
+        try:
+            if _cfg_get(flag_key, False):
+                saltados.append(rid)
+                continue
+        except Exception as e:
+            log.warning(f"migrar-offset: error leyendo flag de {rid}: {e}")
+
         try:
             data, cls = load_reporte(rid)
-        except Exception:
-            saltados.append(rid)
-            continue
-        if not data or cls is None:
-            saltados.append(rid)
-            continue
+            if not data or cls is None:
+                log.info(f"migrar-offset: {rid} sin data, salta")
+                saltados.append(rid)
+                continue
 
-        new_data = []
-        for emp, days, nid in data:
-            new_days = {_shift(ds): pairs for ds, pairs in days.items()}
-            new_data.append((emp, new_days, nid))
+            new_data = []
+            for tup in data:
+                try:
+                    emp, days, nid = tup
+                except Exception:
+                    log.warning(f"migrar-offset: {rid} fila con formato inesperado: {tup!r}")
+                    continue
+                new_days = {_shift(ds): pairs for ds, pairs in (days or {}).items()}
+                new_data.append((emp, new_days, nid))
 
-        new_cls = {}
-        for emp_name_x, days_cls in cls.items():
-            new_cls[emp_name_x] = {_shift(ds): d for ds, d in days_cls.items()}
+            new_cls = {}
+            for emp_name_x, days_cls in (cls or {}).items():
+                new_cls[emp_name_x] = {_shift(ds): d for ds, d in (days_cls or {}).items()}
 
-        try:
-            y, m = rid.split("-")
-            label = f"{_MES_NAMES[int(m)-1]} {y}"
-        except Exception:
-            label = rid
-        save_reporte(rid, label, new_data, new_cls)
-        _cfg_set(flag_key, True)
-        migrados.append(rid)
+            try:
+                y, m = rid.split("-")
+                label = f"{_MES_NAMES[int(m)-1]} {y}"
+            except Exception:
+                label = rid
 
-    return jsonify({"migrados": migrados, "saltados_ya_migrados": saltados, "total": len(migrados)})
+            save_reporte(rid, label, new_data, new_cls)
+            _cfg_set(flag_key, True)
+            migrados.append(rid)
+            log.info(f"migrar-offset: {rid} migrado OK")
+        except Exception as e:
+            log.exception(f"migrar-offset: error en reporte {rid}")
+            fallidos.append({"id": rid, "error": str(e)})
+
+    log.info(f"migrar-offset: migrados={len(migrados)} saltados={len(saltados)} fallidos={len(fallidos)}")
+    return jsonify({
+        "migrados": migrados,
+        "saltados_ya_migrados": saltados,
+        "fallidos": fallidos,
+        "total": len(migrados),
+    })
 
 
 @app.route("/api/nomina/importar-primer-dia/<periodo_id>", methods=["POST"])
