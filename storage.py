@@ -536,6 +536,30 @@ def save_cambios_molde(data):
     _cfg_set("inv:cambios_molde", data)
 
 
+# ═══ Audit log — cambios sensibles a entidades financieras ═══
+
+def append_audit(entry):
+    """Append-only log de cambios a entidades sensibles. NO se borra ni edita.
+    Cada entry: {ts, user, entity, action, entity_id, before, after, ip}
+    """
+    log = _load_or_none("audit:log") or []
+    log.append(entry)
+    # Mantener solo ultimos 10000 para evitar crecer indefinidamente
+    if len(log) > 10000:
+        log = log[-10000:]
+    _cfg_set("audit:log", log)
+
+
+def load_audit_log(limit=200, entity_type=None, entity_id=None):
+    log = _load_or_none("audit:log") or []
+    if entity_type:
+        log = [e for e in log if e.get("entity") == entity_type]
+    if entity_id:
+        log = [e for e in log if e.get("entity_id") == entity_id]
+    # Mas reciente primero
+    return list(reversed(log))[:limit]
+
+
 def load_registro_diario(fecha_str):
     return _cfg_get(f"gastos:diario:{fecha_str}", {})
 

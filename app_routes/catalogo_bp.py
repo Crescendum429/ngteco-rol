@@ -2,6 +2,7 @@
 y endpoints de desactivar para cada tipo."""
 from flask import Blueprint, jsonify, request
 
+import audit
 from app_helpers import emp_to_js, empaque_to_js, mat_to_js, prod_to_js
 from app_routes._auth import require_auth
 from logger import get_logger
@@ -57,6 +58,7 @@ def create_empleado():
         "ocultar": False,
     }
     save_empleados(emp_db)
+    audit.record("empleado", "create", key, before=None, after=emp_db[key])
     log.info(f"empleado creado: {key}")
     return jsonify({"id": key})
 
@@ -69,6 +71,7 @@ def update_empleado(emp_id):
     if emp_id not in emp_db:
         return jsonify({"error": "No encontrado"}), 404
     emp = emp_db[emp_id]
+    before = dict(emp)  # snapshot del estado anterior
     emp["nombre"] = data.get("nombre", emp.get("nombre", ""))
     emp["cargo"] = data.get("cargo", emp.get("cargo", ""))
     emp["salario"] = float(data.get("salario", emp.get("salario", 0)))
@@ -81,6 +84,7 @@ def update_empleado(emp_id):
     emp["descuento_iess"] = bool(data.get("descuento_iess", emp.get("descuento_iess", True)))
     emp["fecha_ingreso"] = data.get("fecha_ingreso", emp.get("fecha_ingreso", ""))
     save_empleados(emp_db)
+    audit.record("empleado", "update", emp_id, before=before, after=dict(emp))
     return jsonify({"ok": True})
 
 
@@ -90,8 +94,10 @@ def delete_empleado(emp_id):
     emp_db = load_empleados()
     if emp_id not in emp_db:
         return jsonify({"error": "No encontrado"}), 404
+    before = dict(emp_db[emp_id])
     del emp_db[emp_id]
     save_empleados(emp_db)
+    audit.record("empleado", "delete", emp_id, before=before, after=None)
     log.info(f"empleado eliminado: {emp_id}")
     return jsonify({"ok": True})
 

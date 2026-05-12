@@ -5,6 +5,7 @@ from datetime import date, datetime
 
 from flask import Blueprint, jsonify, send_file
 
+import audit
 import sri as sri_mod
 from app_routes._auth import require_auth
 from logger import get_logger
@@ -92,6 +93,14 @@ def sri_emitir(factura_id):
     if idx is not None:
         facturas[idx] = factura
     save_facturas(facturas)
+
+    audit.record("factura", "emitir_sri", factura_id, before=None, after={
+        "clave_acceso": clave,
+        "estado_sri": factura["estado_sri"],
+        "autorizacion_sri": factura["autorizacion_sri"],
+        "ambiente": ambiente,
+        "total": factura.get("total"),
+    })
 
     return jsonify({
         "ok": True,

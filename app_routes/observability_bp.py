@@ -123,6 +123,18 @@ def backup():
     })
 
 
+@obs_bp.route("/api/audit", methods=["GET"])
+@require_auth
+def audit_log():
+    """Consulta el audit log. Filtros opcionales: entity, entity_id, limit."""
+    from flask import request as _req
+    from audit import query
+    limit = int(_req.args.get("limit", 200))
+    entity = _req.args.get("entity")
+    entity_id = _req.args.get("entity_id")
+    return jsonify(query(limit=limit, entity_type=entity, entity_id=entity_id))
+
+
 @obs_bp.route("/api/config", methods=["GET"])
 @require_auth
 def runtime_config():

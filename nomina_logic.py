@@ -166,6 +166,52 @@ def fondos_aplica(fecha_ingreso, periodo_id):
     return diff_dias >= 365
 
 
+def decimo_13ro_acumulado(emp_id, periodo_id, build_nomina_history_fn=None):
+    """Calcula 13ro segun Art. 111 Codigo del Trabajo:
+    1/12 de TODAS las remuneraciones percibidas en los 12 meses anteriores
+    (1 dic anio anterior al 30 nov anio actual).
+
+    Si build_nomina_history_fn esta dado, lo usa para obtener el historial.
+    Si no, retorna None (no se puede calcular sin historial).
+
+    Para el primer anio sin historial completo: el sistema cae al fallback
+    (salario flat) en calcular_nomina.
+
+    Materia para 13ro: sueldo + horas extras + comisiones + cualquier
+    remuneracion ordinaria. NO incluye 14to, ni fondos, ni viaticos,
+    ni participacion de utilidades.
+    """
+    if not build_nomina_history_fn:
+        return None
+    try:
+        # Periodo de calculo: 1 dic anterior - 30 nov actual
+        y, m = periodo_id.split("-")
+        anio_periodo = int(y)
+        inicio = f"{anio_periodo - 1}-12"
+        # Lista de periodos relevantes
+        meses_anteriores = []
+        for i in range(12):
+            mes = ((11 + i) % 12) + 1  # dic=12, ene=1,...
+            anio = anio_periodo - 1 if mes == 12 else anio_periodo
+            meses_anteriores.append(f"{anio}-{mes:02d}")
+        # Filtra del historial
+        historial = build_nomina_history_fn() or {}
+        suma = 0.0
+        meses_con_data = 0
+        for pid in meses_anteriores:
+            items = historial.get(pid, [])
+            for it in items:
+                if it.get("id") == emp_id or it.get("nombre") == emp_id:
+                    suma += float(it.get("ingresos", 0))  # base imponible del periodo
+                    meses_con_data += 1
+                    break
+        if meses_con_data == 0:
+            return None  # Sin historial — usar fallback
+        return round(suma / 12, 2)
+    except Exception:
+        return None
+
+
 def decimo_14to_proporcional(fecha_ingreso, periodo_id, sbu):
     """Calcula 14to proporcional al tiempo trabajado en el periodo anual.
 
