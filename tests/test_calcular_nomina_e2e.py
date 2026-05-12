@@ -118,12 +118,19 @@ def test_e2e_deficit_con_cubrir():
 
 
 def test_e2e_dia_completo_cubierto_sin_timbres():
-    """0h lunes con cubrir_banco — 8h regulares y dia se cuenta."""
+    """0h lunes con cubrir_banco — 8h regulares pagadas DEL BANCO, pero
+    dia trabajado NO se incrementa (no hubo timbres reales, no va al sitio).
+
+    Cambio v4.2.4: separamos dias trabajados (transporte Art. 42) vs
+    dias pagados. Anteriormente dias se incrementaba aqui, causando
+    pago indebido de transporte por dia que el empleado no fue al trabajo.
+    """
     cls = {"26-03-02": _dia(None, None, None, None, cubrir_banco=True)}
     hrs = calc_horas_periodo(cls, base_h=8)
     assert hrs["horas_regular"] == 8.0
     assert hrs["horas_cubiertas"] == 8.0
-    assert hrs["dias"] == 1  # dia cuenta (esto es lo que causa pagar transporte)
+    assert hrs["dias"] == 0  # NO cuenta para transporte — empleado no fue
+    assert hrs["dias_pagados"] == 1  # SI cuenta para reporting
 
 
 # ──────────────────────────────────────────────────────────────────
@@ -203,12 +210,70 @@ def test_e2e_nomina_decimo_13():
 def test_e2e_nomina_transferencia_fin_negativa():
     """Caso peligroso: prestamo grande → transf_fin queda negativa.
 
-    El sistema actual NO valida esto — registra el numero negativo.
+    Desde v4.2.4 el sistema GENERA ALERTA pero deja el numero negativo
+    para que el contador decida que hacer (reducir prestamo, repartir, etc).
     """
     hrs = {"dias": 22, "horas_total": 176, "horas_50": 0, "horas_100": 0, "horas_regular": 176}
     cfg = _cfg_basico(salario=500, prestamo=400)
     nom = calcular_nomina(hrs, cfg, {})
-    # valor_recibir = 533 - 50.37 - 400 = 82.63
-    # transf_15 = 250, transf_fin = 82.63 - 250 = -167.37
     assert nom["transf_15"] == 250
-    assert nom["transf_fin"] < 0  # Bug: no se valida
+    assert nom["transf_fin"] < 0
+    # NUEVO: ahora hay alerta clara
+    assert any("transf_fin NEGATIVA" in a for a in nom["alertas"])
+
+
+def test_e2e_transporte_no_gravable_para_iess():
+    """Empleado con transporte_gravable=False — IESS NO grava transporte.
+
+    Algunos convenios colectivos excluyen el transporte de la materia gravada.
+    """
+    hrs = {"dias": 22, "horas_total": 176, "horas_50": 0, "horas_100": 0, "horas_regular": 176}
+    cfg = _cfg_basico(salario=500, transporte_dia=1.50)
+    cfg["transporte_gravable"] = False
+    nom = calcular_nomina(hrs, cfg, {})
+    # base_imponible = 500 + 0 (sin transporte) = 500
+    # IESS = 500 * 0.0945 = 47.25
+    assert nom["base_imponible"] == 500
+    assert nom["iess"] == 47.25
+    # Total ingresos sigue igual (incluye transporte)
+    assert nom["total_ingresos"] == 533
+
+
+def test_e2e_transporte_gravable_default_true():
+    """Default: transporte gravable. Comportamiento legacy preservado."""
+    hrs = {"dias": 22, "horas_total": 176, "horas_50": 0, "horas_100": 0, "horas_regular": 176}
+    cfg = _cfg_basico(salario=500, transporte_dia=1.50)
+    nom = calcular_nomina(hrs, cfg, {})
+    assert nom["transporte_gravable"] is True
+    assert nom["base_imponible"] == 533
+
+
+def test_e2e_anticipo_descuenta_segunda_quincena():
+    """Anticipo entregado mid-month se descuenta de la 2da quincena."""
+    hrs = {"dias": 22, "horas_total": 176, "horas_50": 0, "horas_100": 0, "horas_regular": 176}
+    cfg = _cfg_basico(salario=500)
+    nom = calcular_nomina(hrs, cfg, {"anticipo": 100})
+    assert nom["anticipo"] == 100
+    assert nom["transf_15"] == 250  # 1ra quincena sin tocar
+    # transf_fin = valor_recibir - 250 + 0 - 100
+    # valor_recibir = 533 - 50.37 = 482.63 (sin transporte gravable=true)
+    # transf_fin = 482.63 - 250 - 100 = 132.63
+    assert abs(nom["transf_fin"] - 132.63) < 0.01
+
+
+def test_e2e_dias_trabajados_vs_pagados_transporte():
+    """Si un dia esta cubierto por banco sin timbres, dias_trab=N pero
+    transporte NO se paga ese dia."""
+    cls = {
+        "26-03-02": _dia(420, 720, 780, 960),  # lunes trabajo normal
+        "26-03-03": _dia(None, None, None, None, cubrir_banco=True),  # martes cubierto
+    }
+    hrs = calc_horas_periodo(cls, base_h=8)
+    assert hrs["dias"] == 1  # solo el lunes (con timbres)
+    assert hrs["dias_pagados"] == 2  # ambos cuentan para reporting
+    assert hrs["horas_regular"] == 16  # 8 + 8 cubiertas
+
+    cfg = _cfg_basico(salario=500, transporte_dia=1.50)
+    nom = calcular_nomina(hrs, cfg, {})
+    # transporte = 1 dia * 1.50 = 1.50 (NO 3.00 como antes)
+    assert nom["transporte"] == 1.50

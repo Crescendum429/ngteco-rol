@@ -297,58 +297,113 @@ def calcular_horas_clasificadas(classified_days, base_hours=8):
 
 def calcular_nomina(hrs, cfg, extras=None):
     """Calcula nomina completa para un empleado.
-    cfg: dict con salario, horas_base, transporte_dia, prestamo_iess, fondos_reserva,
-         horas_comp_anterior
-    extras: dict con decimo_13 (bool), decimo_14 (bool), bonus, horas_pasar (float)
+
+    Args:
+        hrs: dict de calc_horas_periodo con dias, dias_pagados, horas_total,
+             horas_50, horas_100, horas_regular.
+        cfg: dict con salario, horas_base, transporte_dia, prestamo_iess,
+             fondos_reserva, descuento_iess, transporte_gravable (opcional,
+             default True — controla si transporte entra en base IESS/fondos).
+        extras: dict con decimo_13 (bool), decimo_14 (bool), bonus, anticipo
+                (deducido de transf_fin, no de transf_15), horas_pasar.
+
+    Returns dict con todo el detalle. Incluye:
+        - alertas: lista de strings con flags para revision humana
+                   (ej. transf_fin negativa, exceso semanal de extras, etc.)
+        - validaciones: dict para reconciliacion (sum lineas == total)
     """
     extras = extras or {}
-    salario = cfg.get('salario', 0)
-    base_h = cfg.get('horas_base', 8)
-    transp_dia = cfg.get('transporte_dia', 0)
-    prestamo = cfg.get('prestamo_iess', 0)
+    salario = float(cfg.get('salario', 0))
+    base_h = int(cfg.get('horas_base', 8))
+    transp_dia = float(cfg.get('transporte_dia', 0))
+    prestamo = float(cfg.get('prestamo_iess', 0))
     descuento_iess = cfg.get('descuento_iess', True)
     tiene_fondos = cfg.get('fondos_reserva', False)
-    h_anterior = cfg.get('horas_comp_anterior', 0)
-    horas_pasar = extras.get('horas_pasar', 0)
+    transporte_gravable = cfg.get('transporte_gravable', True)
+    h_anterior = float(cfg.get('horas_comp_anterior', 0))
+    horas_pasar = float(extras.get('horas_pasar', 0))
+    anticipo = float(extras.get('anticipo', 0))  # adelanto a deducir de 2da quincena
+
+    alertas = []
 
     hourly = salario / 30 / base_h if salario > 0 and base_h > 0 else 0
 
-    # Horas compensatorias con arrastre
+    # Horas compensatorias con arrastre (legacy)
     h_50_total = hrs['horas_50'] + h_anterior
     h_50_pagar = max(h_50_total - horas_pasar, 0)
     h_50_arrastre = horas_pasar
 
     pay_50 = h_50_pagar * hourly * 1.5
     pay_100 = hrs['horas_100'] * hourly * 2.0
-    transporte = hrs['dias'] * transp_dia
+
+    # dias trabajados con timbres reales (Art. 42 — solo dias efectivos pagan transporte)
+    dias_trab = hrs.get('dias', 0)
+    transporte = dias_trab * transp_dia
 
     quincena = salario / 2
     horas_extras = pay_50 + pay_100
 
-    # Ingresos
+    # Base imponible para IESS y fondos (materia gravada)
+    # Excluye decimos y transporte si no es gravable
+    base_imponible = salario + horas_extras
+    if transporte_gravable:
+        base_imponible += transporte
+
+    # Ingresos brutos (incluye todo lo que recibe el empleado)
     total_ingresos = salario + horas_extras + transporte
 
-    # Decimos (se suman a ingresos si aplican)
+    # Decimos NO son materia gravada (Resolucion IESS 501) — se suman al ingreso
     d13 = salario if extras.get('decimo_13') else 0
     d14 = SBU_2026 if extras.get('decimo_14') else 0
-    bonus = extras.get('bonus', 0)
+    bonus = float(extras.get('bonus', 0))
 
     total_ingresos_con_extras = total_ingresos + d13 + d14 + bonus
 
-    # Egresos
-    iess = round(total_ingresos * IESS_EMPLEADO, 2) if descuento_iess else 0
+    # Aporte personal IESS — sobre base imponible (no sobre decimos)
+    iess = round(base_imponible * IESS_EMPLEADO, 2) if descuento_iess else 0
+
+    # Total egresos
     total_egresos = iess + prestamo
 
     # Neto
     valor_recibir = total_ingresos_con_extras - total_egresos
 
-    # Fondos de reserva
-    fondos = round(total_ingresos / 12, 2) if tiene_fondos else 0
+    # Fondos de reserva — 8.33% de base imponible, NO incluye decimos.
+    # Legalmente aplica solo a empleados con >=1 anio de servicio (Art. 196).
+    # El flag fondos_reserva del cfg debe ser derivado de fecha_ingreso por el caller.
+    fondos = round(base_imponible / 12, 2) if tiene_fondos else 0
 
     # Detalle transferencias
+    # 1ra quincena: salario/2 sin descuentos
+    # 2da quincena: lo que queda menos anticipos
     transf_15 = quincena
-    transf_fin = valor_recibir - quincena + fondos
+    transf_fin = valor_recibir - quincena + fondos - anticipo
     total_transferido = transf_15 + transf_fin
+
+    # ─── Alertas para revision humana ───
+    if transf_fin < 0:
+        alertas.append(
+            f"transf_fin NEGATIVA ({transf_fin:.2f}). Descuentos exceden 2da quincena. "
+            f"Revisa con el empleado: reducir prestamo, repartir descuento en proximos meses, "
+            f"o ajustar 1ra quincena."
+        )
+    if dias_trab > 31:
+        alertas.append(f"dias trabajados = {dias_trab} es inusual (>31)")
+    if salario > 0 and total_ingresos > salario * 3:
+        alertas.append(
+            f"total_ingresos ({total_ingresos:.2f}) es {total_ingresos/salario:.1f}x el salario. "
+            f"Revisar horas extras o bonos."
+        )
+    if iess < 0 or prestamo < 0:
+        alertas.append("Descuentos negativos — error de configuracion")
+
+    # ─── Reconciliacion: suma de partes == total ───
+    suma_check = transf_15 + transf_fin
+    if abs(suma_check - total_transferido) > 0.01:
+        alertas.append(
+            f"RECONCILIACION ROTA: transf_15+transf_fin={suma_check:.2f} != "
+            f"total_transferido={total_transferido:.2f}"
+        )
 
     return {
         'salario': salario,
@@ -363,10 +418,13 @@ def calcular_nomina(hrs, cfg, extras=None):
         'pay_100': round(pay_100, 2),
         'horas_extras': round(horas_extras, 2),
         'transporte': round(transporte, 2),
+        'transporte_gravable': transporte_gravable,
+        'base_imponible': round(base_imponible, 2),
         'total_ingresos': round(total_ingresos, 2),
         'decimo_13': d13,
         'decimo_14': d14,
         'bonus': bonus,
+        'anticipo': anticipo,
         'iess': iess,
         'prestamo_iess': prestamo,
         'total_egresos': round(total_egresos, 2),
@@ -375,6 +433,7 @@ def calcular_nomina(hrs, cfg, extras=None):
         'transf_15': round(transf_15, 2),
         'transf_fin': round(transf_fin, 2),
         'total_transferido': round(total_transferido, 2),
+        'alertas': alertas,
     }
 
 

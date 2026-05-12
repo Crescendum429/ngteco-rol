@@ -166,9 +166,22 @@ def horas_detalle_one(data_r, cls_r, emp_db):
 
 
 def calc_horas_periodo(cls_emp, base_h):
-    """Calcula horas considerando modo_extra y cubrir_banco por dia."""
+    """Calcula horas considerando modo_extra y cubrir_banco por dia.
+
+    Returns dict con:
+    - dias            : dias en que el empleado trabajo EFECTIVAMENTE (timbres reales).
+                        Se usa para transporte (Art. 42 Codigo de Trabajo —
+                        bonificacion por dia trabajado).
+    - dias_pagados    : dias que entran en el calculo de salario (efectivos +
+                        cubiertos por banco). Para reporting visual.
+    - horas_regular   : horas regulares pagadas (incluye cobertura de banco).
+    - horas_50/100    : horas extras pagadas.
+    - banco_excedente : horas que van al banco este periodo.
+    - horas_cubiertas : horas que se descuentan del banco este periodo.
+    - dias_anomalia   : dias con flag REVISAR no resuelto.
+    """
     res = {
-        "dias": 0, "dias_anomalia": 0,
+        "dias": 0, "dias_pagados": 0, "dias_anomalia": 0,
         "horas_regular": 0.0, "horas_50": 0.0, "horas_100": 0.0,
         "banco_excedente": 0.0, "horas_cubiertas": 0.0,
         "horas_total": 0.0,
@@ -181,7 +194,8 @@ def calc_horas_periodo(cls_emp, base_h):
         finde = es_finde_ds(ds)
 
         if horas > 0:
-            res["dias"] += 1
+            res["dias"] += 1            # dia trabajado realmente
+            res["dias_pagados"] += 1
             if any(f.startswith("REVISAR:") for f in flags):
                 res["dias_anomalia"] += 1
             res["horas_total"] += horas
@@ -207,10 +221,16 @@ def calc_horas_periodo(cls_emp, base_h):
                     deficit = base_h - horas
                     res["horas_regular"] += deficit
                     res["horas_cubiertas"] += deficit
+                    # NOTA: dias NO se incrementa — el dia ya cuenta arriba.
+                    # dias_pagados ya esta sumado.
             elif cubrir:
+                # Dia sin timbres pero cubierto por banco. Las horas se pagan,
+                # PERO no se cuenta como dia trabajado (no se paga transporte
+                # del Art. 42). dias_pagados sí incluye para reporting.
                 res["horas_regular"] += base_h
                 res["horas_cubiertas"] += base_h
-                res["dias"] += 1
+                res["dias_pagados"] += 1
+                # res["dias"] NO se incrementa — el empleado no fue al sitio.
 
     for k in ("horas_regular", "horas_50", "horas_100", "banco_excedente", "horas_cubiertas", "horas_total"):
         res[k] = round(res[k], 2)

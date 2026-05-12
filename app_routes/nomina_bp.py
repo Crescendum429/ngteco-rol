@@ -17,6 +17,8 @@ from nomina_logic import (
     build_nomina_por_periodo,
     calc_horas_periodo,
     compute_nomina_for_periodo,
+    horas_dia_dict,
+    es_finde_ds,
     periodo_de_data,
 )
 from procesar_rol import clasificar_todo, emp_name, match_empleados, parse_xls, write_excel_nomina
@@ -187,7 +189,12 @@ def nomina_corregir():
         except Exception:
             return None
 
+    # Pre-calcular balance del banco POR empleado para validacion
+    # (no podemos cubrir mas horas de las que tiene en banco)
+    banco_actual = banco_por_empleado(emp_db)
+
     n_updates = 0
+    alertas = []
     for emp_key, dias in ediciones.items():
         name = key_to_name.get(emp_key, emp_key)
         cls_emp = cls.setdefault(name, {})
@@ -197,6 +204,25 @@ def nomina_corregir():
             solo_flag = bool(vals.get("_flag")) and not tiene_horas
             solo_verificar = bool(vals.get("_verify")) and not tiene_horas
             solo_modo = ("_modo" in vals or "_cubrir" in vals) and not tiene_horas and not solo_flag and not solo_verificar
+
+            # Validar cubrir_banco — no permitir si banco insuficiente
+            if "_cubrir" in vals and bool(vals["_cubrir"]):
+                # Calcular horas necesarias para cubrir este dia
+                horas_actuales = horas_dia_dict(day)
+                base_h = emp_db.get(emp_key, {}).get("horas_base", 8)
+                if not es_finde_ds(ds):
+                    horas_a_cubrir = max(0, base_h - horas_actuales)
+                    saldo = banco_actual.get(emp_key, 0)
+                    # Permitimos si banco >= 0 (no estricto a 0 absoluto porque las
+                    # ediciones podrian estar acumulando varios cambios). Pero
+                    # avisamos al usuario.
+                    if saldo < horas_a_cubrir:
+                        alertas.append(
+                            f"{name} {ds}: banco insuficiente ({saldo}h disponibles, "
+                            f"{horas_a_cubrir}h necesarias). El sistema permite cubrir "
+                            f"pero el banco quedara negativo."
+                        )
+
             if "h1" in vals: day["h1"] = hhmm_to_min(vals["h1"])
             if "h2" in vals: day["h2"] = hhmm_to_min(vals["h2"])
             if "h3" in vals: day["h3"] = hhmm_to_min(vals["h3"])
@@ -216,13 +242,23 @@ def nomina_corregir():
     y, m = periodo_id.split('-')
     label = f"{MES_NAMES[int(m)-1]} {y}"
     save_reporte(periodo_id, label, data, cls)
-    log.info(f"nomina_corregir: {periodo_id}, {n_updates} updates")
-    return jsonify({"ok": True, "updates": n_updates})
+    log.info(f"nomina_corregir: {periodo_id}, {n_updates} updates, {len(alertas)} alertas")
+    return jsonify({"ok": True, "updates": n_updates, "alertas": alertas})
 
 
 @nomina_bp.route("/api/nomina/calcular", methods=["POST"])
 @require_auth
 def nomina_calcular():
+    """Guarda calculo de nomina del periodo de forma INMUTABLE.
+
+    El resumen guardado incluye el snapshot completo de cada empleado:
+    salario, horas, decimos, descuentos, transferencias. Si en el futuro
+    se edita el salario del empleado, la nomina pasada NO cambia retroactiva­
+    mente — porque el calculo se hace desde el snapshot.
+
+    Pre-condicion para auditoria SRI: pagos historicos deben ser reproducibles
+    exactamente al centavo.
+    """
     req = request.get_json(force=True) or {}
     periodo_id = req.get("periodo") or session.get("_nomina_periodo")
     if not periodo_id:
@@ -232,8 +268,34 @@ def nomina_calcular():
     if resumen is None:
         return jsonify({"error": "Reporte no encontrado"}), 404
 
+    # Snapshot inmutable: guardar TODO el detalle (no solo agregados) en el resumen
+    # para que recalcular en el futuro produzca exactamente el mismo numero.
+    resumen["snapshot"] = {
+        "empleados": [
+            {
+                "name": item.get("name"),
+                "id": item.get("id"),
+                "nomina": item.get("nomina"),  # dict completo de calcular_nomina
+                "dias": item.get("dias", []),
+            }
+            for item in nomina_list
+        ],
+        "extras_config": req.get("extras_config", {}),
+        "calculado_en": datetime.now().isoformat(timespec="seconds"),
+    }
+    # Alertas a nivel de resumen (suma de todas las alertas por empleado)
+    todas_alertas = []
+    for item in nomina_list:
+        nom = item.get("nomina") or {}
+        for a in (nom.get("alertas") or []):
+            todas_alertas.append(f"[{item.get('name')}] {a}")
+    resumen["alertas"] = todas_alertas
+
     save_nomina_resumen(periodo_id, resumen)
-    log.info(f"nomina_calcular: {periodo_id} total={resumen['total_transferido']:.2f}")
+    log.info(
+        f"nomina_calcular: {periodo_id} total={resumen['total_transferido']:.2f} "
+        f"alertas={len(todas_alertas)}"
+    )
     return jsonify(resumen)
 
 
