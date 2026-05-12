@@ -5320,6 +5320,7 @@ function Empleados() {
 function EmpEditor({ form, setForm, sel }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const empData = sel.isNew ? null : NOMINA_ULTIMO.find(n => n.id === sel.id);
+  const [showRec, setShowRec] = useState(false);
 
   return (
     <div>
@@ -5362,6 +5363,19 @@ function EmpEditor({ form, setForm, sel }) {
       </div>
 
       {!form.isNew && <>
+      <Eyebrow style={{ marginTop: 20 }}>Beneficios recurrentes</Eyebrow>
+      <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <div className="xs mute">Préstamos, bonos y otros con vigencia</div>
+          <div className="small" style={{ marginTop: 2 }}>
+            {((window.BENEFICIOS_RECURRENTES_MOCK || []).filter(b => b.empleado_id === sel.id).length || 0)} reglas configuradas
+          </div>
+        </div>
+        <Btn variant="ghost" onClick={() => setShowRec(true)}>
+          <Icon name="calendar" size={12}/> Gestionar
+        </Btn>
+      </div>
+
       <Eyebrow style={{ marginTop: 20 }}>Resumen último mes</Eyebrow>
       <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
         <div>
@@ -5382,6 +5396,8 @@ function EmpEditor({ form, setForm, sel }) {
         </div>
       </div>
       </>}
+
+      {showRec && <RecurrentesModal empleadoId={sel.id} onClose={() => setShowRec(false)} />}
     </div>
   );
 }
@@ -5415,8 +5431,37 @@ function Inventario() {
           <div className="page-sub">Stock de materia prima y producto terminado, con trazabilidad por movimientos.</div>
         </div>
         <div className="row">
-          <Btn variant="ghost"><Icon name="download" size={14}/> Exportar</Btn>
-          <Btn variant="primary"><Icon name="plus" size={14}/> Nuevo movimiento</Btn>
+          <Btn variant="ghost" onClick={() => {
+            const mp = (window.INVENTARIO_MP_MOCK || []).map(m => {
+              const def = (window.MATERIALES_MOCK || []).find(x => x.id === m.id);
+              return { tipo: 'MP', id: m.id, nombre: def?.nombre || m.id, stock: m.stock_kg, unidad: 'kg', minimo: m.minimo_kg, costo_prom: m.costo_prom_kg };
+            });
+            const pt = (window.INVENTARIO_PT_MOCK || []).map(p => {
+              const def = (window.PRODUCTOS_MOCK || []).find(x => x.id === p.prod_id);
+              return { tipo: 'PT', id: p.prod_id, nombre: def?.nombre || p.prod_id, stock: p.stock_cajas, unidad: 'cajas', minimo: p.minimo_cajas, reservado: p.reservado };
+            });
+            window.solpExportCSV(`inventario_${new Date().toISOString().slice(0,10)}.csv`, ['tipo','id','nombre','stock','unidad','minimo','reservado','costo_prom'], [...mp, ...pt]);
+          }}><Icon name="download" size={14}/> Exportar</Btn>
+          <Btn variant="primary" onClick={() => {
+            const fecha = prompt('Fecha (YYYY-MM-DD):', new Date().toISOString().slice(0,10));
+            if (!fecha) return;
+            const clase = (prompt('Clase (mp / pt / pieza):', 'mp') || '').toLowerCase();
+            if (!['mp','pt','pieza'].includes(clase)) return;
+            const tipo = (prompt('Tipo (entrada / salida / ajuste):', 'entrada') || '').toLowerCase();
+            if (!['entrada','salida','ajuste','consumo','produccion'].includes(tipo)) return;
+            const item_id = prompt('ID del item:');
+            if (!item_id) return;
+            const cantidad = parseFloat(prompt('Cantidad:'));
+            if (isNaN(cantidad)) return;
+            const nota = prompt('Nota (opcional):', '') || '';
+            const movs = window.MOV_INVENTARIO_MOCK || [];
+            const id = (movs.reduce((m, x) => Math.max(m, Number(x.id) || 0), 0)) + 1;
+            const unidad = clase === 'mp' ? 'kg' : clase === 'pt' ? 'cajas' : 'unidades';
+            const next = [{ id, fecha, tipo, clase, item_id, cantidad, unidad, ref: 'manual', nota }, ...movs];
+            window.MOV_INVENTARIO_MOCK = next;
+            if (window._api?.saveCollection) window._api.saveCollection('movimientos_inventario', next);
+            alert(`Movimiento ${id} registrado.`);
+          }}><Icon name="plus" size={14}/> Nuevo movimiento</Btn>
         </div>
       </div>
 
@@ -5716,7 +5761,14 @@ function Pedidos() {
           <div className="page-sub">Del pedido de cotización a la entrega con factura electrónica SRI.</div>
         </div>
         <div className="row">
-          <Btn variant="ghost"><Icon name="download" size={14}/> Exportar</Btn>
+          <Btn variant="ghost" onClick={() => {
+            const all = [
+              ...(window.COTIZACIONES_MOCK || []).map(c => ({ tipo: 'COT', id: c.id, cliente: c.cliente, fecha: c.fecha, estado: c.estado, total: (c.items || []).reduce((s, i) => s + (i.cant_cajas||0)*(i.precio_caja||0), 0) })),
+              ...(window.ORDENES_COMPRA_MOCK || []).map(o => ({ tipo: 'OC', id: o.id, cliente: o.cliente, fecha: o.fecha_recepcion, estado: o.estado, total: (o.items || []).reduce((s, i) => s + (i.cant_cajas||0)*(i.precio_caja||0), 0) })),
+              ...(window.FACTURAS_MOCK || []).map(f => ({ tipo: 'FAC', id: f.id, cliente: f.cliente, fecha: f.fecha_emision, estado: f.estado_sri, total: f.total })),
+            ];
+            window.solpExportCSV(`pedidos_${new Date().toISOString().slice(0,10)}.csv`, ['tipo','id','cliente','fecha','estado','total'], all);
+          }}><Icon name="download" size={14}/> Exportar</Btn>
           <Btn variant="primary" onClick={() => setShowWizard(true)}><Icon name="plus" size={14}/> Nueva cotización</Btn>
         </div>
       </div>
@@ -5976,8 +6028,38 @@ function CotizacionDetalle({ cot, onBack }) {
         </div>
         <div className="row">
           <EstadoChip estado={cot.estado} />
-          {cot.estado === 'borrador' && <Btn><Icon name="send" size={14}/> Enviar</Btn>}
-          {cot.estado === 'aprobada' && !cot.oc_asociada && <Btn variant="primary"><Icon name="arrow_r" size={14}/> Convertir a OC</Btn>}
+          {cot.estado === 'borrador' && (
+            <Btn onClick={async () => {
+              const lista = (window.COTIZACIONES_MOCK || []).map(c => c.id === cot.id ? { ...c, estado: 'enviada' } : c);
+              window.COTIZACIONES_MOCK = lista;
+              if (window._api?.saveCollection) await window._api.saveCollection('cotizaciones', lista);
+              alert('Cotización marcada como enviada. (Envío por email pendiente — usa "Ver proforma" para descargar y mandar.)');
+            }}><Icon name="send" size={14}/> Marcar enviada</Btn>
+          )}
+          {cot.estado === 'aprobada' && !cot.oc_asociada && (
+            <Btn variant="primary" onClick={async () => {
+              if (!confirm('Crear orden de compra desde esta cotización?')) return;
+              const year = new Date().getFullYear();
+              const ocs = window.ORDENES_COMPRA_MOCK || [];
+              const lastNum = ocs.filter(o => o.id.startsWith(`OC-${year}-`)).map(o => Number(o.id.split('-')[2]) || 0).reduce((m, n) => Math.max(m, n), 0);
+              const ocId = `OC-${year}-${String(lastNum + 1).padStart(5, '0')}`;
+              const hoy = new Date().toISOString().slice(0, 10);
+              const entrega = new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10);
+              const nuevaOC = {
+                id: ocId, cliente: cot.cliente, cotizacion_id: cot.id,
+                fecha_recepcion: hoy, fecha_entrega: entrega, estado: 'pendiente',
+                items: cot.items, nro_pedido_cliente: '', factura_asociada: null,
+              };
+              const ocList = [nuevaOC, ...ocs];
+              window.ORDENES_COMPRA_MOCK = ocList;
+              if (window._api?.saveCollection) await window._api.saveCollection('ordenes_compra', ocList);
+              const cotList = (window.COTIZACIONES_MOCK || []).map(c => c.id === cot.id ? { ...c, oc_asociada: ocId } : c);
+              window.COTIZACIONES_MOCK = cotList;
+              if (window._api?.saveCollection) await window._api.saveCollection('cotizaciones', cotList);
+              alert(`OC ${ocId} creada.`);
+              location.reload();
+            }}><Icon name="arrow_r" size={14}/> Convertir a OC</Btn>
+          )}
           {cot.estado === 'aprobada' && cot.oc_asociada && <Btn variant="ghost"><Icon name="arrow_r" size={14}/> Ver OC {cot.oc_asociada}</Btn>}
           <Btn variant="primary" onClick={() => setShowProforma(true)}><Icon name="download" size={14}/> Ver proforma</Btn>
         </div>
@@ -6099,7 +6181,38 @@ function OCDetalle({ oc, onBack }) {
         </div>
         <div className="row">
           <EstadoChip estado={oc.estado} />
-          {oc.estado === 'lista' && !oc.factura_asociada && <Btn variant="primary"><Icon name="receipt" size={14}/> Emitir factura SRI</Btn>}
+          {oc.estado === 'lista' && !oc.factura_asociada && (
+            <Btn variant="primary" onClick={async () => {
+              if (!confirm('Crear factura desde esta OC y emitirla al SRI?')) return;
+              const facts = window.FACTURAS_MOCK || [];
+              const lastSec = facts.map(f => Number(f.secuencial) || 0).reduce((m, n) => Math.max(m, n), 1000);
+              const sec = String(lastSec + 1).padStart(9, '0');
+              const facId = `FAC-001-001-${sec}`;
+              const hoy = new Date().toISOString().slice(0, 10);
+              const subtotal = oc.items.reduce((s, it) => s + (it.cant_cajas || 0) * (it.precio_caja || 0), 0);
+              const iva = subtotal * 0.15;
+              const total = subtotal + iva;
+              const nuevaFac = {
+                id: facId, cliente: oc.cliente, oc_id: oc.id, fecha_emision: hoy,
+                establecimiento: '001', punto_emision: '001', secuencial: sec,
+                items: oc.items.map(it => ({ prod_id: it.prod_id, cant_cajas: it.cant_cajas, precio_unit: it.precio_caja, subtotal: (it.cant_cajas || 0) * (it.precio_caja || 0) })),
+                subtotal_12: subtotal, subtotal_0: 0, iva, total,
+                forma_pago: 'transferencia', forma_pago_codigo: '20',
+                fecha_vencimiento: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+                pagada: false, estado_sri: 'pendiente', clave_acceso: '', autorizacion_sri: '', fecha_autorizacion: '',
+              };
+              const facList = [nuevaFac, ...facts];
+              window.FACTURAS_MOCK = facList;
+              if (window._api?.saveCollection) await window._api.saveCollection('facturas', facList);
+              const ocList = (window.ORDENES_COMPRA_MOCK || []).map(o => o.id === oc.id ? { ...o, factura_asociada: facId, estado: 'facturada' } : o);
+              window.ORDENES_COMPRA_MOCK = ocList;
+              if (window._api?.saveCollection) await window._api.saveCollection('ordenes_compra', ocList);
+              const r = await window._api?.emitirFactura(facId);
+              if (r?.ok) alert(`Factura ${facId} creada y enviada al SRI. Estado: ${r.estado_sri}`);
+              else alert(`Factura ${facId} creada pero hubo problema emitiendo: ${r?.error || 'desconocido'}`);
+              location.reload();
+            }}><Icon name="receipt" size={14}/> Emitir factura SRI</Btn>
+          )}
           {oc.factura_asociada && <Btn variant="ghost"><Icon name="receipt" size={14}/> Ver {oc.factura_asociada}</Btn>}
         </div>
       </div>
@@ -6479,7 +6592,16 @@ function Clientes() {
           <div className="page-sub">Datos fiscales completos para facturación electrónica SRI.</div>
         </div>
         <div className="row">
-          <Btn variant="ghost"><Icon name="download" size={14}/> Exportar CSV</Btn>
+          <Btn variant="ghost" onClick={() => {
+            const rows = (window.CLIENTES_MOCK || []).map(c => ({
+              id: c.id, razon_social: c.razon_social, nombre_comercial: c.nombre_comercial,
+              ruc: c.ruc, email_fact: c.email_fact, email_contacto: c.email_contacto,
+              telefono: c.telefono, celular: c.celular, contacto: c.contacto_nombre,
+              credito_dias: c.credito_dias, credito_limite: c.credito_limite,
+              agente_retencion: c.agente_retencion ? 'sí' : 'no',
+            }));
+            window.solpExportCSV(`clientes_${new Date().toISOString().slice(0,10)}.csv`, ['id','razon_social','nombre_comercial','ruc','email_fact','email_contacto','telefono','celular','contacto','credito_dias','credito_limite','agente_retencion'], rows);
+          }}><Icon name="download" size={14}/> Exportar CSV</Btn>
           <Btn variant="primary" onClick={nuevo}><Icon name="plus" size={14}/> Nuevo cliente</Btn>
         </div>
       </div>

@@ -562,7 +562,25 @@ def _build_data_jsx():
     if emisor is not None:
         overrides_js.append(f"window.EMISOR = {json.dumps(emisor, ensure_ascii=False)};")
 
-    return "\n// Overrides inyectados por el servidor — v" + APP_VERSION + "\n" + "\n".join(overrides_js) + "\n"
+    helpers = """
+window.solpExportCSV = (filename, headers, rows) => {
+  const esc = v => {
+    if (v === null || v === undefined) return '';
+    const s = String(v);
+    return /[",\\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const head = headers.map(esc).join(',');
+  const body = rows.map(r => headers.map(h => esc(r[h])).join(',')).join('\\n');
+  const csv = '\\uFEFF' + head + '\\n' + body;
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+};
+"""
+    return "\n// Overrides inyectados por el servidor — v" + APP_VERSION + "\n" + "\n".join(overrides_js) + "\n" + helpers
 
 
 def _build_login_patch():
