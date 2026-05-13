@@ -235,6 +235,81 @@ def get_qc_all():
     return jsonify(load_qc_templates() or {})
 
 
+# ─── Movimientos manuales ───
+
+@inventario_bp.route("/api/inventario/movimientos", methods=["GET"])
+@require_auth
+def get_movimientos():
+    clase = request.args.get("clase")
+    tipo = request.args.get("tipo")
+    limit = int(request.args.get("limit", 200))
+    movs = load_movimientos_inventario() or []
+    if clase:
+        movs = [m for m in movs if m.get("clase") == clase]
+    if tipo:
+        movs = [m for m in movs if m.get("tipo") == tipo]
+    return jsonify(movs[:limit])
+
+
+@inventario_bp.route("/api/inventario/movimientos", methods=["POST"])
+@require_auth
+def create_movimiento():
+    """Crea un movimiento manual y opcionalmente ajusta el stock.
+
+    Body:
+      clase: mp | pt | aux | pieza | molido
+      tipo:  entrada | salida | consumo | ajuste | produccion
+      item_id: id del item
+      cantidad: numero (positivo)
+      unidad: kg | cajas | unidades
+      ref: referencia libre (opcional)
+      nota: nota (opcional)
+      ajusta_stock: bool (default True) — si actualiza el stock
+    """
+    data = request.get_json(force=True) or {}
+    clase = data.get("clase")
+    tipo = data.get("tipo")
+    item_id = data.get("item_id")
+    try:
+        cant = float(data.get("cantidad", 0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Cantidad invalida"}), 400
+    unidad = data.get("unidad", "u")
+    ref = data.get("ref", "")
+    nota = data.get("nota", "")
+    ajusta = data.get("ajusta_stock", True)
+
+    if not clase or not tipo or not item_id or cant <= 0:
+        return jsonify({"error": "clase, tipo, item_id y cantidad>0 son obligatorios"}), 400
+
+    # Direccion del ajuste por tipo
+    delta_signo = {"entrada": 1, "produccion": 1, "salida": -1, "consumo": -1, "ajuste": 1}.get(tipo, 1)
+    delta = cant * delta_signo
+
+    if ajusta:
+        if clase == "molido":
+            molido_inc(item_id, delta)
+        elif clase == "aux":
+            aux = load_inv_auxiliar() or []
+            if isinstance(aux, list):
+                for a in aux:
+                    if a.get("id") == item_id:
+                        a["stock"] = max(0, float(a.get("stock") or 0) + delta)
+                        break
+                save_inv_auxiliar(aux)
+        elif clase == "pieza":
+            # item_id formato "pieza:estado[:cliente_id]"
+            parts = (item_id or "").split(":")
+            piezas_inc(parts[0], parts[1] if len(parts) > 1 else "cruda",
+                       parts[2] if len(parts) > 2 else None, delta)
+        # mp / pt: ajuste solo se loguea, el stock se calcula desde lotes y movimientos
+        # (no hay tabla simple de stock para esos)
+
+    mid = append_mov(clase, tipo, item_id, cant, unidad, ref=ref, nota=nota)
+    log.info(f"movimiento manual #{mid}: {tipo} {cant} {unidad} de {item_id} ({clase})")
+    return jsonify({"ok": True, "id": mid})
+
+
 # ─── Lotes ───
 
 @inventario_bp.route("/api/inventario/lotes", methods=["GET"])

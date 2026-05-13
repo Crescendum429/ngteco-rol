@@ -1923,6 +1923,10 @@ if (window.BOM && typeof window.BOM === 'object' && Object.keys(window.BOM).leng
     RECETAS_MOCK[pid] = existing;
   });
 }
+if (Array.isArray(window.INV_MOVIMIENTOS) && window.INV_MOVIMIENTOS.length) {
+  MOV_INVENTARIO_MOCK.length = 0;
+  MOV_INVENTARIO_MOCK.push(...window.INV_MOVIMIENTOS);
+}
 
 // ════════════════════════ HISTORIAL CONSUMO AUXILIAR (30 días) ════════════════════════
 // { [aux_id]: [{ fecha, usado, stock_tras }] } — últimos 30 días laborables
@@ -5930,6 +5934,7 @@ Object.assign(window, { Empleados });
 
 function Inventario() {
   const [tab, setTab] = useState('resumen');
+  const [showMov, setShowMov] = useState(false);
 
   const tabs = [
     { k: 'resumen',  l: 'Resumen',         ico: 'chart'   },
@@ -5952,7 +5957,7 @@ function Inventario() {
         </div>
         <div className="row">
           <Btn variant="ghost"><Icon name="download" size={14}/> Exportar</Btn>
-          <Btn variant="primary"><Icon name="plus" size={14}/> Movimiento</Btn>
+          <Btn variant="primary" onClick={() => setShowMov(true)}><Icon name="plus" size={14}/> Movimiento</Btn>
         </div>
       </div>
 
@@ -5972,6 +5977,135 @@ function Inventario() {
       {tab === 'aux'      && <InvMaterialAux />}
       {tab === 'panorama' && <InvPanoramica />}
       {tab === 'mov'      && <InvMovimientos />}
+
+      {showMov && <NuevoMovimientoModal onClose={() => setShowMov(false)} onSaved={() => { setShowMov(false); setTab('mov'); }} />}
+    </div>
+  );
+}
+
+// ═══════════════════ Modal: Nuevo Movimiento ═══════════════════
+function NuevoMovimientoModal({ onClose, onSaved }) {
+  const [clase, setClase] = useState('mp');
+  const [tipo, setTipo] = useState('entrada');
+  const [itemId, setItemId] = useState('');
+  const [cantidad, setCantidad] = useState(0);
+  const [unidad, setUnidad] = useState('kg');
+  const [ref, setRef] = useState('');
+  const [nota, setNota] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const tiposPorClase = {
+    mp:     ['entrada', 'consumo', 'ajuste'],
+    pt:     ['produccion', 'salida', 'ajuste'],
+    aux:    ['entrada', 'consumo', 'ajuste'],
+    pieza:  ['produccion', 'consumo', 'ajuste'],
+    molido: ['entrada', 'consumo', 'ajuste'],
+  };
+
+  const itemsPorClase = () => {
+    if (clase === 'mp') return MATERIALES_MOCK.map(m => ({ id: m.id, label: m.nombre }));
+    if (clase === 'pt') return PRODUCTOS_MOCK.map(p => ({ id: p.id, label: p.nombre }));
+    if (clase === 'aux') return INVENTARIO_AUX_MOCK.map(a => ({ id: a.id, label: a.nombre }));
+    if (clase === 'molido') return INVENTARIO_MOLIDO_MOCK.map(m => ({ id: m.id, label: m.origen + (m.producto ? ` (${m.producto})` : '') }));
+    if (clase === 'pieza') return INVENTARIO_PIEZAS_MOCK.map(p => ({
+      id: `${(p.pieza || '').toLowerCase()}:${p.estado}${p.cliente_id ? ':' + p.cliente_id : ''}`,
+      label: `${p.pieza} (${p.estado}${p.cliente_id ? ' · ' + p.cliente_id : ''})`,
+    }));
+    return [];
+  };
+
+  const unidadesPorClase = {
+    mp: ['kg'], pt: ['cajas'], aux: ['unidades', 'rollos', 'cajas', 'kg', 'metros'],
+    pieza: ['unidades'], molido: ['kg'],
+  };
+
+  React.useEffect(() => {
+    const tipos = tiposPorClase[clase] || ['entrada'];
+    if (!tipos.includes(tipo)) setTipo(tipos[0]);
+    const items = itemsPorClase();
+    if (items.length && !items.some(i => i.id === itemId)) setItemId(items[0].id);
+    const unidades = unidadesPorClase[clase] || ['unidades'];
+    if (!unidades.includes(unidad)) setUnidad(unidades[0]);
+  }, [clase]);
+
+  async function guardar() {
+    if (!itemId || cantidad <= 0) { window.solpToast && window.solpToast('Completa item y cantidad', 'warn'); return; }
+    setSaving(true);
+    const res = await (window._api?.crearMovimiento?.({ clase, tipo, item_id: itemId, cantidad: parseFloat(cantidad), unidad, ref, nota })
+      || Promise.resolve({ ok: true, id: Date.now() }));
+    setSaving(false);
+    if (res?.error) { window.solpToast && window.solpToast(res.error, 'bad'); return; }
+    window.solpToast && window.solpToast(`Movimiento #${res.id || ''} registrado`, 'ok');
+    onSaved && onSaved();
+  }
+
+  const items = itemsPorClase();
+  const tipos = tiposPorClase[clase] || ['entrada'];
+  const unidades = unidadesPorClase[clase] || ['unidades'];
+
+  return (
+    <div className="modal-back" onClick={onClose}>
+      <div className="modal-card lg" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+        <div className="modal-head">
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>Nuevo movimiento</div>
+          <Btn variant="ghost" size="sm" onClick={onClose}><Icon name="x" size={16}/></Btn>
+        </div>
+        <div className="modal-body">
+          <div className="xs mute" style={{ marginBottom: 14 }}>
+            Registra una entrada, salida o ajuste manual de inventario. Para entradas comunes (compra MP, producción) usa los flujos dedicados.
+          </div>
+          <div className="cols-2">
+            <div className="field">
+              <label>Categoría</label>
+              <select className="select" value={clase} onChange={e => setClase(e.target.value)}>
+                <option value="mp">Materia prima</option>
+                <option value="pt">Producto terminado</option>
+                <option value="aux">Material auxiliar</option>
+                <option value="pieza">Pieza suelta</option>
+                <option value="molido">Molido</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Tipo</label>
+              <select className="select" value={tipo} onChange={e => setTipo(e.target.value)}>
+                {tipos.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="field" style={{ gridColumn: 'span 2' }}>
+              <label>Ítem</label>
+              <select className="select" value={itemId} onChange={e => setItemId(e.target.value)}>
+                <option value="">— selecciona —</option>
+                {items.map(it => <option key={it.id} value={it.id}>{it.label}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label>Cantidad</label>
+              <input className="input mono" type="number" min="0" step="0.001"
+                value={cantidad} onChange={e => setCantidad(parseFloat(e.target.value) || 0)} />
+            </div>
+            <div className="field">
+              <label>Unidad</label>
+              <select className="select" value={unidad} onChange={e => setUnidad(e.target.value)}>
+                {unidades.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
+            <div className="field" style={{ gridColumn: 'span 2' }}>
+              <label>Referencia <span className="xs mute">(orden, lote, factura proveedor…)</span></label>
+              <input className="input" value={ref} onChange={e => setRef(e.target.value)} placeholder="Ej. FACT-PROV-9912" />
+            </div>
+            <div className="field" style={{ gridColumn: 'span 2' }}>
+              <label>Nota</label>
+              <input className="input" value={nota} onChange={e => setNota(e.target.value)} placeholder="Detalle del movimiento" />
+            </div>
+          </div>
+        </div>
+        <div className="modal-foot">
+          <Btn onClick={onClose}>Cancelar</Btn>
+          <Btn variant="primary" onClick={guardar} disabled={saving || !itemId || cantidad <= 0}>
+            {saving ? 'Guardando…' : 'Guardar movimiento'}
+          </Btn>
+        </div>
+      </div>
     </div>
   );
 }

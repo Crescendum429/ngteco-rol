@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "5.0.1"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "5.1.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -342,13 +342,15 @@ def _build_data_jsx():
     overrides_js.append(f"window.BOM = {json.dumps(bom_map, ensure_ascii=False)};")
     overrides_js.append(f"window.CAMBIOS_MOLDE = {json.dumps(cambios_molde_hist, ensure_ascii=False)};")
     try:
-        from storage import load_inv_aux_consumo, load_qc_templates
+        from storage import load_inv_aux_consumo, load_movimientos_inventario, load_qc_templates
         aux_consumo = load_inv_aux_consumo() or []
         qc_tpl = load_qc_templates() or {}
+        movimientos = load_movimientos_inventario() or []
         overrides_js.append(f"window.AUX_CONSUMO = {json.dumps(aux_consumo, ensure_ascii=False)};")
         overrides_js.append(f"window.QC_TPL = {json.dumps(qc_tpl, ensure_ascii=False)};")
+        overrides_js.append(f"window.INV_MOVIMIENTOS = {json.dumps(movimientos, ensure_ascii=False)};")
     except Exception:
-        log.exception("error cargando aux_consumo/qc_tpl")
+        log.exception("error cargando aux_consumo/qc_tpl/movimientos")
     overrides_js.append(f"window.APP_VERSION = {json.dumps(APP_VERSION)};")
     # Override SBU del frontend con el valor real del backend (env var SBU_VIGENTE
     # o 470 default). Asi no se desincronizan.
@@ -811,6 +813,18 @@ def _build_login_patch():
         body: JSON.stringify(data), credentials: 'same-origin',
       });
       return r.ok;
+    },
+    fetchMovimientos: async (params) => {
+      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      const r = await fetch('/api/inventario/movimientos' + q, { credentials: 'same-origin' });
+      return r.ok ? r.json() : [];
+    },
+    crearMovimiento: async (data) => {
+      const r = await fetch('/api/inventario/movimientos', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data), credentials: 'same-origin',
+      });
+      try { return r.ok ? await r.json() : await r.json(); } catch { return { error: `HTTP ${r.status}` }; }
     },
   };
 })();
