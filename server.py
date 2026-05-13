@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "4.3.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "5.0.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -332,6 +332,14 @@ def _build_data_jsx():
     overrides_js.append(f"window.INV_LOTES = {json.dumps(inv_lotes, ensure_ascii=False)};")
     overrides_js.append(f"window.BOM = {json.dumps(bom_map, ensure_ascii=False)};")
     overrides_js.append(f"window.CAMBIOS_MOLDE = {json.dumps(cambios_molde_hist, ensure_ascii=False)};")
+    try:
+        from storage import load_inv_aux_consumo, load_qc_templates
+        aux_consumo = load_inv_aux_consumo() or []
+        qc_tpl = load_qc_templates() or {}
+        overrides_js.append(f"window.AUX_CONSUMO = {json.dumps(aux_consumo, ensure_ascii=False)};")
+        overrides_js.append(f"window.QC_TPL = {json.dumps(qc_tpl, ensure_ascii=False)};")
+    except Exception:
+        log.exception("error cargando aux_consumo/qc_tpl")
     overrides_js.append(f"window.APP_VERSION = {json.dumps(APP_VERSION)};")
     # Override SBU del frontend con el valor real del backend (env var SBU_VIGENTE
     # o 470 default). Asi no se desincronizan.
@@ -733,6 +741,68 @@ def _build_login_patch():
       const r = await fetch('/api/bom/' + encodeURIComponent(prod_id), { credentials: 'same-origin' });
       return r.ok ? r.json() : {};
     },
+    fetchAuxItems: async () => {
+      const r = await fetch('/api/inventario/auxiliar', { credentials: 'same-origin' });
+      return r.ok ? r.json() : [];
+    },
+    saveAuxItems: async (items) => {
+      const r = await fetch('/api/inventario/auxiliar', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(items), credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    deleteAuxItem: async (aux_id) => {
+      const r = await fetch('/api/inventario/auxiliar/' + encodeURIComponent(aux_id), {
+        method: 'DELETE', credentials: 'same-origin',
+      });
+      try { return r.ok ? { ok: true } : await r.json(); } catch { return { error: `HTTP ${r.status}` }; }
+    },
+    registrarConsumoAux: async (fecha, items) => {
+      const r = await fetch('/api/inventario/auxiliar/registrar-dia', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fecha, items }), credentials: 'same-origin',
+      });
+      return r.ok ? r.json() : { error: 'Error' };
+    },
+    fetchAuxConsumo: async (params) => {
+      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      const r = await fetch('/api/inventario/aux-consumo' + q, { credentials: 'same-origin' });
+      return r.ok ? r.json() : [];
+    },
+    fetchQc: async (prod_id) => {
+      const r = await fetch('/api/qc/' + encodeURIComponent(prod_id), { credentials: 'same-origin' });
+      return r.ok ? r.json() : { parametros: [] };
+    },
+    saveQc: async (prod_id, qc) => {
+      const r = await fetch('/api/qc/' + encodeURIComponent(prod_id), {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(qc), credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    fetchPiezas: async () => {
+      const r = await fetch('/api/inventario/piezas', { credentials: 'same-origin' });
+      return r.ok ? r.json() : [];
+    },
+    savePiezas: async (data) => {
+      const r = await fetch('/api/inventario/piezas', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data), credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    fetchMolido: async () => {
+      const r = await fetch('/api/inventario/molido', { credentials: 'same-origin' });
+      return r.ok ? r.json() : {};
+    },
+    saveMolido: async (data) => {
+      const r = await fetch('/api/inventario/molido', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data), credentials: 'same-origin',
+      });
+      return r.ok;
+    },
   };
 })();
 """
@@ -776,9 +846,22 @@ def _inject_html(raw_html):
         end_babel_tag = raw_html.find('\n', end_babel) + 1
         raw_html = raw_html[:end_babel_tag] + api_script + raw_html[end_babel_tag:]
 
-    old_reg_save = "onClick={() => { setSaved(true); }}"
-    new_reg_save = "onClick={async () => { if (window._api) { await window._api.saveRegistro({ date, activeProds, prod, consumo, residuos, obs, totalMat, totalCajas, totalDesecho, totalMolidoGen, mermaPct }); } setSaved(true); }}"
-    raw_html = raw_html.replace(old_reg_save, new_reg_save, 1)
+    # Hook v3: el setSaved esta dentro de un onClick que tambien genera el lote.
+    # Interceptamos solo la linea setSaved(true) para insertar el save al backend antes.
+    old_reg_save = "          setLoteNum(`L-${yy}-${mm}-${dd}-${nn}`);\n          setSaved(true);"
+    new_reg_save = """          setLoteNum(`L-${yy}-${mm}-${dd}-${nn}`);
+          if (window._api) {
+            try { await window._api.saveRegistro({ date, activeProds, prod, consumo, residuos, obs, tachos, totalMat, totalCajas, totalDesecho, totalMolidoGen, mermaPct, loteNum: `L-${yy}-${mm}-${dd}-${nn}` }); } catch(e) { console.error('saveRegistro', e); }
+          }
+          setSaved(true);"""
+    if old_reg_save in raw_html:
+        raw_html = raw_html.replace(old_reg_save, new_reg_save, 1)
+        # El onClick padre necesita async
+        raw_html = raw_html.replace(
+            "<Btn variant=\"primary\" onClick={() => {\n          // Generar número de lote",
+            "<Btn variant=\"primary\" onClick={async () => {\n          // Generar número de lote",
+            1,
+        )
 
     return raw_html
 

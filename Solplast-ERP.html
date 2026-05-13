@@ -1665,6 +1665,193 @@ const MOV_INVENTARIO_MOCK = [
   { id: 4, fecha: '2026-04-10', tipo: 'entrada', clase: 'mp',  item_id: 'pp_omo',          cantidad: 800, unidad: 'kg', ref: 'FACT-PROV-9908', nota: 'Compra a Resiquim' },
   { id: 5, fecha: '2026-04-17', tipo: 'consumo', clase: 'mp',  item_id: 'pp_clarificado', cantidad: 52.4, unidad: 'kg', ref: 'reg-2026-04-17', nota: 'Consumo Vaso Life' },
 ];
+
+// ════════════════════════ LOTES DE PRODUCCIÓN ════════════════════════
+// Cada caja en bodega pertenece a un lote con fecha de fabricación
+const LOTES_MOCK = [
+  { id: 'L-26-04-118', prod_id: 'v_life',      cajas: 18, fecha_fab: '2026-04-17', estado: 'stock' },
+  { id: 'L-26-04-117', prod_id: 'v_life',      cajas: 22, fecha_fab: '2026-04-16', estado: 'stock' },
+  { id: 'L-26-04-116', prod_id: 'v_life',      cajas: 8,  fecha_fab: '2026-04-15', estado: 'stock' },
+  { id: 'L-26-04-115', prod_id: 'v_solplast',  cajas: 22, fecha_fab: '2026-04-15', estado: 'stock' },
+  { id: 'L-26-04-114', prod_id: 'v_lamosan',   cajas: 8,  fecha_fab: '2026-04-14', estado: 'stock' },
+  { id: 'L-26-04-113', prod_id: 'v_farm_new',  cajas: 15, fecha_fab: '2026-04-13', estado: 'stock' },
+  { id: 'L-26-04-112', prod_id: 'cuchara_5ml', cajas: 42, fecha_fab: '2026-04-16', estado: 'stock' },
+  { id: 'L-26-04-111', prod_id: 'gotero',      cajas: 18, fecha_fab: '2026-04-15', estado: 'stock' },
+  { id: 'L-26-04-110', prod_id: 'j_life',      cajas: 9,  fecha_fab: '2026-04-14', estado: 'stock' },
+  { id: 'L-26-04-109', prod_id: 'j_farmayala', cajas: 14, fecha_fab: '2026-04-13', estado: 'stock' },
+  { id: 'L-26-04-108', prod_id: 'j_sin_tampo', cajas: 12, fecha_fab: '2026-04-16', estado: 'stock' },
+  { id: 'L-26-04-107', prod_id: 'v_pequena',   cajas: 6,  fecha_fab: '2026-04-12', estado: 'stock' },
+  // Lote ya despachado (referencia histórica)
+  { id: 'L-26-04-105', prod_id: 'j_farmayala', cajas: 25, fecha_fab: '2026-04-05', estado: 'despachado', oc: 'OC-FA-20260405' },
+  { id: 'L-26-04-098', prod_id: 'v_life',      cajas: 60, fecha_fab: '2026-03-28', estado: 'despachado', oc: 'OC-LF-20260412' },
+];
+
+// ════════════════════════ INVENTARIO — PIEZAS SUELTAS ════════════════════════
+// Piezas que están en proceso / semi-terminadas, con estado cruda o impresa
+const INVENTARIO_PIEZAS_MOCK = [
+  { id: 'ps-canula-cruda',    pieza: 'Cánula',         producto: 'j_life',      estado: 'cruda',   cantidad: 12400, unidad: 'unidades', ultima_actualizacion: '2026-04-17' },
+  { id: 'ps-piston-cruda',    pieza: 'Pistón',         producto: 'j_life',      estado: 'cruda',   cantidad: 11800, unidad: 'unidades', ultima_actualizacion: '2026-04-17' },
+  { id: 'ps-tapon-cruda',     pieza: 'Tapón',          producto: 'j_farmayala', estado: 'cruda',   cantidad: 8500,  unidad: 'unidades', ultima_actualizacion: '2026-04-16' },
+  { id: 'ps-acordeon-imp',    pieza: 'Acordeón',       producto: 'j_farmayala', estado: 'impresa', cantidad: 6000,  unidad: 'unidades', ultima_actualizacion: '2026-04-16' },
+  { id: 'ps-gotero-cruda',    pieza: 'Gotero (base)',  producto: 'gotero',      estado: 'cruda',   cantidad: 4200,  unidad: 'unidades', ultima_actualizacion: '2026-04-15' },
+  { id: 'ps-capuchon-imp',    pieza: 'Capuchón',       producto: 'gotero',      estado: 'impresa', cantidad: 3800,  unidad: 'unidades', ultima_actualizacion: '2026-04-15' },
+  { id: 'ps-tapon-imp',       pieza: 'Tapón',          producto: 'j_life',      estado: 'impresa', cantidad: 9600,  unidad: 'unidades', ultima_actualizacion: '2026-04-17' },
+];
+
+// ════════════════════════ INVENTARIO — MOLIDO SEGREGADO ════════════════════════
+// Molido en bin separado por origen de pieza
+const INVENTARIO_MOLIDO_MOCK = [
+  { id: 'mol-canula',   origen: 'Cánula',     producto: 'j_life',      kg: 8.4,  color: 'oklch(70% 0.12 220)' },
+  { id: 'mol-vaso',     origen: 'Vaso',       producto: 'v_life',      kg: 12.2, color: 'oklch(70% 0.12 155)' },
+  { id: 'mol-piston',   origen: 'Pistón',     producto: 'j_life',      kg: 5.8,  color: 'oklch(70% 0.12 220)' },
+  { id: 'mol-tapon',    origen: 'Tapón',      producto: 'j_farmayala', kg: 3.1,  color: 'oklch(70% 0.12 200)' },
+  { id: 'mol-acordeon', origen: 'Acordeón',   producto: 'j_farmayala', kg: 2.6,  color: 'oklch(70% 0.12 180)' },
+  { id: 'mol-alta',     origen: 'PE Alta',    producto: null,          kg: 4.0,  color: 'oklch(70% 0.12 140)' },
+  { id: 'mol-baja',     origen: 'PE Baja',    producto: null,          kg: 1.9,  color: 'oklch(70% 0.12 100)' },
+  { id: 'mol-mazarota', origen: 'Mazarota',   producto: null,          kg: 6.7,  color: 'oklch(70% 0.12 60)'  },
+];
+
+// ════════════════════════ INVENTARIO — MATERIAL AUXILIAR ════════════════════════
+const INVENTARIO_AUX_MOCK = [
+  { id: 'aux-rollo-emp',   nombre: 'Rollos empacadora',      categoria: 'empacadora', stock: 4,   unidad: 'rollos', minimo: 2, ultima_entrada: '2026-04-10' },
+  { id: 'aux-carton-60',   nombre: 'Cartones 60×40×40',      categoria: 'empacadora', stock: 120, unidad: 'unidades', minimo: 50, ultima_entrada: '2026-04-08' },
+  { id: 'aux-funda-peq',   nombre: 'Fundas pequeñas',        categoria: 'fundas',     stock: 5000, unidad: 'unidades', minimo: 2000, ultima_entrada: '2026-04-15' },
+  { id: 'aux-funda-med',   nombre: 'Fundas medianas',        categoria: 'fundas',     stock: 2200, unidad: 'unidades', minimo: 1000, ultima_entrada: '2026-04-15' },
+  { id: 'aux-funda-ext',   nombre: 'Fundas exteriores doble',categoria: 'fundas',     stock: 800,  unidad: 'unidades', minimo: 400, ultima_entrada: '2026-04-15' },
+  { id: 'aux-pintura',     nombre: 'Pintura tampo',          categoria: 'impresion',  stock: 1.2, unidad: 'kg', minimo: 0.5, ultima_entrada: '2026-03-20' },
+  { id: 'aux-guantes',     nombre: 'Guantes nitrilo (caja)', categoria: 'seguridad',  stock: 3,   unidad: 'cajas', minimo: 2, ultima_entrada: '2026-04-01' },
+  { id: 'aux-cinta',       nombre: 'Cinta de embalaje',      categoria: 'empacadora', stock: 12,  unidad: 'rollos', minimo: 6, ultima_entrada: '2026-04-10' },
+  { id: 'aux-esparadrapo', nombre: 'Esparadrapo (rollo)',    categoria: 'seguridad',  stock: 5,   unidad: 'rollos', minimo: 3, ultima_entrada: '2026-04-01' },
+];
+
+// ════════════════════════ RECETAS ════════════════════════
+// Cuántas piezas consume cada caja — solo para jeringa y gotero
+const RECETAS_MOCK = {
+  'gotero': {
+    unidades_caja: 1000,
+    piezas: [
+      { pieza_id: 'gotero_b', nombre: 'Gotero (base)', cantidad: 1000 },
+      { pieza_id: 'capuchon',  nombre: 'Capuchón',      cantidad: 1000 },
+    ],
+  },
+  'j_sin_tampo': {
+    unidades_caja: 1000,
+    piezas: [
+      { pieza_id: 'canula',   nombre: 'Cánula',   cantidad: 1000 },
+      { pieza_id: 'piston',   nombre: 'Pistón',   cantidad: 1000 },
+      { pieza_id: 'tapon',    nombre: 'Tapón',    cantidad: 1000 },
+      { pieza_id: 'acordeon', nombre: 'Acordeón', cantidad: 1000 },
+    ],
+  },
+  'j_farmayala': {
+    unidades_caja: 1000,
+    piezas: [
+      { pieza_id: 'canula',   nombre: 'Cánula',   cantidad: 1000 },
+      { pieza_id: 'piston',   nombre: 'Pistón',   cantidad: 1000 },
+      { pieza_id: 'tapon',    nombre: 'Tapón',    cantidad: 1000 },
+      { pieza_id: 'acordeon', nombre: 'Acordeón', cantidad: 1000 },
+    ],
+  },
+  'j_life': {
+    unidades_caja: 1200,
+    piezas: [
+      { pieza_id: 'canula',   nombre: 'Cánula',   cantidad: 1200 },
+      { pieza_id: 'piston',   nombre: 'Pistón',   cantidad: 1200 },
+      { pieza_id: 'tapon',    nombre: 'Tapón',    cantidad: 1200 },
+      { pieza_id: 'acordeon', nombre: 'Acordeón', cantidad: 1200 },
+    ],
+  },
+};
+
+// ════════════════════════ CLIENTE ASOCIADO POR PRODUCTO ════════════════════════
+const PRODUCTO_CLIENTE_MOCK = {
+  'v_lamosan':   'cli-lamosan',
+  'v_farm_ant':  'cli-farmayala',
+  'v_farm_new':  'cli-farmayala',
+  'j_farmayala': 'cli-farmayala',
+  'j_life':      'cli-life',
+  'v_life':      'cli-life',
+};
+
+// ════════════════════════ PLANTILLAS QC ════════════════════════
+// Parámetros físicos de control de calidad por producto
+const QC_TEMPLATES_MOCK = {
+  'v_life': {
+    parametros: [
+      { id: 'peso',      nombre: 'Peso',       unidad: 'g',    minimo: 2.75, maximo: 3.10, metodo: 'Balanza analítica' },
+      { id: 'capacidad', nombre: 'Capacidad',  unidad: 'ml',   minimo: 4.8,  maximo: 5.2,  metodo: 'Llenado con agua' },
+      { id: 'espesor',   nombre: 'Espesor pared', unidad: 'mm', minimo: 0.35, maximo: 0.55, metodo: 'Calibrador' },
+    ],
+  },
+  'v_solplast': {
+    parametros: [
+      { id: 'peso',      nombre: 'Peso',       unidad: 'g',  minimo: 2.40, maximo: 2.70, metodo: 'Balanza analítica' },
+      { id: 'capacidad', nombre: 'Capacidad',  unidad: 'ml', minimo: 4.8,  maximo: 5.2,  metodo: 'Llenado con agua' },
+    ],
+  },
+  'gotero': {
+    parametros: [
+      { id: 'peso',       nombre: 'Peso total',      unidad: 'g',    minimo: 3.10, maximo: 3.50, metodo: 'Balanza analítica' },
+      { id: 'dosaje',     nombre: 'Dosaje por gota', unidad: 'mg',   minimo: 38,   maximo: 55,   metodo: 'Pesaje 20 gotas / 20' },
+      { id: 'hermet',     nombre: 'Hermeticidad',    unidad: 'pass', minimo: 1,    maximo: 1,    metodo: 'Presión 0.5 bar 30 s' },
+    ],
+  },
+  'j_sin_tampo': {
+    parametros: [
+      { id: 'peso',        nombre: 'Peso total',    unidad: 'g',  minimo: 7.60, maximo: 8.20, metodo: 'Balanza analítica' },
+      { id: 'vol_nominal', nombre: 'Vol. nominal',  unidad: 'ml', minimo: 4.85, maximo: 5.15, metodo: 'Llenado graduado' },
+      { id: 'fuerza',      nombre: 'Fuerza émbolo', unidad: 'N',  minimo: 3.0,  maximo: 15.0, metodo: 'Tensiómetro' },
+      { id: 'hermet',      nombre: 'Hermeticidad',  unidad: 'pass', minimo: 1,  maximo: 1,    metodo: 'Presión inversa' },
+    ],
+  },
+  'j_farmayala': {
+    parametros: [
+      { id: 'peso',        nombre: 'Peso total',    unidad: 'g',  minimo: 7.60, maximo: 8.20, metodo: 'Balanza analítica' },
+      { id: 'vol_nominal', nombre: 'Vol. nominal',  unidad: 'ml', minimo: 4.85, maximo: 5.15, metodo: 'Llenado graduado' },
+      { id: 'fuerza',      nombre: 'Fuerza émbolo', unidad: 'N',  minimo: 3.0,  maximo: 15.0, metodo: 'Tensiómetro' },
+    ],
+  },
+  'j_life': {
+    parametros: [
+      { id: 'peso',        nombre: 'Peso total',    unidad: 'g',  minimo: 6.80, maximo: 7.40, metodo: 'Balanza analítica' },
+      { id: 'vol_nominal', nombre: 'Vol. nominal',  unidad: 'ml', minimo: 4.85, maximo: 5.15, metodo: 'Llenado graduado' },
+      { id: 'fuerza',      nombre: 'Fuerza émbolo', unidad: 'N',  minimo: 2.5,  maximo: 12.0, metodo: 'Tensiómetro' },
+    ],
+  },
+  'cuchara_5ml': {
+    parametros: [
+      { id: 'peso',      nombre: 'Peso',       unidad: 'g',  minimo: 0.22, maximo: 0.30, metodo: 'Balanza analítica' },
+      { id: 'capacidad', nombre: 'Capacidad',  unidad: 'ml', minimo: 4.8,  maximo: 5.2,  metodo: 'Llenado con agua' },
+    ],
+  },
+};
+
+// ════════════════════════ PANORÁMICA MENSUAL ════════════════════════
+// Producción diaria del mes actual para la vista hoja-de-contador
+const HOY = new Date();
+const MES_ACTUAL = HOY.getMonth();
+const ANIO_ACTUAL = HOY.getFullYear();
+const DIAS_EN_MES = new Date(ANIO_ACTUAL, MES_ACTUAL + 1, 0).getDate();
+
+const PANORAMICA_MES_MOCK = (() => {
+  const dias = [];
+  for (let d = 1; d <= DIAS_EN_MES; d++) {
+    const fecha = `${ANIO_ACTUAL}-${String(MES_ACTUAL+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(ANIO_ACTUAL, MES_ACTUAL, d).getDay();
+    const esFinde = dow === 0 || dow === 6;
+    const esFuturo = d > HOY.getDate();
+    if (esFinde || esFuturo) { dias.push({ dia: d, fecha, esFinde, esFuturo, cajas: 0, material_kg: 0, desecho_kg: 0 }); continue; }
+    // Simular datos
+    const seed = d * 7;
+    const cajas = 30 + (seed % 28);
+    const material_kg = 90 + (seed % 80);
+    const desecho_kg = parseFloat((material_kg * (0.02 + (seed % 5) * 0.005)).toFixed(1));
+    const registro_id = `reg-${fecha}`;
+    dias.push({ dia: d, fecha, esFinde, esFuturo: false, cajas, material_kg, desecho_kg, registro_id });
+  }
+  return dias;
+})();
+
 const COSTOS_EVOLUCION = {
   'Vaso Life':         [0.0076, 0.0078, 0.0080, 0.0080, 0.0081, 0.0082, 0.0082, 0.0082],
   'Jeringa Life':      [0.0235, 0.0240, 0.0245, 0.0248, 0.0248, 0.0249, 0.0249, 0.0249],
@@ -1687,8 +1874,105 @@ const PRODUCCION_MES = [
   { id: 'j_life',      cajas: 7,  unidades: 8400 },
 ];
 
-const fmtMoney = (n, d = 2) =>
-  '$' + Number(n || 0).toLocaleString('es-EC', { minimumFractionDigits: d, maximumFractionDigits: d });
+// Fallback globals — llenas por el backend; en demo se inicializan vacías
+if (!window.HORAS_DETALLE)         window.HORAS_DETALLE         = {};
+if (!window.HORAS_POR_PERIODO)     window.HORAS_POR_PERIODO     = {};
+if (!window.LATEST_PERIODO)        window.LATEST_PERIODO        = '';
+if (!window.OVERRIDES_POR_PERIODO) window.OVERRIDES_POR_PERIODO = {};
+if (!window.GASTOS_DESACTIVADOS)   window.GASTOS_DESACTIVADOS   = [];
+const HORAS_DETALLE         = window.HORAS_DETALLE;
+const HORAS_POR_PERIODO     = window.HORAS_POR_PERIODO;
+const LATEST_PERIODO        = window.LATEST_PERIODO;
+const OVERRIDES_POR_PERIODO = window.OVERRIDES_POR_PERIODO;
+const GASTOS_DESACTIVADOS   = window.GASTOS_DESACTIVADOS;
+
+// Backend overrides para inventario: el backend inyecta window.INV_*
+// con datos reales de Supabase. Estos overrides corren ANTES de los IIFE
+// que computan AUX_CONSUMO_HISTORICO, asi que reemplazamos los mocks que
+// alimentan esos IIFE.
+if (Array.isArray(window.INV_AUXILIAR) && window.INV_AUXILIAR.length) {
+  INVENTARIO_AUX_MOCK.length = 0;
+  INVENTARIO_AUX_MOCK.push(...window.INV_AUXILIAR);
+}
+if (Array.isArray(window.INV_PIEZAS) && window.INV_PIEZAS.length) {
+  INVENTARIO_PIEZAS_MOCK.length = 0;
+  INVENTARIO_PIEZAS_MOCK.push(...window.INV_PIEZAS);
+}
+if (Array.isArray(window.INV_LOTES) && window.INV_LOTES.length) {
+  LOTES_MOCK.length = 0;
+  LOTES_MOCK.push(...window.INV_LOTES);
+}
+if (window.INV_MOLIDO && typeof window.INV_MOLIDO === 'object') {
+  if (Array.isArray(window.INV_MOLIDO) && window.INV_MOLIDO.length) {
+    INVENTARIO_MOLIDO_MOCK.length = 0;
+    INVENTARIO_MOLIDO_MOCK.push(...window.INV_MOLIDO);
+  } else if (!Array.isArray(window.INV_MOLIDO)) {
+    INVENTARIO_MOLIDO_MOCK.forEach(m => {
+      const v = window.INV_MOLIDO[m.id];
+      if (typeof v === 'number') m.kg = v;
+    });
+  }
+}
+if (window.BOM && typeof window.BOM === 'object' && Object.keys(window.BOM).length) {
+  Object.entries(window.BOM).forEach(([pid, piezas]) => {
+    if (typeof piezas !== 'object') return;
+    const existing = RECETAS_MOCK[pid] || { unidades_caja: 1000, piezas: [] };
+    existing.piezas = Object.entries(piezas).map(([pieza_id, cant]) => ({
+      pieza_id, nombre: pieza_id, cantidad: cant,
+    }));
+    RECETAS_MOCK[pid] = existing;
+  });
+}
+
+// ════════════════════════ HISTORIAL CONSUMO AUXILIAR (30 días) ════════════════════════
+// { [aux_id]: [{ fecha, usado, stock_tras }] } — últimos 30 días laborables
+const AUX_CONSUMO_HISTORICO = (() => {
+  const hist = {};
+  INVENTARIO_AUX_MOCK.forEach(aux => {
+    const entries = [];
+    let stock = aux.stock;
+    for (let d = DIAS_EN_MES; d >= 1; d--) {
+      const dow = new Date(ANIO_ACTUAL, MES_ACTUAL, d).getDay();
+      if (dow === 0 || dow === 6) continue;
+      if (d > HOY.getDate()) continue;
+      const seed = (d * 13 + aux.id.length * 7) % 100;
+      const usado = seed < 70 ? Math.round(aux.stock * 0.04 * (seed % 5 + 1) / 5) : 0;
+      const fecha = `${ANIO_ACTUAL}-${String(MES_ACTUAL+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      entries.unshift({ fecha, usado, stock_tras: Math.max(0, stock) });
+      stock += usado; // reverse-reconstruct
+    }
+    hist[aux.id] = entries;
+  });
+  return hist;
+})();
+
+// Override del backend: window.AUX_CONSUMO = [{ aux_id, fecha, usado, stock_tras }]
+if (Array.isArray(window.AUX_CONSUMO) && window.AUX_CONSUMO.length) {
+  const m = {};
+  window.AUX_CONSUMO.forEach(r => {
+    if (!m[r.aux_id]) m[r.aux_id] = [];
+    m[r.aux_id].push({ fecha: r.fecha, usado: r.usado, stock_tras: r.stock_tras });
+  });
+  Object.keys(AUX_CONSUMO_HISTORICO).forEach(k => delete AUX_CONSUMO_HISTORICO[k]);
+  Object.assign(AUX_CONSUMO_HISTORICO, m);
+}
+
+// Producción por día por producto (para panorámica)
+const PANORAMICA_PROD_DIARIA = (() => {
+  const prods = ['v_life','v_solplast','v_lamosan','cuchara_5ml','j_life','j_farmayala','gotero'];
+  const res = {};
+  PANORAMICA_MES_MOCK.filter(d => !d.esFinde && !d.esFuturo && d.cajas > 0).forEach(dia => {
+    const seed = dia.dia * 3;
+    res[dia.fecha] = {};
+    prods.forEach((pid, pi) => {
+      const val = ((seed + pi * 7) % 20);
+      if (val > 14) res[dia.fecha][pid] = val;
+    });
+  });
+  return res;
+})();
+
+const fmtMoney = (n, d = 2) => '$' + Number(n || 0).toLocaleString('es-EC', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtMoneyShort = (n) => {
   const v = Number(n || 0);
   if (Math.abs(v) >= 1000) return '$' + (v / 1000).toFixed(1) + 'k';
@@ -1705,6 +1989,11 @@ Object.assign(window, {
   REGISTROS_RECIENTES, COSTOS_EVOLUCION, COSTOS_EVOLUCION_MESES, PRODUCCION_MES,
   EMISOR, CLIENTES_MOCK, COTIZACIONES_MOCK, ORDENES_COMPRA_MOCK, FACTURAS_MOCK, GUIAS_MOCK, CERTIFICADOS_MOCK,
   INVENTARIO_MP_MOCK, INVENTARIO_PT_MOCK, MOV_INVENTARIO_MOCK,
+  LOTES_MOCK, INVENTARIO_PIEZAS_MOCK, INVENTARIO_MOLIDO_MOCK, INVENTARIO_AUX_MOCK,
+  RECETAS_MOCK, PRODUCTO_CLIENTE_MOCK, QC_TEMPLATES_MOCK,
+  PANORAMICA_MES_MOCK, DIAS_EN_MES, MES_ACTUAL, ANIO_ACTUAL, HOY,
+  HORAS_DETALLE, HORAS_POR_PERIODO, LATEST_PERIODO, OVERRIDES_POR_PERIODO, GASTOS_DESACTIVADOS,
+  AUX_CONSUMO_HISTORICO, PANORAMICA_PROD_DIARIA,
   fmtMoney, fmtMoneyShort, fmtNum,
 });
 
@@ -2461,7 +2750,7 @@ function Sidebar({ page, setPage, role, open, onClose, theme, setTheme, onLogout
             <div className="avatar">{role === 'operario' ? 'OP' : 'AD'}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600 }}>{role === 'operario' ? 'Operario' : 'Admin Solplast'}</div>
-              <div className="xs mute">v{window.APP_VERSION || '4.1.0'}</div>
+              <div className="xs mute">v4.0 · Demo</div>
             </div>
             <Btn variant="ghost" size="sm" title="Cerrar sesión" onClick={onLogout}><Icon name="logout" size={14} /></Btn>
           </div>
@@ -2561,7 +2850,7 @@ function Login({ onLogin }) {
         </Btn>
 
         <div style={{ marginTop: 20, textAlign: 'center', fontSize: 11, color: 'var(--text-mute)' }}>
-          Soluciones Plásticas del Ecuador · v{window.APP_VERSION || '4.1.0'}
+          Soluciones Plásticas del Ecuador · v4.0
         </div>
       </form>
     </div>
@@ -2804,7 +3093,7 @@ function NomStepSubir({ periodoId, onNext, onSelectPeriodo }) {
       return;
     }
     setUploading(false);
-    window.solpToast((result && result.error) || 'Error subiendo el archivo.');
+    alert((result && result.error) || 'Error subiendo el archivo.');
   }
 
   function handleFile(file) {
@@ -2857,31 +3146,8 @@ function NomStepSubir({ periodoId, onNext, onSelectPeriodo }) {
       </div>
 
       <div className="panel panel-flush">
-        <div style={{ padding: '18px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+        <div style={{ padding: '18px', borderBottom: '1px solid var(--line)' }}>
           <PanelHead title="Períodos guardados" sub="Selecciona uno para revisar o recalcular" />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Btn size="sm" variant="ghost" title="Aplica +1 dia a las fechas de los reportes ya subidos (soluciona offset del reloj NGTeco sin re-subir XLS). Idempotente." onClick={async () => {
-              if (!await window.solpConfirm('Aplicar corrección de offset +1 día a TODOS los reportes históricos guardados?\n\nSolo se ejecuta una vez por reporte (es idempotente). No re-subir XLS después de esto.')) return;
-              const r = await window._api?.migrarOffsetHistorico();
-              if (r?.migrados !== undefined) {
-                window.solpToast(`${r.total} reporte(s) migrados. ${r.saltados_ya_migrados?.length || 0} ya estaban listos.`, 'ok');
-                setTimeout(() => location.reload(), 1500);
-              } else {
-                window.solpToast(r?.error || 'Error en migración', 'bad');
-              }
-            }}><Icon name="arrow_l" size={12}/> Corregir offset histórico</Btn>
-            <Btn size="sm" variant="ghost" title="Mueve los dias huerfanos al reporte del mes que les corresponde. Util tras corregir el offset si quedaron dias desbordados (p.ej. 01/05 al final del reporte de abril)." onClick={async () => {
-              if (!await window.solpConfirm('Reagrupar dias huerfanos al reporte del mes correcto?\n\nMueve dias que cayeron en otro mes al reporte donde pertenecen. Idempotente.')) return;
-              const r = await window._api?.rebalancearMeses();
-              if (r?.movimientos !== undefined) {
-                const nuevos = (r.reportes_nuevos || []).length;
-                window.solpToast(`${r.movimientos} dia(s) reubicado(s). ${nuevos > 0 ? nuevos + ' reporte(s) creado(s).' : 'Sin reportes nuevos.'}`, 'ok');
-                setTimeout(() => location.reload(), 1500);
-              } else {
-                window.solpToast(r?.error || 'Error rebalanceando', 'bad');
-              }
-            }}><Icon name="calendar" size={12}/> Reagrupar días</Btn>
-          </div>
         </div>
         {periodos.length === 0 && <div className="xs mute" style={{ padding: 18 }}>Sin reportes guardados.</div>}
         {periodos.map((r, i) => {
@@ -2976,7 +3242,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
       applyFlagLocal(sel, idx, nuevoFlag);
       if (HORAS_POR_PERIODO[periodoId]?.[sel]?.[idx]) HORAS_POR_PERIODO[periodoId][sel][idx].flag = nuevoFlag;
     } else {
-      window.solpToast('Error actualizando observación.');
+      alert('Error actualizando observación.');
     }
   }
 
@@ -3015,7 +3281,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
       });
       setEdits({});
     } else {
-      window.solpToast('Error guardando correcciones.');
+      alert('Error guardando correcciones.');
     }
   }
 
@@ -3053,7 +3319,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
     setOvPeriodo(emp_ov);
     OVERRIDES_POR_PERIODO[periodoId] = todos;
     const ok = await window._api?.saveOverrides(periodoId, todos);
-    if (!ok) { window.solpToast('Error guardando override.'); return; }
+    if (!ok) { alert('Error guardando override.'); return; }
     await window._api?.refreshNomina();
     setOvPeriodo((OVERRIDES_POR_PERIODO[periodoId] || {})[sel] || {});
   }
@@ -3093,7 +3359,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
         [sel]: h[sel].map((d, i) => i === idx ? { ...d, modo_extra: nuevoModo } : d),
       }));
       if (HORAS_POR_PERIODO[periodoId]?.[sel]?.[idx]) HORAS_POR_PERIODO[periodoId][sel][idx].modo_extra = nuevoModo;
-    } else { window.solpToast('Error.'); }
+    } else { alert('Error.'); }
   }
 
   async function toggleCubrir(idx) {
@@ -3109,7 +3375,7 @@ function NomStepRevisar({ periodoId, periodoLabel, onNext, onBack }) {
         [sel]: h[sel].map((d, i) => i === idx ? { ...d, cubrir_banco: nuevo } : d),
       }));
       if (HORAS_POR_PERIODO[periodoId]?.[sel]?.[idx]) HORAS_POR_PERIODO[periodoId][sel][idx].cubrir_banco = nuevo;
-    } else { window.solpToast('Error.'); }
+    } else { alert('Error.'); }
   }
 
   function updateCell(idx, field, value) {
@@ -3404,12 +3670,12 @@ function NomStepSueldos({ periodoId, periodoLabel, onBack }) {
   const totalPagado   = nominaList.reduce((a, e) => a + e.total, 0) + d13Extra + d14Extra;
 
   async function guardarCalculo() {
-    if (!periodoId) { window.solpToast('No hay reporte cargado'); return; }
+    if (!periodoId) { alert('No hay reporte cargado'); return; }
     setGuardando(true);
     const ok = await window._api?.calcularNomina(periodoId, { d13, d14 });
     setGuardando(false);
-    if (ok) window.solpToast('Nómina guardada');
-    else window.solpToast('Error guardando nómina');
+    if (ok) alert('Nómina guardada');
+    else alert('Error guardando nómina');
   }
 
   return (
@@ -3616,7 +3882,7 @@ function RecurrentesModal({ empleadoId, onClose }) {
   }
 
   async function eliminar(id) {
-    if (!await window.solpConfirm('¿Eliminar esta regla recurrente?')) return;
+    if (!confirm('¿Eliminar esta regla recurrente?')) return;
     const next = items.filter(x => x.id !== id);
     setItems(next);
     const all = window.BENEFICIOS_RECURRENTES_MOCK || [];
@@ -3764,23 +4030,31 @@ function RegistroWizard({ role, onOpenDetalle }) {
     j_life:      { virgen: { pp_clarificado: 12, pe_alta: 10, pe_baja: 7 }, molido: [] },
   });
 
+  // Tachos armados por producto (solo jeringas/goteros: lotes intermedios ensamblados)
+  // { [prod_id]: numero_de_tachos }
+  const [tachos, setTachos] = useState({ j_life: 3 });
+
   // Desechos y molido GENERADO por producto:
-  // { [prod_id]: { desecho_kg, molido_kg } }
+  // { [prod_id]: { desecho_kg, molido_kg, desecho_emp_unidades } }
+  // desecho_kg  → piezas irrecuperables (vuelven a molido)
+  // desecho_emp_unidades → descarte final empacadora (no recuperable)
   const [residuos, setResiduos] = useState({
-    v_life:      { desecho: 1.8, molido: 1.2 },
-    v_solplast:  { desecho: 1.0, molido: 0.5 },
-    cuchara_5ml: { desecho: 0.4, molido: 0.3 },
-    j_life:      { desecho: 2.2, molido: 1.5 },
+    v_life:      { desecho: 1.8, molido: 1.2, desecho_emp: 0 },
+    v_solplast:  { desecho: 1.0, molido: 0.5, desecho_emp: 0 },
+    cuchara_5ml: { desecho: 0.4, molido: 0.3, desecho_emp: 12 },
+    j_life:      { desecho: 2.2, molido: 1.5, desecho_emp: 8  },
   });
 
   const [obs, setObs] = useState('');
+  // Número de lote asignado al guardar (formato L-YY-MM-NNN)
+  const [loteNum, setLoteNum] = useState(null);
 
   const steps = [
-    { label: 'Día',            icon: 'calendar', sub: 'Fecha de la jornada' },
-    { label: 'Producción',     icon: 'box',      sub: 'Qué productos se hicieron' },
-    { label: 'Material',       icon: 'flask',    sub: 'Virgen + molido por producto' },
-    { label: 'Desechos',       icon: 'trash',    sub: 'Merma y molido generado' },
-    { label: 'Revisar',        icon: 'check',    sub: 'Confirmar y guardar' },
+    { label: 'Día',        icon: 'calendar', sub: 'Fecha de la jornada' },
+    { label: 'Producción', icon: 'box',      sub: 'Piezas · tachos · cajas' },
+    { label: 'Material',   icon: 'flask',    sub: 'Virgen + molido por producto' },
+    { label: 'Desechos',   icon: 'trash',    sub: 'Merma, molido generado y empacadora' },
+    { label: 'Revisar',    icon: 'check',    sub: 'Confirmar y guardar' },
   ];
 
   // Derivados
@@ -3835,10 +4109,10 @@ function RegistroWizard({ role, onOpenDetalle }) {
 
       <div className="panel" style={{ minHeight: 420 }}>
         {step === 0 && <RegStepDia date={date} setDate={setDate} />}
-        {step === 1 && <RegStepProd prod={prod} setProd={setProd} subcomp={subcomp} setSubcomp={setSubcomp} />}
+        {step === 1 && <RegStepProd prod={prod} setProd={setProd} subcomp={subcomp} setSubcomp={setSubcomp} tachos={tachos} setTachos={setTachos} />}
         {step === 2 && <RegStepMaterial activeProds={activeProds} consumo={consumo} setConsumo={setConsumo} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} />}
         {step === 3 && <RegStepResiduos activeProds={activeProds} residuos={residuos} setResiduos={setResiduos} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} />}
-        {step === 4 && <RegStepRevisar date={date} activeProds={activeProds} prod={prod} consumo={consumo} residuos={residuos} obs={obs} setObs={setObs} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} totalCajas={totalCajas} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} subcomp={subcomp} />}
+        {step === 4 && <RegStepRevisar date={date} activeProds={activeProds} prod={prod} consumo={consumo} residuos={residuos} obs={obs} setObs={setObs} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} totalCajas={totalCajas} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} subcomp={subcomp} tachos={tachos} loteNum={loteNum} />}
 
         <div className="row" style={{ justifyContent: 'space-between', marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
           <Btn onClick={back} disabled={step === 0}><Icon name="arrow_l" size={14}/> Atrás</Btn>
@@ -3852,7 +4126,16 @@ function RegistroWizard({ role, onOpenDetalle }) {
       </div>
 
       <Modal open={showConfirm && !saved} onClose={() => setShowConfirm(false)} title="¿Guardar jornada?"
-        footer={<><Btn onClick={() => setShowConfirm(false)}>Revisar de nuevo</Btn><Btn variant="primary" onClick={() => { setSaved(true); }}><Icon name="check" size={14}/> Sí, guardar</Btn></>}>
+        footer={<><Btn onClick={() => setShowConfirm(false)}>Revisar de nuevo</Btn><Btn variant="primary" onClick={() => {
+          // Generar número de lote
+          const d = new Date(date + 'T00:00:00');
+          const yy = String(d.getFullYear()).slice(2);
+          const mm = String(d.getMonth()+1).padStart(2,'0');
+          const dd = String(d.getDate()).padStart(2,'0');
+          const nn = String(119 + activeProds.length).padStart(3,'0');
+          setLoteNum(`L-${yy}-${mm}-${dd}-${nn}`);
+          setSaved(true);
+        }}><Icon name="check" size={14}/> Sí, guardar</Btn></>}>
         <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--accent-soft)', color: 'var(--accent-hi)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Icon name="calendar" size={20}/>
@@ -3923,7 +4206,7 @@ function RegStepDia({ date, setDate }) {
   );
 }
 
-function RegStepProd({ prod, setProd, subcomp, setSubcomp }) {
+function RegStepProd({ prod, setProd, subcomp, setSubcomp, tachos, setTachos }) {
   const setSC = (pid, scid, value) => {
     setSubcomp({
       ...subcomp,
@@ -3931,10 +4214,22 @@ function RegStepProd({ prod, setProd, subcomp, setSubcomp }) {
     });
   };
 
+  const hasPiezas = (kind) => ['jeringa','gotero'].includes(kind);
+
   return (
     <div>
-      <h3 className="panel-title" style={{ marginBottom: 4 }}>¿Qué productos se hicieron hoy?</h3>
-      <div className="panel-sub" style={{ marginBottom: 18 }}>Cajas completadas por línea. En jeringas y goteros se registra además cada pieza por separado.</div>
+      <h3 className="panel-title" style={{ marginBottom: 4 }}>¿Qué se produjo hoy?</h3>
+      <div className="panel-sub" style={{ marginBottom: 10 }}>
+        Para <strong>vasos y cucharas</strong>: ingresa directamente las cajas empacadas.<br/>
+        Para <strong>jeringas y goteros</strong>: registra piezas sueltas por tipo, tachos armados y cajas empacadas.
+      </div>
+
+      <div className="legend-row" style={{ marginBottom: 14 }}>
+        <div className="legend-chip"><span className="dot" style={{ background: 'var(--accent-hi)' }}/> Cajas empacadas</div>
+        <div className="legend-chip"><span className="dot" style={{ background: 'var(--info)' }}/> Tachos armados (solo jeringa/gotero)</div>
+        <div className="legend-chip"><span className="dot" style={{ background: 'var(--text-mute)' }}/> Piezas sueltas</div>
+      </div>
+
       <div className="prod-grid">
         {PRODUCTOS_MOCK.map(p => {
           const v = prod[p.id] || 0;
@@ -3942,6 +4237,8 @@ function RegStepProd({ prod, setProd, subcomp, setSubcomp }) {
           const piezas = SUBCOMPONENTES_MOCK[p.kind] || null;
           const unidadesEsperadas = v * p.unidades_caja;
           const sc = subcomp[p.id] || {};
+          const tach = tachos[p.id] || 0;
+          const isPiezas = hasPiezas(p.kind);
           return (
             <div key={p.id} className={`prod-card ${active ? 'on' : ''}`}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
@@ -3953,17 +4250,44 @@ function RegStepProd({ prod, setProd, subcomp, setSubcomp }) {
               </div>
               <div style={{ fontWeight: 600, marginTop: 8, marginBottom: 2 }}>{p.nombre}</div>
               <div className="xs mute" style={{ marginBottom: 10 }}>{p.peso_g} g · {fmtMoney(p.costo_caja)}/caja</div>
-              <div className="num-stepper">
-                <button onClick={() => setProd({ ...prod, [p.id]: Math.max(0, v - 1) })}><Icon name="minus" size={12}/></button>
-                <input type="number" value={v} onChange={e => setProd({ ...prod, [p.id]: parseInt(e.target.value) || 0 })} />
-                <button onClick={() => setProd({ ...prod, [p.id]: v + 1 })}><Icon name="plus" size={12}/></button>
+
+              {/* Cajas empacadas */}
+              <div style={{ marginBottom: isPiezas && active ? 10 : 0 }}>
+                <div className="xs mute" style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-hi)', display: 'inline-block' }}/>
+                  Cajas empacadas
+                </div>
+                <div className="num-stepper">
+                  <button onClick={() => setProd({ ...prod, [p.id]: Math.max(0, v - 1) })}><Icon name="minus" size={12}/></button>
+                  <input type="number" value={v} onChange={e => setProd({ ...prod, [p.id]: parseInt(e.target.value) || 0 })} />
+                  <button onClick={() => setProd({ ...prod, [p.id]: v + 1 })}><Icon name="plus" size={12}/></button>
+                </div>
               </div>
 
+              {/* Tachos armados (solo jeringas/goteros) */}
+              {isPiezas && active && (
+                <div style={{ marginBottom: 10 }}>
+                  <div className="xs mute" style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--info)', display: 'inline-block' }}/>
+                    Tachos armados
+                  </div>
+                  <div className="num-stepper">
+                    <button onClick={() => setTachos({ ...tachos, [p.id]: Math.max(0, tach - 1) })}><Icon name="minus" size={12}/></button>
+                    <input type="number" value={tach} onChange={e => setTachos({ ...tachos, [p.id]: parseInt(e.target.value) || 0 })} />
+                    <button onClick={() => setTachos({ ...tachos, [p.id]: tach + 1 })}><Icon name="plus" size={12}/></button>
+                  </div>
+                </div>
+              )}
+
+              {/* Piezas sueltas (solo jeringas/goteros activos) */}
               {active && piezas && (
                 <div className="subcomp-block">
                   <div className="subcomp-head">
-                    <div className="subcomp-title"><Icon name="grid" size={11}/> Piezas producidas</div>
-                    <div className="xs mute">Esperado: {fmtNum(unidadesEsperadas)} c/u</div>
+                    <div className="subcomp-title">
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-mute)', display: 'inline-block' }}/>
+                      Piezas sueltas
+                    </div>
+                    <div className="xs mute">Esperado: {fmtNum(unidadesEsperadas)}</div>
                   </div>
                   <div className="subcomp-list">
                     {piezas.map(pc => {
@@ -4126,36 +4450,41 @@ function RegStepResiduos({ activeProds, residuos, setResiduos, totalDesecho, tot
     return <EmptyProducts msg="Primero selecciona los productos que se hicieron hoy (paso 2)." />;
   }
   const tone = mermaPct > 5 ? 'warn' : mermaPct > 3 ? 'info' : 'good';
+  const totalEmpUnidades = activeProds.reduce((s, pid) => s + (residuos[pid]?.desecho_emp || 0), 0);
+
   return (
     <div>
       <h3 className="panel-title" style={{ marginBottom: 4 }}>Desechos y molido generado</h3>
       <div className="panel-sub" style={{ marginBottom: 14 }}>
-        Por cada producto: el <strong>desecho</strong> (irrecuperable) y el <strong>molido generado</strong> que queda
-        disponible para reusar en <em>el mismo producto</em>.
+        Por cada producto: el <strong>desecho por pieza en kg</strong> (va al bin de molido), el <strong>molido generado</strong> para reusar
+        y el <strong>descarte empacadora</strong> (unidades que salieron mal al empacar — no recuperables).
       </div>
 
       <div className="legend-row">
-        <div className="legend-chip"><span className="dot" style={{ background: 'var(--bad)' }}/>Desecho · no recuperable</div>
-        <div className="legend-chip"><span className="dot" style={{ background: 'var(--good)' }}/>Molido generado · al bin del producto</div>
+        <div className="legend-chip"><span className="dot" style={{ background: 'var(--bad)' }}/>Desecho pieza · kg → molido</div>
+        <div className="legend-chip"><span className="dot" style={{ background: 'var(--good)' }}/>Molido generado · al bin</div>
+        <div className="legend-chip"><span className="dot" style={{ background: 'var(--warn)' }}/>Descarte empacadora · unidades</div>
       </div>
 
       <div className="residuo-list">
         {activeProds.map(pid => {
           const p = PRODUCTOS_MOCK.find(x => x.id === pid);
-          const r = residuos[pid] || { desecho: 0, molido: 0 };
+          const r = residuos[pid] || { desecho: 0, molido: 0, desecho_emp: 0 };
           const setR = (nr) => setResiduos({ ...residuos, [pid]: nr });
+          const isPiezas = ['jeringa','gotero'].includes(p.kind);
           return (
             <div key={pid} className="residuo-card">
               <div className="rc-head">
                 <ProductIllus kind={p.kind} size={28} color="var(--accent-hi)" />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{p.nombre}</div>
-                  <div className="xs mute">Bin de molido disponible para próxima jornada</div>
+                  <div className="xs mute">{isPiezas ? 'Piezas + descarte empacadora' : 'Desecho + descarte empacadora'}</div>
                 </div>
               </div>
               <div className="rc-fields">
+                {/* Desecho pieza en kg */}
                 <div className="rc-field">
-                  <div className="rc-lbl"><span className="dot" style={{ background: 'var(--bad)' }}/> Desecho</div>
+                  <div className="rc-lbl"><span className="dot" style={{ background: 'var(--bad)' }}/> Desecho pieza</div>
                   <div className="num-stepper">
                     <button onClick={() => setR({ ...r, desecho: Math.max(0, (r.desecho||0) - 0.5) })}><Icon name="minus" size={12}/></button>
                     <input type="number" step="0.1" value={r.desecho || 0}
@@ -4164,6 +4493,7 @@ function RegStepResiduos({ activeProds, residuos, setResiduos, totalDesecho, tot
                   </div>
                   <span className="unit">kg</span>
                 </div>
+                {/* Molido generado en kg */}
                 <div className="rc-field">
                   <div className="rc-lbl"><span className="dot" style={{ background: 'var(--good)' }}/> Molido generado</div>
                   <div className="num-stepper">
@@ -4173,6 +4503,17 @@ function RegStepResiduos({ activeProds, residuos, setResiduos, totalDesecho, tot
                     <button onClick={() => setR({ ...r, molido: (r.molido||0) + 0.5 })}><Icon name="plus" size={12}/></button>
                   </div>
                   <span className="unit">kg</span>
+                </div>
+                {/* Descarte empacadora en unidades */}
+                <div className="rc-field">
+                  <div className="rc-lbl"><span className="dot" style={{ background: 'var(--warn)' }}/> Descarte empacadora</div>
+                  <div className="num-stepper">
+                    <button onClick={() => setR({ ...r, desecho_emp: Math.max(0, (r.desecho_emp||0) - 1) })}><Icon name="minus" size={12}/></button>
+                    <input type="number" step="1" value={r.desecho_emp || 0}
+                      onChange={e => setR({ ...r, desecho_emp: parseInt(e.target.value) || 0 })} />
+                    <button onClick={() => setR({ ...r, desecho_emp: (r.desecho_emp||0) + 1 })}><Icon name="plus" size={12}/></button>
+                  </div>
+                  <span className="unit" style={{ minWidth: 50 }}>unidades</span>
                 </div>
               </div>
             </div>
@@ -4184,7 +4525,8 @@ function RegStepResiduos({ activeProds, residuos, setResiduos, totalDesecho, tot
         <div>Totales del día</div>
         <div className="row" style={{ gap: 16 }}>
           <div className="xs mute">Desecho <strong className="mono" style={{ color: 'var(--bad)' }}>{totalDesecho.toFixed(1)} kg</strong></div>
-          <div className="xs mute">Molido generado <strong className="mono" style={{ color: 'var(--good)' }}>{totalMolidoGen.toFixed(1)} kg</strong></div>
+          <div className="xs mute">Molido → bin <strong className="mono" style={{ color: 'var(--good)' }}>{totalMolidoGen.toFixed(1)} kg</strong></div>
+          {totalEmpUnidades > 0 && <div className="xs mute">Empacadora <strong className="mono" style={{ color: 'var(--warn)' }}>{fmtNum(totalEmpUnidades)} u</strong></div>}
         </div>
       </div>
 
@@ -4212,80 +4554,91 @@ function EmptyProducts({ msg }) {
   );
 }
 
-function RegStepRevisar({ date, activeProds, prod, consumo, residuos, obs, setObs, totalMat, totalVirgen, totalMolidoUsado, totalCajas, totalDesecho, totalMolidoGen, mermaPct, subcomp }) {
+function RegStepRevisar({ date, activeProds, prod, consumo, residuos, obs, setObs, totalMat, totalVirgen, totalMolidoUsado, totalCajas, totalDesecho, totalMolidoGen, mermaPct, subcomp, tachos, loteNum }) {
   return (
     <div>
       <h3 className="panel-title" style={{ marginBottom: 4 }}>Revisa antes de guardar</h3>
       <div className="panel-sub" style={{ marginBottom: 18 }}>Cada producto muestra su desglose completo. Si algo no está bien, vuelve al paso correspondiente.</div>
 
-      <div className="cols-2">
+      {loteNum && (
+        <div className="alert good" style={{ marginBottom: 14 }}>
+          <div className="icon"><Icon name="box" size={16}/></div>
+          <div className="body">
+            <div className="title">Lote asignado: <strong className="mono">{loteNum}</strong></div>
+            <div className="msg">Este número aparecerá en la guía de remisión al despachar.</div>
+          </div>
+        </div>
+      )}
+
+      <div className="cols-2" style={{ marginBottom: 14 }}>
         <div className="summary-box">
           <div className="sb-ttl"><Icon name="calendar" size={13}/> Jornada</div>
           <div className="sb-big">{date}</div>
-        </div>
-        <div className="summary-box">
-          <div className="sb-ttl"><Icon name="box" size={13}/> Producción</div>
-          <div className="sb-big">{totalCajas} cajas · {activeProds.length} productos</div>
+          <div className="sb-list">
+            <div><span>Cajas producidas</span><span className="mono">{totalCajas}</span></div>
+            <div><span>Productos</span><span className="mono">{activeProds.length}</span></div>
+          </div>
         </div>
         <div className="summary-box">
           <div className="sb-ttl"><Icon name="flask" size={13}/> Material</div>
-          <div className="sb-big">{totalMat.toFixed(1)} kg</div>
-          <div className="xs mute" style={{ marginTop: 4 }}>Virgen {totalVirgen.toFixed(1)} · Molido {totalMolidoUsado.toFixed(1)}</div>
+          <div className="sb-big">{totalMat.toFixed(1)} <span style={{ fontSize: 14, color: 'var(--text-mute)' }}>kg</span></div>
+          <div className="sb-list">
+            <div><span>Virgen</span><span className="mono">{totalVirgen.toFixed(1)} kg</span></div>
+            <div><span>Molido reusado</span><span className="mono" style={{ color: 'var(--good)' }}>{totalMolidoUsado.toFixed(1)} kg</span></div>
+          </div>
         </div>
         <div className="summary-box">
-          <div className="sb-ttl"><Icon name="trash" size={13}/> Desechos / molido</div>
-          <div className="sb-big">{totalDesecho.toFixed(1)} kg · +{totalMolidoGen.toFixed(1)} molido</div>
-          <div className="xs mute" style={{ marginTop: 4 }}>Merma <strong style={{ color: mermaPct > 5 ? 'var(--warn)' : 'var(--good)' }}>{mermaPct.toFixed(1)}%</strong></div>
+          <div className="sb-ttl"><Icon name="trash" size={13}/> Desechos</div>
+          <div className="sb-big" style={{ color: 'var(--bad)' }}>{totalDesecho.toFixed(1)} <span style={{ fontSize: 14, color: 'var(--text-mute)' }}>kg</span></div>
+          <div className="sb-list">
+            <div><span>Molido generado</span><span className="mono" style={{ color: 'var(--good)' }}>+{totalMolidoGen.toFixed(1)} kg</span></div>
+            <div><span>Merma</span><span className="mono" style={{ color: mermaPct > 5 ? 'var(--warn)' : 'var(--good)' }}>{mermaPct.toFixed(1)}%</span></div>
+            <div><span>Descarte empacadora</span><span className="mono" style={{ color: 'var(--warn)' }}>{fmtNum(activeProds.reduce((s,pid) => s+(residuos[pid]?.desecho_emp||0),0))} u</span></div>
+          </div>
+        </div>
+        <div className="summary-box">
+          <div className="sb-ttl"><Icon name="edit" size={13}/> Observaciones</div>
+          <textarea className="input" style={{ marginTop: 6, resize: 'vertical', minHeight: 60, fontSize: 13 }}
+            placeholder="Novedades de la jornada…" value={obs} onChange={e => setObs(e.target.value)} />
         </div>
       </div>
 
-      <div style={{ marginTop: 20 }}>
-        <Eyebrow>Desglose por producto</Eyebrow>
-        <div className="rev-prod-list">
-          {activeProds.map(pid => {
-            const p = PRODUCTOS_MOCK.find(x => x.id === pid);
-            const c = consumo[pid] || { virgen: {}, molido: [] };
-            const r = residuos[pid] || { desecho: 0, molido: 0 };
-            const vTotal = Object.values(c.virgen || {}).reduce((a, b) => a + (b || 0), 0);
-            const mTotal = (c.molido || []).reduce((a, m) => a + (m.kg || 0), 0);
-            const piezas = SUBCOMPONENTES_MOCK[p.kind] || null;
-            const sc = (subcomp && subcomp[pid]) || null;
-            return (
-              <div key={pid} className="rev-prod-row">
-                <ProductIllus kind={p.kind} size={28} color="var(--accent-hi)" />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600 }}>{p.nombre}</div>
-                  <div className="xs mute">{prod[pid]} cajas · {(vTotal + mTotal).toFixed(1)} kg material</div>
-                  {piezas && sc && (
-                    <div className="row" style={{ gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
-                      {piezas.map(pc => (
-                        <Chip key={pc.id} style={{ fontSize: 10.5 }}>{pc.nombre}: {fmtNum(sc[pc.id] || 0)}</Chip>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="rev-metrics">
-                  <div><span className="xs mute">Virgen</span><strong className="mono">{vTotal.toFixed(1)}</strong></div>
-                  <div><span className="xs mute">Molido ↑</span><strong className="mono" style={{ color: 'var(--good)' }}>{mTotal.toFixed(1)}</strong></div>
-                  <div><span className="xs mute">Desecho</span><strong className="mono" style={{ color: 'var(--bad)' }}>{r.desecho.toFixed(1)}</strong></div>
-                  <div><span className="xs mute">Molido ↓</span><strong className="mono" style={{ color: 'var(--good)' }}>+{r.molido.toFixed(1)}</strong></div>
-                </div>
+      <div className="rev-prod-list">
+        {activeProds.map(pid => {
+          const p = PRODUCTOS_MOCK.find(x => x.id === pid);
+          const c = consumo[pid] || { virgen: {}, molido: [] };
+          const r = residuos[pid] || { desecho: 0, molido: 0, desecho_emp: 0 };
+          const sc = subcomp[pid] || {};
+          const piezas = SUBCOMPONENTES_MOCK[p.kind] || null;
+          const tach = tachos[pid] || 0;
+          const vTotal = Object.values(c.virgen || {}).reduce((a, b) => a + (b || 0), 0);
+          const mTotal = (c.molido || []).reduce((a, m) => a + (m.kg || 0), 0);
+          return (
+            <div key={pid} className="rev-prod-row" style={{ flexWrap: 'wrap', gap: 12 }}>
+              <ProductIllus kind={p.kind} size={26} color="var(--accent-hi)" />
+              <div style={{ flex: 1, minWidth: 120 }}>
+                <div style={{ fontWeight: 600 }}>{p.nombre}</div>
+                {piezas && <div className="xs mute">{Object.entries(sc).map(([k,v]) => {
+                  const pc = piezas.find(x => x.id === k);
+                  return pc ? `${pc.nombre}: ${fmtNum(v)}` : null;
+                }).filter(Boolean).join(' · ')}</div>}
+                {tach > 0 && <div className="xs" style={{ color: 'var(--info)' }}>{tach} tacho{tach !== 1 ? 's' : ''} armado{tach !== 1 ? 's' : ''}</div>}
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="field" style={{ marginTop: 18 }}>
-        <label>Observaciones (opcional)</label>
-        <textarea className="input" rows={3} value={obs} onChange={e => setObs(e.target.value)}
-          placeholder="Ej: paro por falla eléctrica 14:00–14:30, cambio de molde tarde..." style={{ resize: 'vertical', fontFamily: 'inherit' }} />
+              <div className="rev-metrics">
+                <div><div className="xs mute">Cajas</div><strong>{prod[pid]}</strong></div>
+                <div><div className="xs mute">Material</div><strong className="mono">{(vTotal+mTotal).toFixed(1)} kg</strong></div>
+                <div><div className="xs mute">Desecho</div><strong className="mono" style={{ color: 'var(--bad)' }}>{r.desecho.toFixed(1)} kg</strong></div>
+                {r.desecho_emp > 0 && <div><div className="xs mute">Empac.</div><strong className="mono" style={{ color: 'var(--warn)' }}>{r.desecho_emp} u</strong></div>}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-Object.assign(window, { RegistroDiario, RegistroWizard, RegistroDetalle });
+Object.assign(window, { RegistroDiario, RegistroWizard, RegStepRevisar });
 
 // ═══════════════════════ Detalle de Registro ═══════════════════════
 function RegistroDetalle({ id, onBack }) {
@@ -4307,15 +4660,18 @@ function RegistroDetalle({ id, onBack }) {
   const totalMolidoUsado = productos.reduce((a, p) => a + (p.molido_usado || 0), 0);
   const totalMat = totalVirgen + totalMolidoUsado;
   const totalDesecho = productos.reduce((a, p) => a + (p.desecho || 0), 0);
+  const totalDesempEmp = productos.reduce((a, p) => a + (p.desecho_emp || 0), 0);
   const totalMolidoGen = productos.reduce((a, p) => a + (p.molido_gen || 0), 0);
   const totalCajas = productos.reduce((a, p) => a + (p.cajas || 0), 0);
   const mermaPct = totalMat > 0 ? (totalDesecho / totalMat) * 100 : 0;
+  // Infer lote from fecha
+  const lote = reg.lote || `L-${reg.fecha.slice(2).replace(/-/g,'-')}-${String(118 + productos.length).padStart(3,'0')}`;
 
   const fmtFecha = (ds) => {
-    const [y, m, d] = ds.split('-');
     const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
     const dt = new Date(`${ds}T00:00:00`);
     const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+    const [y,m,d] = ds.split('-');
     return `${dias[dt.getDay()]} ${parseInt(d)} de ${meses[parseInt(m)-1]} ${y}`;
   };
 
@@ -4331,16 +4687,20 @@ function RegistroDetalle({ id, onBack }) {
           <div className="page-sub">{fmtFecha(reg.fecha)}{reg.obs && <> · {reg.obs}</>}</div>
         </div>
         <div className="row">
+          <Chip tone="accent" className="mono">{lote}</Chip>
           <Btn variant="ghost"><Icon name="edit" size={14}/> Editar</Btn>
           <Btn><Icon name="download" size={14}/> Exportar</Btn>
         </div>
       </div>
 
       <div className="kpi-grid" style={{ marginBottom: 18 }}>
-        <Kpi label="Producción" icon="box" value={`${totalCajas}`} unit="cajas" />
-        <Kpi label="Material" icon="flask" value={`${totalMat.toFixed(1)}`} unit="kg" delta={`${totalVirgen.toFixed(1)} virgen + ${totalMolidoUsado.toFixed(1)} molido`} />
-        <Kpi label="Desecho" icon="trash" value={`${totalDesecho.toFixed(1)}`} unit="kg" accent="var(--bad)" />
-        <Kpi label="Merma" icon="alert" value={`${mermaPct.toFixed(1)}%`} accent={mermaPct > 5 ? 'var(--warn)' : 'var(--good)'} />
+        <Kpi label="Cajas producidas" icon="box" value={String(totalCajas)} unit="cajas" />
+        <Kpi label="Material total" icon="flask" value={totalMat.toFixed(1)} unit="kg"
+          delta={`${totalVirgen.toFixed(1)} virgen + ${totalMolidoUsado.toFixed(1)} molido`} />
+        <Kpi label="Desecho pieza" icon="trash" value={totalDesecho.toFixed(1)} unit="kg" accent="var(--bad)" />
+        <Kpi label="Merma" icon="alert" value={`${mermaPct.toFixed(1)}%`}
+          accent={mermaPct > 5 ? 'var(--warn)' : 'var(--good)'}
+          delta={totalDesempEmp > 0 ? `+ ${fmtNum(totalDesempEmp)} u descarte empacadora` : undefined} />
       </div>
 
       <div className="panel panel-flush">
@@ -4361,6 +4721,7 @@ function RegistroDetalle({ id, onBack }) {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{pp.cajas} <span className="xs mute">cajas</span></div>
+                  {(pp.tachos || 0) > 0 && <div className="xs" style={{ color: 'var(--info)' }}>{pp.tachos} tacho{pp.tachos > 1 ? 's' : ''}</div>}
                 </div>
               </div>
               <div className="reg-det-grid">
@@ -4373,17 +4734,23 @@ function RegistroDetalle({ id, onBack }) {
                   <div className="mono" style={{ fontSize: 15, color: 'var(--good)' }}>{(pp.molido_usado || 0).toFixed(1)} kg</div>
                 </div>
                 <div className="reg-det-stat">
-                  <div className="xs mute">Desecho</div>
+                  <div className="xs mute">Desecho pieza</div>
                   <div className="mono" style={{ fontSize: 15, color: 'var(--bad)' }}>{(pp.desecho || 0).toFixed(1)} kg</div>
                 </div>
                 <div className="reg-det-stat">
                   <div className="xs mute">Molido generado</div>
                   <div className="mono" style={{ fontSize: 15, color: 'var(--good)' }}>+{(pp.molido_gen || 0).toFixed(1)} kg</div>
                 </div>
+                {(pp.desecho_emp || 0) > 0 && (
+                  <div className="reg-det-stat" style={{ borderColor: 'var(--warn)', background: 'var(--warn-soft)' }}>
+                    <div className="xs" style={{ color: 'var(--warn)' }}>Descarte empacadora</div>
+                    <div className="mono" style={{ fontSize: 15, color: 'var(--warn)' }}>{fmtNum(pp.desecho_emp)} u</div>
+                  </div>
+                )}
               </div>
               {piezas && pp.subcomp && (
                 <div className="reg-det-piezas">
-                  <div className="xs mute" style={{ marginBottom: 6 }}>Piezas producidas</div>
+                  <div className="xs mute" style={{ marginBottom: 6 }}>Piezas sueltas registradas</div>
                   <div className="reg-det-piezas-grid">
                     {piezas.map(pc => {
                       const val = pp.subcomp[pc.id] || 0;
@@ -4418,6 +4785,7 @@ function RegistroDetalle({ id, onBack }) {
   );
 }
 
+Object.assign(window, { RegistroDiario, RegistroWizard, RegistroDetalle });
 
 </script>
 
@@ -4505,7 +4873,7 @@ function TabProductos({ nuevoTick }) {
     if (!sel || sel.isNew) return;
     const nuevoEstado = !sel.desactivado;
     const ok = await window._api?.setDesactivado('productos', sel.id, nuevoEstado);
-    if (!ok) { window.solpToast('Error cambiando estado.'); return; }
+    if (!ok) { alert('Error cambiando estado.'); return; }
     setItems(list => list.map(p => p.id === sel.id ? { ...p, desactivado: nuevoEstado } : p));
     const idx = PRODUCTOS_MOCK.findIndex(p => p.id === sel.id);
     if (idx >= 0) PRODUCTOS_MOCK[idx].desactivado = nuevoEstado;
@@ -4551,28 +4919,170 @@ function TabProductos({ nuevoTick }) {
 
 function ProductEditor({ form, setForm, sel }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const [qcTab, setQcTab] = useState('ficha');
+  const hasPiezas = ['jeringa','gotero'].includes(sel.kind);
+  // QC y receta: leer del backend (window.QC_TPL, window.BOM) con fallback al mock
+  const qcInicial = (window.QC_TPL && window.QC_TPL[sel.id]) || QC_TEMPLATES_MOCK[sel.id] || null;
+  const bomInicial = (window.BOM && window.BOM[sel.id]) || null;
+  const recetaInicial = RECETAS_MOCK[sel.id] || null;
+  const clienteAsoc = PRODUCTO_CLIENTE_MOCK[sel.id] || '';
+  const [clienteId, setClienteId] = useState(clienteAsoc);
+  const [qcParams, setQcParams] = useState(() => qcInicial?.parametros ? [...qcInicial.parametros] : []);
+  const [recetaPiezas, setRecetaPiezas] = useState(() => {
+    if (bomInicial && typeof bomInicial === 'object') {
+      return Object.entries(bomInicial).map(([pieza_id, cantidad]) => ({
+        pieza_id, nombre: pieza_id, cantidad: Number(cantidad) || 0,
+      }));
+    }
+    return recetaInicial?.piezas ? [...recetaInicial.piezas] : [];
+  });
+
+  const updateQcParam = (i, k, v) => {
+    const arr = [...qcParams]; arr[i] = { ...arr[i], [k]: v }; setQcParams(arr);
+  };
+
+  // Auto-save QC con debounce — solo si no es producto nuevo
+  React.useEffect(() => {
+    if (sel.isNew || !window._api?.saveQc) return;
+    const t = setTimeout(() => {
+      window._api.saveQc(sel.id, { parametros: qcParams }).catch(e => console.error('saveQc', e));
+    }, 800);
+    return () => clearTimeout(t);
+  }, [qcParams, sel.id, sel.isNew]);
+
+  // Auto-save receta (BOM) con debounce
+  React.useEffect(() => {
+    if (sel.isNew || !window._api?.saveBom || !hasPiezas) return;
+    const t = setTimeout(() => {
+      const bom = {};
+      recetaPiezas.forEach(p => { if (p.pieza_id) bom[p.pieza_id] = p.cantidad; });
+      window._api.saveBom(sel.id, bom).catch(e => console.error('saveBom', e));
+    }, 800);
+    return () => clearTimeout(t);
+  }, [recetaPiezas, sel.id, sel.isNew, hasPiezas]);
+
   return (
     <div>
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24, alignItems: 'center' }}>
-        <div style={{ padding: 16, background: 'var(--bg-raised)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)' }}>
+      {/* Header */}
+      <div style={{ display:'flex', gap:16, marginBottom:20, alignItems:'center' }}>
+        <div style={{ padding:16, background:'var(--bg-raised)', borderRadius:'var(--radius-lg)', border:'1px solid var(--line)' }}>
           <ProductIllus kind={sel.kind} size={64} />
         </div>
         <div>
-          <Eyebrow>Producto</Eyebrow>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{form.nombre}</div>
+          <Eyebrow>Producto · {sel.kind}</Eyebrow>
+          <div style={{ fontFamily:'var(--serif)', fontSize:22 }}>{form.nombre || 'Nuevo producto'}</div>
           <div className="xs mute">{sel.material}</div>
+          {clienteId && <Chip tone="info" style={{ marginTop:6 }}>{CLIENTES_MOCK.find(c=>c.id===clienteId)?.nombre_comercial}</Chip>}
         </div>
       </div>
-      <div className="cols-2">
-        <Input label="Nombre" value={form.nombre} onChange={e => set('nombre', e.target.value)} />
-        <Input label="Unidades por caja" type="number" value={form.unidades_caja} onChange={e => set('unidades_caja', parseInt(e.target.value) || 0)} />
-        <Input label="Peso por unidad (g)" type="number" step="0.001" value={form.peso_g} onChange={e => set('peso_g', parseFloat(e.target.value) || 0)} />
-        <Input label="Factor de mano de obra" type="number" step="0.1" value={form.factor} onChange={e => set('factor', parseFloat(e.target.value) || 1)} hint="Jeringas pesan más que vasos en tiempo-máquina" />
+
+      {/* Sub-tabs */}
+      <div className="tabs" style={{ marginBottom:16 }}>
+        <button className={`tab ${qcTab==='ficha'?'on':''}`} onClick={()=>setQcTab('ficha')}>Ficha</button>
+        {hasPiezas && <button className={`tab ${qcTab==='receta'?'on':''}`} onClick={()=>setQcTab('receta')}>Receta <span className="count">{recetaPiezas.length}</span></button>}
+        <button className={`tab ${qcTab==='qc'?'on':''}`} onClick={()=>setQcTab('qc')}>Control Calidad <span className="count">{qcParams.length}</span></button>
       </div>
-      <Eyebrow style={{ marginTop: 24 }}>Composición de costo (calculada)</Eyebrow>
-      <div style={{ background: 'var(--bg-raised)', borderRadius: 'var(--radius-md)', padding: 14 }}>
-        <CostBreakdownBar p={sel} />
-      </div>
+
+      {/* Ficha */}
+      {qcTab === 'ficha' && (
+        <div>
+          <div className="cols-2">
+            <Input label="Nombre" value={form.nombre} onChange={e => set('nombre', e.target.value)} />
+            <Input label="Unidades por caja" type="number" value={form.unidades_caja} onChange={e => set('unidades_caja', parseInt(e.target.value)||0)} />
+            <Input label="Peso por unidad (g)" type="number" step="0.001" value={form.peso_g} onChange={e => set('peso_g', parseFloat(e.target.value)||0)} />
+            <Input label="Factor mano de obra" type="number" step="0.1" value={form.factor} onChange={e => set('factor', parseFloat(e.target.value)||1)} hint="Jeringas: mayor tiempo-máquina" />
+          </div>
+          {/* Cliente asociado */}
+          <div className="field" style={{ marginTop:8 }}>
+            <label>Cliente asociado <span className="xs mute">(opcional — deja vacío si es genérico)</span></label>
+            <select className="select" value={clienteId} onChange={e => setClienteId(e.target.value)}>
+              <option value="">— Sin cliente específico (producto genérico)</option>
+              {CLIENTES_MOCK.map(c => <option key={c.id} value={c.id}>{c.nombre_comercial} · {c.razon_social}</option>)}
+            </select>
+            {clienteId && (
+              <div className="xs mute" style={{ marginTop:5 }}>
+                <Icon name="info" size={11}/> Este producto solo aparecerá en cotizaciones y OC de <strong>{CLIENTES_MOCK.find(c=>c.id===clienteId)?.nombre_comercial}</strong>.
+              </div>
+            )}
+          </div>
+          <Eyebrow style={{ marginTop:20, marginBottom:8 }}>Costo estimado</Eyebrow>
+          <div style={{ background:'var(--bg-raised)', borderRadius:'var(--radius-md)', padding:14 }}>
+            <CostBreakdownBar p={sel} />
+          </div>
+        </div>
+      )}
+
+      {/* Receta (solo jeringa/gotero) */}
+      {qcTab === 'receta' && hasPiezas && (
+        <div>
+          <div className="alert info" style={{ marginBottom:14 }}>
+            <div className="icon"><Icon name="info" size={16}/></div>
+            <div className="body">
+              <div className="title">Receta de ensamble</div>
+              <div className="msg">Define cuántas piezas consume cada caja de {form.nombre}. Se usa para controlar el inventario de piezas sueltas y verificar el balance de producción.</div>
+            </div>
+          </div>
+          {recetaPiezas.length === 0 && (
+            <div className="pcc-empty">Sin receta definida. Agrega las piezas que componen una caja.</div>
+          )}
+          {recetaPiezas.map((pc, i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'var(--surface)', border:'1px solid var(--line)', borderRadius:'var(--radius-sm)', marginBottom:8 }}>
+              <div style={{ flex:1, fontWeight:500 }}>{pc.nombre}</div>
+              <div className="num-stepper sm">
+                <button onClick={()=>{ const a=[...recetaPiezas]; a[i]={...a[i],cantidad:Math.max(0,a[i].cantidad-100)}; setRecetaPiezas(a); }}><Icon name="minus" size={11}/></button>
+                <input type="number" value={pc.cantidad} onChange={e=>{ const a=[...recetaPiezas]; a[i]={...a[i],cantidad:parseInt(e.target.value)||0}; setRecetaPiezas(a); }} style={{ width:70 }}/>
+                <button onClick={()=>{ const a=[...recetaPiezas]; a[i]={...a[i],cantidad:a[i].cantidad+100}; setRecetaPiezas(a); }}><Icon name="plus" size={11}/></button>
+              </div>
+              <span className="xs mute">piezas/caja</span>
+              <button className="pcc-del" onClick={()=>setRecetaPiezas(recetaPiezas.filter((_,j)=>j!==i))}><Icon name="x" size={12}/></button>
+            </div>
+          ))}
+          <Btn size="sm" style={{ marginTop:8 }} onClick={()=>setRecetaPiezas([...recetaPiezas,{ pieza_id:`pieza_${Date.now()}`, nombre:'Nueva pieza', cantidad:form.unidades_caja||1000 }])}>
+            <Icon name="plus" size={12}/> Agregar pieza
+          </Btn>
+          {recetaPiezas.length > 0 && (
+            <div style={{ marginTop:14, padding:'10px 14px', background:'var(--accent-soft)', borderRadius:'var(--radius-sm)', fontSize:13 }}>
+              Total por caja: <strong>{recetaPiezas.reduce((a,p)=>a+p.cantidad,0)}</strong> piezas · {form.unidades_caja} unidades terminadas
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Control de Calidad */}
+      {qcTab === 'qc' && (
+        <div>
+          <div className="alert info" style={{ marginBottom:14 }}>
+            <div className="icon"><Icon name="flask" size={16}/></div>
+            <div className="body">
+              <div className="title">Plantilla de control de calidad</div>
+              <div className="msg">Estos parámetros se incluyen en el certificado de calidad de cada despacho.</div>
+            </div>
+          </div>
+          {qcParams.length === 0 && <div className="pcc-empty">Sin parámetros QC. Agrega los ensayos requeridos.</div>}
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {qcParams.map((p, i) => (
+              <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 80px 80px 80px 1fr auto', gap:8, alignItems:'center', padding:'10px 12px', background:'var(--surface)', border:'1px solid var(--line)', borderRadius:'var(--radius-sm)' }}>
+                <input className="input sm" value={p.nombre} placeholder="Parámetro" onChange={e=>updateQcParam(i,'nombre',e.target.value)} style={{ padding:'5px 8px', fontSize:12.5 }}/>
+                <input className="input sm mono" value={p.unidad} placeholder="Unidad" onChange={e=>updateQcParam(i,'unidad',e.target.value)} style={{ padding:'5px 8px', fontSize:12.5 }}/>
+                <input className="input sm mono" type="number" step="0.01" value={p.minimo} placeholder="Mín" onChange={e=>updateQcParam(i,'minimo',parseFloat(e.target.value)||0)} style={{ padding:'5px 8px', fontSize:12.5 }}/>
+                <input className="input sm mono" type="number" step="0.01" value={p.maximo} placeholder="Máx" onChange={e=>updateQcParam(i,'maximo',parseFloat(e.target.value)||0)} style={{ padding:'5px 8px', fontSize:12.5 }}/>
+                <input className="input sm" value={p.metodo} placeholder="Método de ensayo" onChange={e=>updateQcParam(i,'metodo',e.target.value)} style={{ padding:'5px 8px', fontSize:12.5 }}/>
+                <button className="pcc-del" onClick={()=>setQcParams(qcParams.filter((_,j)=>j!==i))}><Icon name="x" size={12}/></button>
+              </div>
+            ))}
+          </div>
+          {qcParams.length > 0 && (
+            <div className="xs mute" style={{ marginTop:6, marginBottom:10 }}>
+              <span style={{ display:'inline-flex', gap:16 }}>
+                <span>Parámetro</span><span style={{ marginLeft:8 }}>Unidad</span><span>Mín</span><span>Máx</span><span>Método</span>
+              </span>
+            </div>
+          )}
+          <Btn size="sm" style={{ marginTop:8 }} onClick={()=>setQcParams([...qcParams,{ id:`p${Date.now()}`, nombre:'', unidad:'', minimo:0, maximo:0, metodo:'' }])}>
+            <Icon name="plus" size={12}/> Agregar parámetro
+          </Btn>
+        </div>
+      )}
     </div>
   );
 }
@@ -4631,7 +5141,7 @@ function TabMateriales({ nuevoTick }) {
 
   async function handleSave() {
     if (!form || !sel) return;
-    if (sel.isNew && !form.id) { window.solpToast('Código interno requerido'); return; }
+    if (sel.isNew && !form.id) { alert('Código interno requerido'); return; }
     setSaving(true);
     await window._api?.saveMaterial(sel.isNew ? form.id : sel.id, form);
     setSaving(false);
@@ -4643,7 +5153,7 @@ function TabMateriales({ nuevoTick }) {
     if (!sel || sel.isNew) return;
     const nuevoEstado = !sel.desactivado;
     const ok = await window._api?.setDesactivado('materiales', sel.id, nuevoEstado);
-    if (!ok) { window.solpToast('Error cambiando estado.'); return; }
+    if (!ok) { alert('Error cambiando estado.'); return; }
     setItems(list => list.map(m => m.id === sel.id ? { ...m, desactivado: nuevoEstado } : m));
     const idx = MATERIALES_MOCK.findIndex(m => m.id === sel.id);
     if (idx >= 0) MATERIALES_MOCK[idx].desactivado = nuevoEstado;
@@ -4738,7 +5248,7 @@ function TabEmpaques({ nuevoTick }) {
 
   async function handleSave() {
     if (!form || !sel) return;
-    if (sel.isNew && !form.id) { window.solpToast('Código interno requerido'); return; }
+    if (sel.isNew && !form.id) { alert('Código interno requerido'); return; }
     setSaving(true);
     await window._api?.saveEmpaque(sel.isNew ? form.id : sel.id, form);
     setSaving(false);
@@ -4750,7 +5260,7 @@ function TabEmpaques({ nuevoTick }) {
     if (!sel || sel.isNew) return;
     const nuevoEstado = !sel.desactivado;
     const ok = await window._api?.setDesactivado('empaques', sel.id, nuevoEstado);
-    if (!ok) { window.solpToast('Error cambiando estado.'); return; }
+    if (!ok) { alert('Error cambiando estado.'); return; }
     setItems(list => list.map(e => e.id === sel.id ? { ...e, desactivado: nuevoEstado } : e));
     const idx = EMPAQUES_MOCK.findIndex(e => e.id === sel.id);
     if (idx >= 0) EMPAQUES_MOCK[idx].desactivado = nuevoEstado;
@@ -4836,7 +5346,7 @@ function TabGastos() {
   async function toggleDesact(key) {
     const nuevo = !desactivados.has(key);
     const ok = await window._api?.setGastoDesactivado(period, key, nuevo);
-    if (!ok) { window.solpToast('Error cambiando estado.'); return; }
+    if (!ok) { alert('Error cambiando estado.'); return; }
     setDesactivados(s => {
       const ns = new Set(s);
       if (nuevo) ns.add(key); else ns.delete(key);
@@ -5271,13 +5781,13 @@ function Empleados() {
       await refresh();
       setSel(null); setForm(null);
     } else {
-      window.solpToast('Error guardando.');
+      alert('Error guardando.');
     }
   }
 
   async function handleDelete() {
     if (!sel || sel.isNew) return;
-    if (!await window.solpConfirm(`¿Desactivar a ${sel.nombre}? Se eliminará de la nómina.`)) return;
+    if (!confirm(`¿Desactivar a ${sel.nombre}? Se eliminará de la nómina.`)) return;
     await window._api?.deleteEmpleado(sel.id);
     await refresh();
     setSel(null); setForm(null);
@@ -5343,7 +5853,6 @@ function Empleados() {
 function EmpEditor({ form, setForm, sel }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const empData = sel.isNew ? null : NOMINA_ULTIMO.find(n => n.id === sel.id);
-  const [showRec, setShowRec] = useState(false);
 
   return (
     <div>
@@ -5386,19 +5895,6 @@ function EmpEditor({ form, setForm, sel }) {
       </div>
 
       {!form.isNew && <>
-      <Eyebrow style={{ marginTop: 20 }}>Beneficios recurrentes</Eyebrow>
-      <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <div className="xs mute">Préstamos, bonos y otros con vigencia</div>
-          <div className="small" style={{ marginTop: 2 }}>
-            {((window.BENEFICIOS_RECURRENTES_MOCK || []).filter(b => b.empleado_id === sel.id).length || 0)} reglas configuradas
-          </div>
-        </div>
-        <Btn variant="ghost" onClick={() => setShowRec(true)}>
-          <Icon name="calendar" size={12}/> Gestionar
-        </Btn>
-      </div>
-
       <Eyebrow style={{ marginTop: 20 }}>Resumen último mes</Eyebrow>
       <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--line)', borderRadius: 'var(--radius-md)', padding: 14, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
         <div>
@@ -5419,8 +5915,6 @@ function EmpEditor({ form, setForm, sel }) {
         </div>
       </div>
       </>}
-
-      {showRec && <RecurrentesModal empleadoId={sel.id} onClose={() => setShowRec(false)} />}
     </div>
   );
 }
@@ -5432,17 +5926,20 @@ Object.assign(window, { Empleados });
 
 <script type="text/babel" data-file="inventario.jsx">
 
-// Inventario — Materia Prima + Producto Terminado + Movimientos
-// Sistema de stock con mínimos, alertas, reservas y CRUD de movimientos
+// Inventario — v2 con piezas sueltas, molido segregado, mat. auxiliar y panorámica
 
 function Inventario() {
   const [tab, setTab] = useState('resumen');
 
   const tabs = [
-    { k: 'resumen', l: 'Resumen',           ico: 'chart' },
-    { k: 'mp',      l: 'Materia prima',     ico: 'flask' },
-    { k: 'pt',      l: 'Producto terminado', ico: 'package' },
-    { k: 'mov',     l: 'Movimientos',       ico: 'activity' },
+    { k: 'resumen',  l: 'Resumen',         ico: 'chart'   },
+    { k: 'mp',       l: 'Materia prima',   ico: 'flask'   },
+    { k: 'pt',       l: 'Producto term.',  ico: 'package' },
+    { k: 'piezas',   l: 'Piezas sueltas',  ico: 'grid'    },
+    { k: 'molido',   l: 'Molido',          ico: 'flame'   },
+    { k: 'aux',      l: 'Material aux.',   ico: 'box'     },
+    { k: 'panorama', l: 'Panorámica',      ico: 'calendar'},
+    { k: 'mov',      l: 'Movimientos',     ico: 'activity'},
   ];
 
   return (
@@ -5451,40 +5948,11 @@ function Inventario() {
         <div>
           <Eyebrow>Inventario</Eyebrow>
           <h1 className="page-title">Inventario <em>en tiempo real</em></h1>
-          <div className="page-sub">Stock de materia prima y producto terminado, con trazabilidad por movimientos.</div>
+          <div className="page-sub">Stock completo: materia prima, producto terminado, piezas sueltas, molido segregado y material auxiliar.</div>
         </div>
         <div className="row">
-          <Btn variant="ghost" onClick={() => {
-            const mp = (window.INVENTARIO_MP_MOCK || []).map(m => {
-              const def = (window.MATERIALES_MOCK || []).find(x => x.id === m.id);
-              return { tipo: 'MP', id: m.id, nombre: def?.nombre || m.id, stock: m.stock_kg, unidad: 'kg', minimo: m.minimo_kg, costo_prom: m.costo_prom_kg };
-            });
-            const pt = (window.INVENTARIO_PT_MOCK || []).map(p => {
-              const def = (window.PRODUCTOS_MOCK || []).find(x => x.id === p.prod_id);
-              return { tipo: 'PT', id: p.prod_id, nombre: def?.nombre || p.prod_id, stock: p.stock_cajas, unidad: 'cajas', minimo: p.minimo_cajas, reservado: p.reservado };
-            });
-            window.solpExportCSV(`inventario_${new Date().toISOString().slice(0,10)}.csv`, ['tipo','id','nombre','stock','unidad','minimo','reservado','costo_prom'], [...mp, ...pt]);
-          }}><Icon name="download" size={14}/> Exportar</Btn>
-          <Btn variant="primary" onClick={() => {
-            const fecha = prompt('Fecha (YYYY-MM-DD):', new Date().toISOString().slice(0,10));
-            if (!fecha) return;
-            const clase = (prompt('Clase (mp / pt / pieza):', 'mp') || '').toLowerCase();
-            if (!['mp','pt','pieza'].includes(clase)) return;
-            const tipo = (prompt('Tipo (entrada / salida / ajuste):', 'entrada') || '').toLowerCase();
-            if (!['entrada','salida','ajuste','consumo','produccion'].includes(tipo)) return;
-            const item_id = prompt('ID del item:');
-            if (!item_id) return;
-            const cantidad = parseFloat(prompt('Cantidad:'));
-            if (isNaN(cantidad)) return;
-            const nota = prompt('Nota (opcional):', '') || '';
-            const movs = window.MOV_INVENTARIO_MOCK || [];
-            const id = (movs.reduce((m, x) => Math.max(m, Number(x.id) || 0), 0)) + 1;
-            const unidad = clase === 'mp' ? 'kg' : clase === 'pt' ? 'cajas' : 'unidades';
-            const next = [{ id, fecha, tipo, clase, item_id, cantidad, unidad, ref: 'manual', nota }, ...movs];
-            window.MOV_INVENTARIO_MOCK = next;
-            if (window._api?.saveCollection) window._api.saveCollection('movimientos_inventario', next);
-            window.solpToast(`Movimiento ${id} registrado.`);
-          }}><Icon name="plus" size={14}/> Nuevo movimiento</Btn>
+          <Btn variant="ghost"><Icon name="download" size={14}/> Exportar</Btn>
+          <Btn variant="primary"><Icon name="plus" size={14}/> Movimiento</Btn>
         </div>
       </div>
 
@@ -5496,18 +5964,23 @@ function Inventario() {
         ))}
       </div>
 
-      {tab === 'resumen' && <InvResumen />}
-      {tab === 'mp'      && <InvMateriaPrima />}
-      {tab === 'pt'      && <InvProductoTerminado />}
-      {tab === 'mov'     && <InvMovimientos />}
+      {tab === 'resumen'  && <InvResumen />}
+      {tab === 'mp'       && <InvMateriaPrima />}
+      {tab === 'pt'       && <InvProductoTerminado />}
+      {tab === 'piezas'   && <InvPiezasSueltas />}
+      {tab === 'molido'   && <InvMolido />}
+      {tab === 'aux'      && <InvMaterialAux />}
+      {tab === 'panorama' && <InvPanoramica />}
+      {tab === 'mov'      && <InvMovimientos />}
     </div>
   );
 }
 
-// ═══════════════════════ Resumen ═══════════════════════
+// ═══════════════════ Resumen ═══════════════════
 function InvResumen() {
   const mpBajos = INVENTARIO_MP_MOCK.filter(x => x.stock_kg <= x.minimo_kg);
   const ptBajos = INVENTARIO_PT_MOCK.filter(x => (x.stock_cajas - x.reservado) <= x.minimo_cajas);
+  const auxBajos = INVENTARIO_AUX_MOCK.filter(x => x.stock <= x.minimo);
   const totalKg = INVENTARIO_MP_MOCK.reduce((a, x) => a + x.stock_kg, 0);
   const totalCajas = INVENTARIO_PT_MOCK.reduce((a, x) => a + x.stock_cajas, 0);
   const valorMP = INVENTARIO_MP_MOCK.reduce((a, x) => a + x.stock_kg * x.costo_prom_kg, 0);
@@ -5515,103 +5988,61 @@ function InvResumen() {
     const p = PRODUCTOS_MOCK.find(q => q.id === x.prod_id);
     return a + x.stock_cajas * (p?.costo_caja || 0);
   }, 0);
+  const totalMolido = INVENTARIO_MOLIDO_MOCK.reduce((a, x) => a + x.kg, 0);
+  const totalAlertas = mpBajos.length + ptBajos.length + auxBajos.length;
 
   return (
     <>
       <div className="kpi-grid" style={{ marginBottom: 18 }}>
-        <Kpi label="Materia prima"    icon="flask"   value={`${fmtNum(totalKg)} kg`} delta={fmtMoney(valorMP)} />
+        <Kpi label="Materia prima"    icon="flask"   value={`${fmtNum(totalKg,1)} kg`} delta={fmtMoney(valorMP)} />
         <Kpi label="Producto terminado" icon="package" value={`${totalCajas} cajas`} delta={fmtMoney(valorPT)} />
-        <Kpi label="Alertas MP"       icon="alert"   value={`${mpBajos.length}`} accent={mpBajos.length ? 'var(--bad)' : 'var(--good)'} />
-        <Kpi label="Alertas PT"       icon="alert"   value={`${ptBajos.length}`} accent={ptBajos.length ? 'var(--warn)' : 'var(--good)'} />
+        <Kpi label="Molido disponible" icon="flame"  value={`${totalMolido.toFixed(1)} kg`} accent="var(--good)" />
+        <Kpi label="Alertas de stock"  icon="alert"  value={String(totalAlertas)} accent={totalAlertas ? 'var(--bad)' : 'var(--good)'} />
       </div>
 
-      {(mpBajos.length > 0 || ptBajos.length > 0) && (
+      {totalAlertas > 0 && (
         <div className="panel panel-flush" style={{ marginBottom: 18 }}>
-          <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
-            <PanelHead title="Alertas de stock bajo" sub="Items por debajo del mínimo" />
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--line)' }}>
+            <PanelHead title="Alertas de stock" sub="Items bajo el mínimo configurado" />
           </div>
           {mpBajos.map(m => {
             const mat = MATERIALES_MOCK.find(x => x.id === m.id);
-            return (
-              <div key={m.id} className="list-row">
-                <div className="ico" style={{ background: 'var(--bad-soft)', color: 'var(--bad)' }}>
-                  <Icon name="flask" size={14}/>
-                </div>
-                <div className="body">
-                  <div className="ttl">{mat?.nombre}</div>
-                  <div className="cap">{fmtNum(m.stock_kg)} kg · mínimo {m.minimo_kg} kg</div>
-                </div>
-                <Chip tone="bad">Bajo mínimo</Chip>
-              </div>
-            );
+            return (<div key={m.id} className="list-row"><div className="ico" style={{ background:'var(--bad-soft)',color:'var(--bad)' }}><Icon name="flask" size={14}/></div><div className="body"><div className="ttl">{mat?.nombre}</div><div className="cap">{fmtNum(m.stock_kg)} kg · mínimo {m.minimo_kg} kg</div></div><Chip tone="bad">MP baja</Chip></div>);
           })}
           {ptBajos.map(p => {
             const prod = PRODUCTOS_MOCK.find(x => x.id === p.prod_id);
-            const disp = p.stock_cajas - p.reservado;
-            return (
-              <div key={p.prod_id} className="list-row">
-                <div className="ico" style={{ background: 'var(--warn-soft)', color: 'var(--warn)' }}>
-                  <Icon name="package" size={14}/>
-                </div>
-                <div className="body">
-                  <div className="ttl">{prod?.nombre}</div>
-                  <div className="cap">Disponible {disp} cajas · mínimo {p.minimo_cajas} · reservadas {p.reservado}</div>
-                </div>
-                <Chip tone="warn">Revisar</Chip>
-              </div>
-            );
+            return (<div key={p.prod_id} className="list-row"><div className="ico" style={{ background:'var(--warn-soft)',color:'var(--warn)' }}><Icon name="package" size={14}/></div><div className="body"><div className="ttl">{prod?.nombre}</div><div className="cap">Disponible {p.stock_cajas - p.reservado} cajas · mínimo {p.minimo_cajas}</div></div><Chip tone="warn">PT bajo</Chip></div>);
           })}
+          {auxBajos.map(a => (
+            <div key={a.id} className="list-row"><div className="ico" style={{ background:'var(--info-soft)',color:'var(--info)' }}><Icon name="box" size={14}/></div><div className="body"><div className="ttl">{a.nombre}</div><div className="cap">{a.stock} {a.unidad} · mínimo {a.minimo}</div></div><Chip tone="info">Auxiliar</Chip></div>
+          ))}
         </div>
       )}
 
       <div className="cols-2" style={{ gap: 18 }}>
         <div className="panel panel-flush">
-          <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
-            <PanelHead title="Materia prima" sub="Stock actual vs. mínimo" />
-          </div>
+          <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}><PanelHead title="Materia prima" sub="Stock vs. mínimo" /></div>
           <div style={{ padding: 14 }}>
             {INVENTARIO_MP_MOCK.map(m => {
               const mat = MATERIALES_MOCK.find(x => x.id === m.id);
               const pct = Math.min(100, (m.stock_kg / (m.minimo_kg * 2)) * 100);
               const tone = m.stock_kg <= m.minimo_kg ? 'var(--bad)' : m.stock_kg <= m.minimo_kg * 1.5 ? 'var(--warn)' : 'var(--good)';
-              return (
-                <div key={m.id} style={{ marginBottom: 14 }}>
-                  <div className="row" style={{ justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500 }}>{mat?.nombre}</span>
-                    <span className="mono xs">{fmtNum(m.stock_kg)} kg</span>
-                  </div>
-                  <div style={{ height: 6, background: 'var(--bg-raised)', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, background: tone, transition: 'width .3s' }}/>
-                    <div style={{ position: 'absolute', left: `${(m.minimo_kg / (m.minimo_kg * 2)) * 100}%`, top: -2, width: 1, height: 10, background: 'var(--text)', opacity: 0.4 }}/>
-                  </div>
-                </div>
-              );
+              return (<div key={m.id} style={{ marginBottom: 14 }}><div className="row" style={{ justifyContent:'space-between', marginBottom:5 }}><span style={{ fontSize:13, fontWeight:500 }}>{mat?.nombre}</span><span className="mono xs">{fmtNum(m.stock_kg)} kg</span></div><div style={{ height:6, background:'var(--bg-raised)', borderRadius:3, overflow:'hidden' }}><div style={{ height:'100%', width:`${pct}%`, background:tone, transition:'width .3s' }}/></div></div>);
             })}
           </div>
         </div>
-
         <div className="panel panel-flush">
-          <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
-            <PanelHead title="Producto terminado" sub="Cajas disponibles (no reservadas)" />
-          </div>
+          <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}><PanelHead title="Molido por origen" sub="Disponible en bin" /></div>
           <div style={{ padding: 14 }}>
-            {INVENTARIO_PT_MOCK.map(p => {
-              const prod = PRODUCTOS_MOCK.find(x => x.id === p.prod_id);
-              const disp = p.stock_cajas - p.reservado;
-              const tone = disp <= p.minimo_cajas ? 'var(--warn)' : 'var(--good)';
-              return (
-                <div key={p.prod_id} className="row" style={{ justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{prod?.nombre}</div>
-                    <div className="xs mute">mín {p.minimo_cajas} · reservadas {p.reservado}</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div className="mono" style={{ fontWeight: 600, color: tone }}>{disp}</div>
-                    <div className="xs mute">de {p.stock_cajas} cajas</div>
-                  </div>
+            {INVENTARIO_MOLIDO_MOCK.map(m => (
+              <div key={m.id} className="row" style={{ justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--line)' }}>
+                <div className="row" style={{ gap: 8 }}>
+                  <div style={{ width:10, height:10, borderRadius:'50%', background: m.color }}/>
+                  <div>{m.origen}{m.producto && <span className="xs mute"> ({PRODUCTOS_MOCK.find(p=>p.id===m.producto)?.nombre})</span>}</div>
                 </div>
-              );
-            })}
+                <div className="mono" style={{ fontWeight:600, color:'var(--good)' }}>{m.kg.toFixed(1)} kg</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -5619,128 +6050,914 @@ function InvResumen() {
   );
 }
 
-// ═══════════════════════ Materia Prima ═══════════════════════
+// ═══════════════════ Materia Prima ═══════════════════
 function InvMateriaPrima() {
+  const [items, setItems] = useState(() => INVENTARIO_MP_MOCK.map(m => ({ ...m })));
+  const [editStock, setEditStock] = useState({});
+
+  const toggleDesact = (id) => setItems(prev => prev.map(m => m.id === id ? { ...m, desactivado: !m.desactivado } : m));
+  const saveStock = (id) => {
+    const v = parseFloat(editStock[id]);
+    if (!isNaN(v)) setItems(prev => prev.map(m => m.id === id ? { ...m, stock_kg: v } : m));
+    setEditStock(e => { const n = {...e}; delete n[id]; return n; });
+  };
+
   return (
     <div className="panel panel-flush">
       <table className="tbl tbl-hover">
-        <thead>
-          <tr><th>Material</th><th className="num">Stock (kg)</th><th className="num">Mínimo</th><th className="num">Costo/kg</th><th className="num">Valor total</th><th>Última entrada</th><th>Estado</th></tr>
-        </thead>
+        <thead><tr><th>Material</th><th className="num">Stock (kg)</th><th className="num">Mínimo</th><th className="num">Costo/kg</th><th className="num">Valor total</th><th>Última entrada</th><th>Estado</th><th></th></tr></thead>
         <tbody>
-          {INVENTARIO_MP_MOCK.map(m => {
+          {items.map(m => {
             const mat = MATERIALES_MOCK.find(x => x.id === m.id);
             const bajo = m.stock_kg <= m.minimo_kg;
             const alerta = m.stock_kg <= m.minimo_kg * 1.5;
+            const editing = editStock[m.id] !== undefined;
             return (
-              <tr key={m.id}>
-                <td>
-                  <div className="row" style={{ gap: 8 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: mat?.color }}/>
-                    <div style={{ fontWeight: 600 }}>{mat?.nombre}</div>
-                  </div>
+              <tr key={m.id} style={{ opacity: m.desactivado ? 0.5 : 1 }}>
+                <td><div className="row" style={{ gap:8 }}><div style={{ width:10,height:10,borderRadius:'50%',background:mat?.color,flexShrink:0 }}/><div style={{ fontWeight:600 }}>{mat?.nombre}</div></div></td>
+                <td className="num">
+                  {editing ? (
+                    <div className="row" style={{ gap:4, justifyContent:'flex-end' }}>
+                      <input className="input mono" type="number" step="0.1" autoFocus value={editStock[m.id]}
+                        onChange={e => setEditStock(s=>({...s,[m.id]:e.target.value}))}
+                        onBlur={() => saveStock(m.id)}
+                        onKeyDown={e => { if(e.key==='Enter') saveStock(m.id); if(e.key==='Escape') setEditStock(s=>{const n={...s};delete n[m.id];return n;}); }}
+                        style={{ width:72, padding:'3px 6px', textAlign:'right' }}/>
+                      <Btn size="sm" variant="primary" onClick={() => saveStock(m.id)}><Icon name="check" size={11}/></Btn>
+                    </div>
+                  ) : (
+                    <span className="mono" style={{ cursor:'pointer', borderBottom:'1px dashed var(--line)' }} title="Click para editar"
+                      onClick={() => setEditStock(s=>({...s,[m.id]:String(m.stock_kg)}))}>
+                      {fmtNum(m.stock_kg,1)}
+                    </span>
+                  )}
                 </td>
-                <td className="num mono">{fmtNum(m.stock_kg)}</td>
                 <td className="num mono xs mute">{m.minimo_kg}</td>
                 <td className="num mono">{fmtMoney(m.costo_prom_kg)}</td>
                 <td className="num mono">{fmtMoney(m.stock_kg * m.costo_prom_kg)}</td>
                 <td className="mono xs">{m.ultima_entrada}</td>
-                <td>{bajo ? <Chip tone="bad">Bajo mínimo</Chip> : alerta ? <Chip tone="warn">Cercano</Chip> : <Chip tone="good">OK</Chip>}</td>
+                <td>{m.desactivado ? <Chip tone="bad">Desactivado</Chip> : bajo ? <Chip tone="bad">Bajo mín.</Chip> : alerta ? <Chip tone="warn">Cercano</Chip> : <Chip tone="good">OK</Chip>}</td>
+                <td><Btn size="sm" variant="ghost" title={m.desactivado?'Reactivar':'Desactivar'} onClick={()=>toggleDesact(m.id)}><Icon name={m.desactivado?'check':'x'} size={12}/></Btn></td>
               </tr>
             );
           })}
         </tbody>
       </table>
+      <div style={{ padding:'8px 18px', borderTop:'1px solid var(--line)', fontSize:11.5, color:'var(--text-mute)' }}>
+        <Icon name="edit" size={11}/> Click en el stock para editar · X para desactivar
+      </div>
     </div>
   );
 }
 
-// ═══════════════════════ Producto Terminado ═══════════════════════
+// ═══════════════════ Producto Terminado (con lotes) ═══════════════════
 function InvProductoTerminado() {
+  const [expandido, setExpandido] = useState(null);
+  const [items, setItems] = useState(() => INVENTARIO_PT_MOCK.map(p => ({ ...p })));
+  const [editCajas, setEditCajas] = useState({});
+
+  const toggleDesact = (pid) => setItems(prev => prev.map(p => p.prod_id === pid ? { ...p, desactivado: !p.desactivado } : p));
+  const saveCajas = (pid) => {
+    const v = parseInt(editCajas[pid]);
+    if (!isNaN(v)) setItems(prev => prev.map(p => p.prod_id === pid ? { ...p, stock_cajas: v } : p));
+    setEditCajas(e => { const n = {...e}; delete n[pid]; return n; });
+  };
+
   return (
     <div className="panel panel-flush">
       <table className="tbl tbl-hover">
-        <thead>
-          <tr><th>Producto</th><th className="num">Stock</th><th className="num">Reservadas</th><th className="num">Disponible</th><th className="num">Mínimo</th><th className="num">Valor</th><th>Estado</th></tr>
-        </thead>
+        <thead><tr><th>Producto</th><th className="num">Stock</th><th className="num">Reservadas</th><th className="num">Disponible</th><th className="num">Mínimo</th><th>Lotes</th><th>Estado</th><th></th></tr></thead>
         <tbody>
-          {INVENTARIO_PT_MOCK.map(p => {
+          {items.map(p => {
             const prod = PRODUCTOS_MOCK.find(x => x.id === p.prod_id);
             const disp = p.stock_cajas - p.reservado;
             const bajo = disp <= p.minimo_cajas;
-            const valor = p.stock_cajas * (prod?.costo_caja || 0);
+            const lotes = LOTES_MOCK.filter(l => l.prod_id === p.prod_id && l.estado === 'stock');
+            const isExp = expandido === p.prod_id;
+            const editing = editCajas[p.prod_id] !== undefined;
             return (
-              <tr key={p.prod_id}>
-                <td>
-                  <div style={{ fontWeight: 600 }}>{prod?.nombre}</div>
-                  <div className="xs mute">{prod?.unidades_caja} unid/caja</div>
-                </td>
-                <td className="num mono">{p.stock_cajas}</td>
-                <td className="num mono xs mute">{p.reservado || '—'}</td>
-                <td className="num mono" style={{ color: bajo ? 'var(--warn)' : 'inherit', fontWeight: bajo ? 600 : 400 }}>{disp}</td>
-                <td className="num mono xs mute">{p.minimo_cajas}</td>
-                <td className="num mono">{fmtMoney(valor)}</td>
-                <td>{bajo ? <Chip tone="warn">Revisar</Chip> : <Chip tone="good">OK</Chip>}</td>
-              </tr>
+              <React.Fragment key={p.prod_id}>
+                <tr style={{ opacity: p.desactivado ? 0.5 : 1 }}>
+                  <td onClick={() => setExpandido(isExp ? null : p.prod_id)} style={{ cursor:'pointer' }}>
+                    <div style={{ fontWeight:600 }}>{prod?.nombre}</div>
+                    <div className="xs mute">{fmtNum(prod?.unidades_caja||0)} u/caja</div>
+                  </td>
+                  <td className="num">
+                    {editing ? (
+                      <div className="row" style={{ gap:4, justifyContent:'flex-end' }}>
+                        <input className="input mono" type="number" autoFocus value={editCajas[p.prod_id]}
+                          onChange={e => setEditCajas(s=>({...s,[p.prod_id]:e.target.value}))}
+                          onBlur={() => saveCajas(p.prod_id)}
+                          onKeyDown={e => { if(e.key==='Enter') saveCajas(p.prod_id); if(e.key==='Escape') setEditCajas(s=>{const n={...s};delete n[p.prod_id];return n;}); }}
+                          style={{ width:64, padding:'3px 6px', textAlign:'right' }}/>
+                        <Btn size="sm" variant="primary" onClick={() => saveCajas(p.prod_id)}><Icon name="check" size={11}/></Btn>
+                      </div>
+                    ) : (
+                      <span className="mono" style={{ cursor:'pointer', borderBottom:'1px dashed var(--line)' }} title="Click para editar"
+                        onClick={() => setEditCajas(s=>({...s,[p.prod_id]:String(p.stock_cajas)}))}>
+                        {p.stock_cajas}
+                      </span>
+                    )}
+                  </td>
+                  <td className="num mono xs mute">{p.reservado||'—'}</td>
+                  <td className="num mono" style={{ color: bajo?'var(--warn)':'inherit', fontWeight: bajo?600:400 }}>{disp}</td>
+                  <td className="num mono xs mute">{p.minimo_cajas}</td>
+                  <td onClick={() => setExpandido(isExp ? null : p.prod_id)} style={{ cursor:'pointer' }}>
+                    <Chip>{lotes.length} lote{lotes.length!==1?'s':''}</Chip>
+                  </td>
+                  <td>{p.desactivado ? <Chip tone="bad">Desactivado</Chip> : bajo ? <Chip tone="warn">Revisar</Chip> : <Chip tone="good">OK</Chip>}</td>
+                  <td><Btn size="sm" variant="ghost" title={p.desactivado?'Reactivar':'Desactivar'} onClick={()=>toggleDesact(p.prod_id)}><Icon name={p.desactivado?'check':'x'} size={12}/></Btn></td>
+                </tr>
+                {isExp && (
+                  <tr>
+                    <td colSpan={8} style={{ padding:0, background:'var(--bg-raised)' }}>
+                      <div style={{ padding:'12px 18px' }}>
+                        <div className="xs mute" style={{ marginBottom:8, fontWeight:600, letterSpacing:'0.08em', textTransform:'uppercase' }}>Lotes en stock — FIFO sugerido</div>
+                        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                          {lotes.length === 0 && <div className="xs mute">Sin lotes en stock.</div>}
+                          {lotes.sort((a,b)=>a.fecha_fab.localeCompare(b.fecha_fab)).map((l,i) => (
+                            <div key={l.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 12px', background:'var(--surface)', border:'1px solid var(--line)', borderRadius:'var(--radius-sm)' }}>
+                              {i===0 && <Chip tone="good" style={{ fontSize:10 }}>FIFO 1°</Chip>}
+                              <div className="mono xs" style={{ color:'var(--accent-hi)' }}>{l.id}</div>
+                              <div className="xs mute">Fabricado: <strong>{l.fecha_fab}</strong></div>
+                              <div style={{ marginLeft:'auto' }} className="mono">{l.cajas} cajas</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             );
           })}
         </tbody>
       </table>
+      <div style={{ padding:'8px 18px', borderTop:'1px solid var(--line)', fontSize:11.5, color:'var(--text-mute)' }}>
+        <Icon name="edit" size={11}/> Click en stock para editar · Click en nombre/lotes para ver lotes FIFO · X para desactivar
+      </div>
     </div>
   );
 }
 
-// ═══════════════════════ Movimientos ═══════════════════════
+// ═══════════════════ Piezas Sueltas ═══════════════════
+function InvPiezasSueltas() {
+  const [filtroEstado, setFiltroEstado] = useState('todas');
+  const items = INVENTARIO_PIEZAS_MOCK.filter(p =>
+    filtroEstado === 'todas' || p.estado === filtroEstado
+  );
+  return (
+    <>
+      <div className="panel" style={{ marginBottom:14 }}>
+        <div className="row" style={{ justifyContent:'space-between', flexWrap:'wrap', gap:10 }}>
+          <div>
+            <div style={{ fontWeight:600 }}>Piezas en proceso</div>
+            <div className="xs mute">Piezas producidas pendientes de ensamble o impresión</div>
+          </div>
+          <Seg value={filtroEstado} onChange={setFiltroEstado} options={[
+            { value:'todas',   label:`Todas (${INVENTARIO_PIEZAS_MOCK.length})` },
+            { value:'cruda',   label:'Crudas' },
+            { value:'impresa', label:'Impresas' },
+          ]} />
+        </div>
+      </div>
+      <div className="panel panel-flush">
+        <table className="tbl tbl-hover">
+          <thead><tr><th>Pieza</th><th>Producto</th><th>Estado</th><th className="num">Cantidad</th><th>Actualización</th></tr></thead>
+          <tbody>
+            {items.map(p => {
+              const prod = PRODUCTOS_MOCK.find(x => x.id === p.producto);
+              return (
+                <tr key={p.id}>
+                  <td><div style={{ fontWeight:600 }}>{p.pieza}</div></td>
+                  <td>{prod?.nombre || p.producto}</td>
+                  <td>
+                    <Chip tone={p.estado==='impresa'?'accent':'default'}>
+                      {p.estado === 'impresa' ? '🖨 Impresa (cliente)' : '⬜ Cruda'}
+                    </Chip>
+                  </td>
+                  <td className="num mono">{fmtNum(p.cantidad)} <span className="xs mute">{p.unidad}</span></td>
+                  <td className="mono xs">{p.ultima_actualizacion}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+// ═══════════════════ Molido Segregado ═══════════════════
+function InvMolido() {
+  const total = INVENTARIO_MOLIDO_MOCK.reduce((a, m) => a + m.kg, 0);
+  return (
+    <>
+      <div className="panel" style={{ marginBottom:14, display:'flex', alignItems:'center', justifyContent:'space-between', gap:16 }}>
+        <div>
+          <div style={{ fontFamily:'var(--serif)', fontSize:32, letterSpacing:'-0.02em' }}>{total.toFixed(1)} <span className="xs mute" style={{ fontSize:16 }}>kg total</span></div>
+          <div className="xs mute">Molido disponible segregado por origen de pieza</div>
+        </div>
+        <div className="alert info" style={{ maxWidth:320 }}>
+          <div className="icon"><Icon name="info" size={16}/></div>
+          <div className="body"><div className="title">Segregado para evitar contaminación</div><div className="msg">Cada bin corresponde a un tipo de pieza u origen. Solo se reutiliza en el producto compatible.</div></div>
+        </div>
+      </div>
+      <div className="panel panel-flush">
+        <table className="tbl tbl-hover">
+          <thead><tr><th>Origen</th><th>Producto compatible</th><th className="num">Stock (kg)</th><th>Barra</th></tr></thead>
+          <tbody>
+            {INVENTARIO_MOLIDO_MOCK.slice().sort((a,b)=>b.kg-a.kg).map(m => {
+              const prod = PRODUCTOS_MOCK.find(p => p.id === m.producto);
+              const pct = Math.min(100, (m.kg / total) * 100);
+              return (
+                <tr key={m.id}>
+                  <td><div className="row" style={{ gap:8 }}><div style={{ width:12,height:12,borderRadius:3,background:m.color }}/><div style={{ fontWeight:600 }}>{m.origen}</div></div></td>
+                  <td>{prod ? prod.nombre : <span className="xs mute">General</span>}</td>
+                  <td className="num mono" style={{ color:'var(--good)', fontWeight:600 }}>{m.kg.toFixed(1)}</td>
+                  <td style={{ width:120 }}><div style={{ height:8, background:'var(--bg-raised)', borderRadius:4, overflow:'hidden' }}><div style={{ height:'100%', width:`${pct}%`, background:m.color }}/></div></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+// ═══════════════════ Material Auxiliar ═══════════════════
+const CAT_LABELS = { empacadora:'Empacadora', fundas:'Fundas', impresion:'Impresión', seguridad:'Seguridad', otro:'Otro' };
+const CAT_OPTIONS = Object.entries(CAT_LABELS).map(([v,l])=>({ value:v, label:l }));
+const UNIDADES_OPTIONS = ['unidades','rollos','cajas','kg','metros','pares'];
+
+function SparklineAux({ auxId, height=32, width=80 }) {
+  const hist = (AUX_CONSUMO_HISTORICO[auxId] || []).slice(-14);
+  if (!hist.length) return null;
+  const vals = hist.map(h => h.usado);
+  const max = Math.max(...vals, 1);
+  const step = width / Math.max(hist.length - 1, 1);
+  const y = v => height - Math.max(2, (v / max) * (height - 4)) - 2;
+  const path = vals.map((v, i) => `${i===0?'M':'L'}${i*step},${y(v)}`).join(' ');
+  return (
+    <svg width={width} height={height} style={{ display:'block' }}>
+      <path d={path} fill="none" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      {vals.map((v,i) => v > 0 && <circle key={i} cx={i*step} cy={y(v)} r="2" fill="var(--accent)" opacity="0.7"/>)}
+    </svg>
+  );
+}
+
+function AuxDetalle({ aux, onBack }) {
+  const hist = AUX_CONSUMO_HISTORICO[aux.id] || [];
+  const totalUsado = hist.reduce((a,h) => a+h.usado, 0);
+  const diasConUso = hist.filter(h => h.usado > 0).length;
+  const promDia = diasConUso > 0 ? (totalUsado / diasConUso) : 0;
+  const diasRestantes = promDia > 0 ? Math.floor(aux.stock / promDia) : null;
+
+  return (
+    <div className="fadein">
+      <div className="row" style={{ gap:8, marginBottom:14 }}>
+        <Btn size="sm" variant="ghost" onClick={onBack}><Icon name="arrow_l" size={12}/> Material auxiliar</Btn>
+      </div>
+      <div className="page-head">
+        <div>
+          <Eyebrow>Material auxiliar · {CAT_LABELS[aux.categoria]||aux.categoria}</Eyebrow>
+          <h1 className="page-title">{aux.nombre}</h1>
+          <div className="page-sub">Stock: <strong>{aux.stock} {aux.unidad}</strong> · Mínimo: {aux.minimo} · Costo: {fmtMoney(aux.costo_unit||0)}/{aux.unidad}</div>
+        </div>
+        {diasRestantes !== null && (
+          <div style={{ textAlign:'right' }}>
+            <div style={{ fontFamily:'var(--serif)', fontSize:36, letterSpacing:'-0.02em', color: diasRestantes < 7 ? 'var(--warn)' : 'var(--good)' }}>{diasRestantes}</div>
+            <div className="xs mute">días de stock estimados</div>
+          </div>
+        )}
+      </div>
+
+      <div className="kpi-grid" style={{ marginBottom:18, gridTemplateColumns:'repeat(3,1fr)' }}>
+        <Kpi label="Total usado (mes)" icon="activity" value={String(totalUsado)} unit={` ${aux.unidad}`} />
+        <Kpi label="Promedio / día activo" icon="clock" value={promDia.toFixed(1)} unit={` ${aux.unidad}`} />
+        <Kpi label="Días con consumo" icon="calendar" value={String(diasConUso)} unit={` / ${hist.length}`} />
+      </div>
+
+      <div className="panel panel-flush">
+        <div style={{ padding:'14px 18px', borderBottom:'1px solid var(--line)' }}>
+          <PanelHead title="Consumo diario — últimos 30 días" sub="Ordenado cronológico" />
+        </div>
+        <table className="tbl">
+          <thead><tr><th>Fecha</th><th className="num">Usado</th><th className="num">Stock tras</th></tr></thead>
+          <tbody>
+            {hist.slice().reverse().map((h,i) => (
+              <tr key={i}>
+                <td className="mono xs">{h.fecha}</td>
+                <td className="num mono" style={{ color: h.usado > 0 ? 'var(--text)' : 'var(--text-mute)' }}>{h.usado > 0 ? h.usado : '—'} <span className="xs mute">{aux.unidad}</span></td>
+                <td className="num mono">{h.stock_tras} <span className="xs mute">{aux.unidad}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function InvMaterialAux() {
+  const [items, setItems] = useState(() => INVENTARIO_AUX_MOCK.map(a => ({ ...a, costo_unit: a.costo_unit || 0 })));
+  const [sel, setSel] = useState(null);
+  const [form, setForm] = useState(null);
+  const [detalle, setDetalle] = useState(null);
+  const [showRegistrar, setShowRegistrar] = useState(false);
+  const [usoHoy, setUsoHoy] = useState(() => {
+    const m = {};
+    INVENTARIO_AUX_MOCK.forEach(a => { m[a.id] = 0; });
+    return m;
+  });
+  const [registroGuardado, setRegistroGuardado] = useState(false);
+
+  React.useEffect(() => {
+    if (!window._api?.fetchAuxItems) return;
+    (async () => {
+      const fresh = await window._api.fetchAuxItems();
+      if (Array.isArray(fresh) && fresh.length) {
+        setItems(fresh);
+        INVENTARIO_AUX_MOCK.length = 0;
+        INVENTARIO_AUX_MOCK.push(...fresh);
+      }
+    })();
+  }, []);
+
+  const persist = async (next) => {
+    if (window._api?.saveAuxItems) {
+      try { await window._api.saveAuxItems(next); } catch (e) { console.error('saveAuxItems', e); }
+    }
+    INVENTARIO_AUX_MOCK.length = 0;
+    INVENTARIO_AUX_MOCK.push(...next);
+  };
+
+  const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const categorias = [...new Set(items.map(a => a.categoria))];
+
+  const abrirNuevo = () => {
+    const empty = { id:`aux-${Date.now()}`, nombre:'', categoria:'empacadora', unidad:'unidades', stock:0, minimo:0, costo_unit:0, isNew:true };
+    setSel(empty); setForm(empty);
+  };
+
+  const abrirEditar = (a) => { setSel(a); setForm({ ...a }); };
+
+  const guardarItem = async () => {
+    if (!form.nombre.trim()) return;
+    const clean = { ...form }; delete clean.isNew;
+    const next = sel.isNew
+      ? [...items, clean]
+      : items.map(a => a.id === sel.id ? clean : a);
+    setItems(next);
+    await persist(next);
+    setSel(null); setForm(null);
+  };
+
+  const toggleDesact = async (id) => {
+    const next = items.map(a => a.id === id ? { ...a, desactivado: !a.desactivado } : a);
+    setItems(next);
+    await persist(next);
+  };
+
+  const eliminar = async (id) => {
+    const a = items.find(x => x.id === id);
+    if (a && a.stock > 0) { window.solpToast(`No se puede eliminar: tiene ${a.stock} ${a.unidad} en stock. Desactivalo en su lugar.`, 'warn'); return; }
+    if (!await window.solpConfirm('Eliminar este item?')) return;
+    if (window._api?.deleteAuxItem) {
+      const res = await window._api.deleteAuxItem(id);
+      if (res?.error) { window.solpToast(res.error, 'bad'); return; }
+    }
+    const next = items.filter(a => a.id !== id);
+    setItems(next);
+    INVENTARIO_AUX_MOCK.length = 0;
+    INVENTARIO_AUX_MOCK.push(...next);
+    setSel(null); setForm(null);
+  };
+
+  const guardarRegistroDia = async () => {
+    const fecha = new Date().toISOString().slice(0, 10);
+    const payload = items
+      .filter(a => (usoHoy[a.id] || 0) > 0)
+      .map(a => ({ aux_id: a.id, usado: usoHoy[a.id] }));
+    if (window._api?.registrarConsumoAux && payload.length) {
+      const res = await window._api.registrarConsumoAux(fecha, payload);
+      if (res?.auxiliar) {
+        setItems(res.auxiliar);
+        INVENTARIO_AUX_MOCK.length = 0;
+        INVENTARIO_AUX_MOCK.push(...res.auxiliar);
+        // Refrescar historial local
+        payload.forEach(p => {
+          const aux = res.auxiliar.find(a => a.id === p.aux_id);
+          if (!aux) return;
+          if (!AUX_CONSUMO_HISTORICO[p.aux_id]) AUX_CONSUMO_HISTORICO[p.aux_id] = [];
+          AUX_CONSUMO_HISTORICO[p.aux_id].push({ fecha, usado: p.usado, stock_tras: aux.stock });
+        });
+      }
+    } else {
+      // Fallback offline
+      const next = items.map(a => {
+        const u = usoHoy[a.id] || 0;
+        return u > 0 ? { ...a, stock: Math.max(0, a.stock - u) } : a;
+      });
+      setItems(next);
+    }
+    setRegistroGuardado(true);
+    setTimeout(() => { setShowRegistrar(false); setRegistroGuardado(false); setUsoHoy(m => { const n={...m}; Object.keys(n).forEach(k=>n[k]=0); return n; }); }, 1200);
+  };
+
+  if (detalle) return <AuxDetalle aux={detalle} onBack={() => setDetalle(null)} />;
+
+  return (
+    <>
+      <div className="row" style={{ justifyContent:'space-between', marginBottom:14, flexWrap:'wrap', gap:10 }}>
+        <div className="row" style={{ gap:8 }}>
+          <Btn onClick={() => setShowRegistrar(true)}><Icon name="edit" size={14}/> Registrar día</Btn>
+        </div>
+        <Btn variant="primary" onClick={abrirNuevo}><Icon name="plus" size={14}/> Nuevo ítem</Btn>
+      </div>
+
+      {/* Modal Registrar día */}
+      {showRegistrar && (
+        <div className="modal-back" onClick={() => setShowRegistrar(false)}>
+          <div className="modal-card lg" onClick={e => e.stopPropagation()} style={{ maxWidth:560 }}>
+            <div className="modal-head">
+              <div style={{ fontFamily:'var(--serif)', fontSize:22 }}>Registrar consumo del día</div>
+              <Btn variant="ghost" size="sm" onClick={() => setShowRegistrar(false)}><Icon name="x" size={16}/></Btn>
+            </div>
+            <div className="modal-body">
+              {registroGuardado ? (
+                <div style={{ textAlign:'center', padding:'30px 0' }}>
+                  <div style={{ width:52, height:52, borderRadius:'50%', background:'var(--good-soft)', color:'var(--good)', display:'inline-flex', alignItems:'center', justifyContent:'center', marginBottom:12 }}>
+                    <Icon name="check" size={24} strokeWidth={3}/>
+                  </div>
+                  <div style={{ fontFamily:'var(--serif)', fontSize:20 }}>¡Registrado!</div>
+                </div>
+              ) : (
+                <>
+                  <div className="xs mute" style={{ marginBottom:14 }}>Ingresa cuánto se usó hoy de cada material. El stock se descuenta automáticamente.</div>
+                  {items.filter(a => !a.desactivado).map(a => {
+                    const uso = usoHoy[a.id] || 0;
+                    const stockTras = Math.max(0, a.stock - uso);
+                    const bajo = stockTras <= a.minimo;
+                    return (
+                      <div key={a.id} style={{ display:'grid', gridTemplateColumns:'1fr auto auto auto', alignItems:'center', gap:10, padding:'10px 0', borderBottom:'1px solid var(--line)' }}>
+                        <div>
+                          <div style={{ fontWeight:500 }}>{a.nombre}</div>
+                          <div className="xs mute">Stock: {a.stock} {a.unidad}</div>
+                        </div>
+                        <div className="num-stepper sm">
+                          <button onClick={() => setUsoHoy(m=>({...m,[a.id]:Math.max(0,uso-1)}))}><Icon name="minus" size={11}/></button>
+                          <input type="number" value={uso} min={0} max={a.stock}
+                            onChange={e => setUsoHoy(m=>({...m,[a.id]:Math.max(0,parseInt(e.target.value)||0)}))}
+                            style={{ width:54 }}/>
+                          <button onClick={() => setUsoHoy(m=>({...m,[a.id]:uso+1}))}><Icon name="plus" size={11}/></button>
+                        </div>
+                        <span className="xs mute">{a.unidad}</span>
+                        <span className="xs" style={{ minWidth:80, textAlign:'right', color: bajo?'var(--warn)':'var(--text-mute)' }}>
+                          → {stockTras} {bajo && <Icon name="alert" size={10}/>}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+            {!registroGuardado && (
+              <div className="modal-foot">
+                <Btn onClick={() => setShowRegistrar(false)}>Cancelar</Btn>
+                <Btn variant="primary" onClick={guardarRegistroDia}><Icon name="check" size={14}/> Guardar registro</Btn>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Drawer editar/nuevo */}
+      <Drawer open={!!sel} onClose={() => { setSel(null); setForm(null); }} title={sel?.isNew ? 'Nuevo material auxiliar' : sel?.nombre}
+        footer={sel ? (
+          <div className="row" style={{ justifyContent:'space-between', width:'100%' }}>
+            {!sel.isNew && (
+              <div className="row" style={{ gap:6 }}>
+                <Btn variant="ghost" className="danger" onClick={() => eliminar(sel.id)}><Icon name="trash" size={13}/> Eliminar</Btn>
+                <Btn variant="ghost" onClick={() => toggleDesact(sel.id)}>{sel.desactivado ? 'Reactivar' : 'Desactivar'}</Btn>
+              </div>
+            )}
+            <div className="row" style={{ marginLeft:'auto', gap:8 }}>
+              <Btn onClick={() => { setSel(null); setForm(null); }}>Cancelar</Btn>
+              <Btn variant="primary" onClick={guardarItem}>Guardar</Btn>
+            </div>
+          </div>
+        ) : null}>
+        {sel && form && (
+          <div>
+            <div className="cols-2">
+              <div className="field" style={{ gridColumn:'span 2' }}>
+                <label>Nombre</label>
+                <input className="input" value={form.nombre} onChange={e=>setF('nombre',e.target.value)} placeholder="Ej. Rollos empacadora grandes"/>
+              </div>
+              <div className="field">
+                <label>Categoría</label>
+                <select className="select" value={form.categoria} onChange={e=>setF('categoria',e.target.value)}>
+                  {CAT_OPTIONS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label>Unidad</label>
+                <select className="select" value={form.unidad} onChange={e=>setF('unidad',e.target.value)}>
+                  {UNIDADES_OPTIONS.map(u=><option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label>Stock actual</label>
+                <input className="input mono" type="number" value={form.stock} onChange={e=>setF('stock',parseFloat(e.target.value)||0)}/>
+              </div>
+              <div className="field">
+                <label>Mínimo</label>
+                <input className="input mono" type="number" value={form.minimo} onChange={e=>setF('minimo',parseFloat(e.target.value)||0)}/>
+              </div>
+              <div className="field">
+                <label>Costo unitario ($)</label>
+                <input className="input mono" type="number" step="0.01" value={form.costo_unit||0} onChange={e=>setF('costo_unit',parseFloat(e.target.value)||0)}/>
+              </div>
+            </div>
+          </div>
+        )}
+      </Drawer>
+
+      {/* Lista por categoría */}
+      {categorias.map(cat => {
+        const catItems = items.filter(a => a.categoria === cat);
+        return (
+          <div key={cat} style={{ marginBottom:20 }}>
+            <Eyebrow style={{ marginBottom:10 }}>{CAT_LABELS[cat]||cat}</Eyebrow>
+            <div className="panel panel-flush">
+              <table className="tbl tbl-hover">
+                <thead>
+                  <tr>
+                    <th>Ítem</th>
+                    <th className="num">Stock</th>
+                    <th className="num">Mínimo</th>
+                    <th className="num">Costo/u</th>
+                    <th>Tendencia 14d</th>
+                    <th>Estado</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {catItems.map(a => {
+                    const bajo = a.stock <= a.minimo;
+                    const hist = AUX_CONSUMO_HISTORICO[a.id] || [];
+                    const ultimoUso = hist.filter(h=>h.usado>0).slice(-1)[0]?.fecha || '—';
+                    return (
+                      <tr key={a.id} style={{ opacity: a.desactivado ? 0.5 : 1 }}>
+                        <td>
+                          <button onClick={() => setDetalle(a)} style={{ background:'none', border:0, padding:0, cursor:'pointer', textAlign:'left', color:'var(--text)' }}>
+                            <div style={{ fontWeight:600 }}>{a.nombre}</div>
+                            <div className="xs mute">Último uso: {ultimoUso}</div>
+                          </button>
+                        </td>
+                        <td className="num mono" style={{ color: bajo?'var(--warn)':'inherit', fontWeight: bajo?600:400 }}>{fmtNum(a.stock)} <span className="xs mute">{a.unidad}</span></td>
+                        <td className="num mono xs mute">{a.minimo}</td>
+                        <td className="num mono xs">{a.costo_unit > 0 ? fmtMoney(a.costo_unit) : <span className="mute">—</span>}</td>
+                        <td><SparklineAux auxId={a.id} width={80} height={28}/></td>
+                        <td>{a.desactivado ? <Chip tone="bad">Desactivado</Chip> : bajo ? <Chip tone="warn">Reponer</Chip> : <Chip tone="good">OK</Chip>}</td>
+                        <td>
+                          <div className="row" style={{ gap:4 }}>
+                            <Btn size="sm" variant="ghost" onClick={() => abrirEditar(a)}><Icon name="edit" size={12}/></Btn>
+                            <Btn size="sm" variant="ghost" title={a.desactivado?'Reactivar':'Desactivar'} onClick={()=>toggleDesact(a.id)}><Icon name={a.desactivado?'check':'x'} size={12}/></Btn>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+// ═══════════════════ Panorámica Mensual — visual redesign ═══════════════════
+function InvPanoramica() {
+  const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const titulo = `${meses[MES_ACTUAL]} ${ANIO_ACTUAL}`;
+  const [vista, setVista] = useState('heatmap'); // heatmap | tabla | auxiliar
+
+  const dias = PANORAMICA_MES_MOCK;
+  const activos = dias.filter(d => !d.esFinde && !d.esFuturo && d.cajas > 0);
+  const totalCajas = activos.reduce((a,d)=>a+d.cajas,0);
+  const totalMat   = activos.reduce((a,d)=>a+d.material_kg,0);
+  const totalDes   = activos.reduce((a,d)=>a+d.desecho_kg,0);
+  const maxCajas   = Math.max(...activos.map(d=>d.cajas),1);
+
+  const PROD_COLORS = {
+    v_life:'oklch(72% 0.16 155)', v_solplast:'oklch(72% 0.16 220)',
+    v_lamosan:'oklch(72% 0.16 295)', cuchara_5ml:'oklch(72% 0.16 60)',
+    j_life:'oklch(72% 0.16 30)', j_farmayala:'oklch(72% 0.16 10)',
+    gotero:'oklch(72% 0.16 230)',
+  };
+
+  // Group days into weeks for heatmap
+  const diaSemLabel = ['D','L','M','X','J','V','S'];
+  const firstDow = new Date(ANIO_ACTUAL, MES_ACTUAL, 1).getDay();
+  const grid = []; // rows = weeks, cols = days of week (0=Sun)
+  let week = Array(7).fill(null);
+  dias.forEach(d => {
+    const dow = new Date(`${d.fecha}T00:00:00`).getDay();
+    week[dow] = d;
+    if (dow === 6) { grid.push(week); week = Array(7).fill(null); }
+  });
+  if (week.some(x=>x)) grid.push(week);
+
+  // Aux consumption summary
+  const auxSummary = INVENTARIO_AUX_MOCK.map(a => {
+    const hist = AUX_CONSUMO_HISTORICO[a.id] || [];
+    const total = hist.reduce((s,h)=>s+h.usado,0);
+    return { ...a, total_mes: total };
+  }).filter(a => a.total_mes > 0).sort((a,b)=>b.total_mes-a.total_mes);
+
+  return (
+    <>
+      <div style={{ marginBottom:18 }}>
+        <div className="row" style={{ justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12, marginBottom:14 }}>
+          <div>
+            <Eyebrow>{titulo}</Eyebrow>
+            <div style={{ fontFamily:'var(--serif)', fontSize:28, letterSpacing:'-0.02em' }}>Panorámica del mes</div>
+          </div>
+          <div className="row" style={{ gap:10 }}>
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontFamily:'var(--serif)', fontSize:26, color:'var(--accent-hi)' }}>{totalCajas}</div>
+              <div className="xs mute">cajas</div>
+            </div>
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontFamily:'var(--serif)', fontSize:26 }}>{fmtNum(totalMat,0)}</div>
+              <div className="xs mute">kg mat.</div>
+            </div>
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontFamily:'var(--serif)', fontSize:26, color:'var(--bad)' }}>{totalDes.toFixed(0)}</div>
+              <div className="xs mute">kg desecho</div>
+            </div>
+            <Seg value={vista} onChange={setVista} options={[
+              { value:'heatmap',  label:'Mapa' },
+              { value:'tabla',    label:'Tabla' },
+              { value:'auxiliar', label:'Auxiliar' },
+            ]} />
+          </div>
+        </div>
+      </div>
+
+      {/* HEATMAP + barras por producto */}
+      {vista === 'heatmap' && (
+        <>
+          {/* Calendar heatmap */}
+          <div className="panel" style={{ marginBottom:18 }}>
+            <PanelHead title="Cajas por día" sub="Intensidad = volumen relativo al mejor día del mes" />
+            <div style={{ overflowX:'auto' }}>
+              {/* Day of week headers */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:4, marginBottom:4 }}>
+                {diaSemLabel.map((d,i) => (
+                  <div key={i} style={{ textAlign:'center', fontSize:10, color:'var(--text-mute)', fontWeight:600 }}>{d}</div>
+                ))}
+              </div>
+              {/* Weeks */}
+              {grid.map((semana, wi) => (
+                <div key={wi} style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:4, marginBottom:4 }}>
+                  {semana.map((d, di) => {
+                    if (!d) return <div key={di}/>;
+                    const pct = d.cajas > 0 ? d.cajas / maxCajas : 0;
+                    const esFuturo = d.esFuturo;
+                    const esFinde = d.esFinde;
+                    const sinReg = !esFinde && !esFuturo && d.cajas === 0;
+                    const dow = new Date(`${d.fecha}T00:00:00`).getDay();
+                    const esHoy = d.dia === HOY.getDate();
+                    return (
+                      <div key={di} title={`${d.fecha}: ${d.cajas} cajas, ${d.material_kg} kg, ${d.desecho_kg} kg desecho`}
+                        style={{
+                          height: 40,
+                          borderRadius: 6,
+                          background: esFinde ? 'var(--bg-hover)' : esFuturo ? 'var(--bg-raised)' : sinReg ? 'color-mix(in oklab,var(--bad) 15%,transparent)' : `color-mix(in oklab,var(--accent) ${Math.round(10+pct*65)}%,transparent)`,
+                          border: esHoy ? '2px solid var(--accent-hi)' : '1px solid var(--line)',
+                          display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
+                          cursor: d.cajas > 0 ? 'pointer' : 'default',
+                          position:'relative',
+                        }}>
+                        <div style={{ fontSize:11, fontWeight:600, color: pct > 0.5 ? 'var(--accent-hi)' : 'var(--text-dim)' }}>{d.dia}</div>
+                        {d.cajas > 0 && <div style={{ fontSize:9, color:'var(--text-mute)' }}>{d.cajas}c</div>}
+                        {sinReg && <div style={{ fontSize:8, color:'var(--bad)', marginTop:1 }}>sin reg.</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            <div className="row" style={{ gap:14, marginTop:10, flexWrap:'wrap', fontSize:11 }}>
+              <div className="row" style={{ gap:4 }}>
+                <div style={{ width:14, height:14, borderRadius:3, background:'color-mix(in oklab,var(--accent) 75%,transparent)' }}/>
+                <span className="mute">Producción alta</span>
+              </div>
+              <div className="row" style={{ gap:4 }}>
+                <div style={{ width:14, height:14, borderRadius:3, background:'color-mix(in oklab,var(--accent) 20%,transparent)' }}/>
+                <span className="mute">Producción baja</span>
+              </div>
+              <div className="row" style={{ gap:4 }}>
+                <div style={{ width:14, height:14, borderRadius:3, background:'color-mix(in oklab,var(--bad) 15%,transparent)', border:'1px solid var(--line)' }}/>
+                <span className="mute">Sin registro</span>
+              </div>
+              <div className="row" style={{ gap:4 }}>
+                <div style={{ width:14, height:14, borderRadius:3, background:'var(--bg-hover)', border:'1px solid var(--line)' }}/>
+                <span className="mute">Fin de semana</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Barras por producto */}
+          <div className="panel">
+            <PanelHead title="Producción diaria por producto" sub="Cajas registradas en la jornada" />
+            <div style={{ overflowX:'auto' }}>
+              <div style={{ display:'flex', gap:2, alignItems:'flex-end', height:120, minWidth: `${activos.length * 36}px`, paddingBottom:20, position:'relative' }}>
+                {/* Y axis ghost lines */}
+                {[0.25,0.5,0.75,1].map(p => (
+                  <div key={p} style={{ position:'absolute', left:0, right:0, bottom:`${20+p*(120-20)}px`, borderTop:'1px dashed var(--line)', pointerEvents:'none' }}/>
+                ))}
+                {activos.map((dia, di) => {
+                  const dayProds = PANORAMICA_PROD_DIARIA[dia.fecha] || {};
+                  const total = Object.values(dayProds).reduce((a,v)=>a+v,0) || dia.cajas;
+                  const pids = Object.keys(dayProds);
+                  const barH = Math.max(4, (dia.cajas / maxCajas) * 90);
+                  const dow = new Date(`${dia.fecha}T00:00:00`).getDay();
+                  const diaSem = ['D','L','M','X','J','V','S'][dow];
+                  return (
+                    <div key={di} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', position:'relative' }}>
+                      <div title={`${dia.fecha}: ${dia.cajas} cajas`}
+                        style={{ width:'100%', height:`${barH}px`, marginTop:'auto', borderRadius:'3px 3px 0 0', overflow:'hidden', display:'flex', flexDirection:'column-reverse' }}>
+                        {pids.length > 0 ? pids.map((pid,pi) => {
+                          const v = dayProds[pid];
+                          const h = (v / total) * barH;
+                          return <div key={pid} style={{ height:`${h}px`, background: PROD_COLORS[pid]||'var(--accent)', flexShrink:0 }}/>;
+                        }) : <div style={{ height:`${barH}px`, background:'var(--accent)', opacity:0.6 }}/>}
+                      </div>
+                      <div style={{ position:'absolute', bottom:0, fontSize:9, color:'var(--text-mute)', marginTop:2 }}>{dia.dia}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {/* Legend */}
+            <div className="row" style={{ gap:10, flexWrap:'wrap', marginTop:8, fontSize:11 }}>
+              {Object.entries(PROD_COLORS).map(([pid, color]) => {
+                const prod = PRODUCTOS_MOCK.find(p=>p.id===pid);
+                return prod ? (
+                  <div key={pid} className="row" style={{ gap:4 }}>
+                    <div style={{ width:10, height:10, borderRadius:2, background:color }}/>
+                    <span className="mute">{prod.nombre}</span>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* TABLA clásica */}
+      {vista === 'tabla' && (
+        <div className="panel panel-flush">
+          <table className="tbl" style={{ tableLayout:'fixed' }}>
+            <thead>
+              <tr>
+                <th style={{ width:36 }}>Día</th>
+                <th style={{ width:48 }}>Sem.</th>
+                <th>Estado</th>
+                <th className="num" style={{ width:72 }}>Cajas</th>
+                <th className="num" style={{ width:80 }}>Mat. kg</th>
+                <th className="num" style={{ width:80 }}>Desecho</th>
+                <th>Barra</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dias.map(d => {
+                const diaSem = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][new Date(`${d.fecha}T00:00:00`).getDay()];
+                const pct = d.cajas > 0 ? Math.round((d.cajas / maxCajas) * 100) : 0;
+                return (
+                  <tr key={d.dia} style={{ opacity: d.esFuturo ? 0.3 : 1, background: d.esFinde ? 'color-mix(in oklab,var(--line) 30%,transparent)' : undefined }}>
+                    <td className="mono" style={{ fontWeight:600, color:'var(--accent-hi)' }}>{d.dia}</td>
+                    <td className="xs mute">{diaSem}</td>
+                    <td>
+                      {d.esFinde && <span className="xs mute">fin de semana</span>}
+                      {d.esFuturo && !d.esFinde && <span className="xs mute">pendiente</span>}
+                      {!d.esFinde && !d.esFuturo && d.cajas === 0 && <span className="xs" style={{ color:'var(--bad)' }}>sin registro</span>}
+                      {!d.esFinde && !d.esFuturo && d.cajas > 0 && <span className="xs mono mute">{d.registro_id}</span>}
+                    </td>
+                    <td className="num mono" style={{ fontWeight: d.cajas>0?600:400, color: d.cajas>0?'var(--text)':'var(--text-mute)' }}>{d.cajas||'—'}</td>
+                    <td className="num mono xs">{d.material_kg>0?fmtNum(d.material_kg,1):'—'}</td>
+                    <td className="num mono xs" style={{ color: d.desecho_kg>0?'var(--bad)':'var(--text-mute)' }}>{d.desecho_kg>0?d.desecho_kg.toFixed(1):'—'}</td>
+                    <td>{pct>0 && <div style={{ height:8, background:'var(--bg-raised)', borderRadius:4, overflow:'hidden' }}><div style={{ height:'100%', width:`${pct}%`, background:'var(--accent)', borderRadius:4 }}/></div>}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{ borderTop:'2px solid var(--line)', fontWeight:600 }}>
+                <td colSpan={3} style={{ padding:'12px 14px', color:'var(--text-mute)', fontSize:12 }}>TOTAL</td>
+                <td className="num mono" style={{ padding:'12px 14px', color:'var(--accent-hi)' }}>{totalCajas}</td>
+                <td className="num mono xs" style={{ padding:'12px 14px' }}>{fmtNum(totalMat,1)}</td>
+                <td className="num mono xs" style={{ padding:'12px 14px', color:'var(--bad)' }}>{totalDes.toFixed(1)}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      {/* AUXILIAR — consumo mensual */}
+      {vista === 'auxiliar' && (
+        <>
+          <div className="panel" style={{ marginBottom:18 }}>
+            <PanelHead title="Consumo de material auxiliar" sub={`Mes de ${titulo} — ítems con uso registrado`} />
+            {auxSummary.length === 0 && <div className="xs mute" style={{ padding:20 }}>Sin consumos registrados este mes.</div>}
+            {auxSummary.map(a => {
+              const maxTot = Math.max(...auxSummary.map(x=>x.total_mes),1);
+              const pct = (a.total_mes / maxTot) * 100;
+              const costo = a.costo_unit > 0 ? fmtMoney(a.total_mes * a.costo_unit) : null;
+              return (
+                <div key={a.id} style={{ display:'grid', gridTemplateColumns:'1fr auto auto 80px', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--line)' }}>
+                  <div>
+                    <div style={{ fontWeight:500 }}>{a.nombre}</div>
+                    <div className="xs mute">{CAT_LABELS[a.categoria]||a.categoria}</div>
+                  </div>
+                  <div className="mono" style={{ fontWeight:600 }}>{fmtNum(a.total_mes)} <span className="xs mute">{a.unidad}</span></div>
+                  {costo ? <div className="mono xs" style={{ color:'var(--text-mute)' }}>{costo}</div> : <div/>}
+                  <div style={{ height:8, background:'var(--bg-raised)', borderRadius:4, overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:`${pct}%`, background:'var(--info)', borderRadius:4 }}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Trend sparklines */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:12 }}>
+            {INVENTARIO_AUX_MOCK.filter(a => (AUX_CONSUMO_HISTORICO[a.id]||[]).some(h=>h.usado>0)).map(a => {
+              const hist = AUX_CONSUMO_HISTORICO[a.id] || [];
+              const total = hist.reduce((s,h)=>s+h.usado,0);
+              return (
+                <div key={a.id} className="panel" style={{ padding:14 }}>
+                  <div style={{ fontWeight:600, marginBottom:4 }}>{a.nombre}</div>
+                  <div className="xs mute" style={{ marginBottom:8 }}>{total} {a.unidad} usados</div>
+                  <SparklineAux auxId={a.id} width={180} height={36}/>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+// ═══════════════════ Movimientos ═══════════════════
 function InvMovimientos() {
   const [filtro, setFiltro] = useState('todos');
-  const items = MOV_INVENTARIO_MOCK.filter(m => filtro === 'todos' || m.tipo === filtro)
-    .slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const items = MOV_INVENTARIO_MOCK.filter(m => filtro==='todos' || m.tipo===filtro)
+    .slice().sort((a,b) => b.fecha.localeCompare(a.fecha));
 
   const tipoConfig = {
-    entrada:    { t: 'good',    ico: 'arrow_r', l: 'Entrada' },
-    salida:     { t: 'bad',     ico: 'arrow_r', l: 'Salida' },
-    produccion: { t: 'info',    ico: 'box',     l: 'Producción' },
-    ajuste:     { t: 'default', ico: 'edit',    l: 'Ajuste' },
-    reserva:    { t: 'accent',  ico: 'clock',   l: 'Reserva' },
+    entrada:    { t:'good',    ico:'arrow_r', l:'Entrada'    },
+    salida:     { t:'bad',     ico:'arrow_r', l:'Salida'     },
+    produccion: { t:'info',    ico:'box',     l:'Producción' },
+    ajuste:     { t:'default', ico:'edit',    l:'Ajuste'     },
+    consumo:    { t:'warn',    ico:'flame',   l:'Consumo'    },
   };
 
   return (
     <>
-      <div className="panel" style={{ marginBottom: 14 }}>
+      <div className="panel" style={{ marginBottom:14 }}>
         <Seg value={filtro} onChange={setFiltro} options={[
-          { value: 'todos',      label: `Todos (${MOV_INVENTARIO_MOCK.length})` },
-          { value: 'entrada',    label: 'Entradas' },
-          { value: 'salida',     label: 'Salidas' },
-          { value: 'produccion', label: 'Producción' },
-          { value: 'ajuste',     label: 'Ajustes' },
-          { value: 'reserva',    label: 'Reservas' },
+          { value:'todos',      label:`Todos (${MOV_INVENTARIO_MOCK.length})` },
+          { value:'entrada',    label:'Entradas' },
+          { value:'salida',     label:'Salidas' },
+          { value:'produccion', label:'Producción' },
+          { value:'consumo',    label:'Consumo' },
         ]} />
       </div>
-
       <div className="panel panel-flush">
         <table className="tbl">
-          <thead>
-            <tr><th>Fecha</th><th>Tipo</th><th>Item</th><th className="num">Cantidad</th><th>Referencia</th><th>Nota</th></tr>
-          </thead>
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Ítem</th><th className="num">Cantidad</th><th>Ref.</th><th>Nota</th></tr></thead>
           <tbody>
             {items.map(m => {
               const cfg = tipoConfig[m.tipo] || tipoConfig.ajuste;
-              const item = m.clase === 'mp'
-                ? MATERIALES_MOCK.find(x => x.id === m.item_id)
-                : PRODUCTOS_MOCK.find(x => x.id === m.item_id);
-              const isNeg = m.tipo === 'salida';
+              const item = m.clase==='mp'
+                ? MATERIALES_MOCK.find(x=>x.id===m.item_id)
+                : PRODUCTOS_MOCK.find(x=>x.id===m.item_id);
+              const isNeg = m.tipo==='salida'||m.tipo==='consumo';
               return (
                 <tr key={m.id}>
                   <td className="mono xs">{m.fecha}</td>
                   <td><Chip tone={cfg.t}>{cfg.l}</Chip></td>
-                  <td>
-                    <div style={{ fontWeight: 500 }}>{item?.nombre || m.item_id}</div>
-                    <div className="xs mute">{m.clase === 'mp' ? 'Materia prima' : 'Producto terminado'}</div>
-                  </td>
-                  <td className="num mono" style={{ color: isNeg ? 'var(--bad)' : 'inherit' }}>
-                    {isNeg ? '−' : '+'}{fmtNum(m.cantidad)} <span className="xs mute">{m.unidad}</span>
-                  </td>
-                  <td className="mono xs">{m.ref || '—'}</td>
+                  <td><div style={{ fontWeight:500 }}>{item?.nombre||m.item_id}</div><div className="xs mute">{m.clase==='mp'?'MP':'PT'}</div></td>
+                  <td className="num mono" style={{ color: isNeg?'var(--bad)':'inherit' }}>{isNeg?'−':'+'}{fmtNum(m.cantidad)} <span className="xs mute">{m.unidad}</span></td>
+                  <td className="mono xs">{m.ref||'—'}</td>
                   <td className="xs">{m.nota}</td>
                 </tr>
               );
@@ -5751,6 +6968,7 @@ function InvMovimientos() {
     </>
   );
 }
+
 
 Object.assign(window, { Inventario });
 
@@ -5784,14 +7002,7 @@ function Pedidos() {
           <div className="page-sub">Del pedido de cotización a la entrega con factura electrónica SRI.</div>
         </div>
         <div className="row">
-          <Btn variant="ghost" onClick={() => {
-            const all = [
-              ...(window.COTIZACIONES_MOCK || []).map(c => ({ tipo: 'COT', id: c.id, cliente: c.cliente, fecha: c.fecha, estado: c.estado, total: (c.items || []).reduce((s, i) => s + (i.cant_cajas||0)*(i.precio_caja||0), 0) })),
-              ...(window.ORDENES_COMPRA_MOCK || []).map(o => ({ tipo: 'OC', id: o.id, cliente: o.cliente, fecha: o.fecha_recepcion, estado: o.estado, total: (o.items || []).reduce((s, i) => s + (i.cant_cajas||0)*(i.precio_caja||0), 0) })),
-              ...(window.FACTURAS_MOCK || []).map(f => ({ tipo: 'FAC', id: f.id, cliente: f.cliente, fecha: f.fecha_emision, estado: f.estado_sri, total: f.total })),
-            ];
-            window.solpExportCSV(`pedidos_${new Date().toISOString().slice(0,10)}.csv`, ['tipo','id','cliente','fecha','estado','total'], all);
-          }}><Icon name="download" size={14}/> Exportar</Btn>
+          <Btn variant="ghost"><Icon name="download" size={14}/> Exportar</Btn>
           <Btn variant="primary" onClick={() => setShowWizard(true)}><Icon name="plus" size={14}/> Nueva cotización</Btn>
         </div>
       </div>
@@ -6051,38 +7262,8 @@ function CotizacionDetalle({ cot, onBack }) {
         </div>
         <div className="row">
           <EstadoChip estado={cot.estado} />
-          {cot.estado === 'borrador' && (
-            <Btn onClick={async () => {
-              const lista = (window.COTIZACIONES_MOCK || []).map(c => c.id === cot.id ? { ...c, estado: 'enviada' } : c);
-              window.COTIZACIONES_MOCK = lista;
-              if (window._api?.saveCollection) await window._api.saveCollection('cotizaciones', lista);
-              window.solpToast('Cotización marcada como enviada. (Envío por email pendiente — usa "Ver proforma" para descargar y mandar.)');
-            }}><Icon name="send" size={14}/> Marcar enviada</Btn>
-          )}
-          {cot.estado === 'aprobada' && !cot.oc_asociada && (
-            <Btn variant="primary" onClick={async () => {
-              if (!await window.solpConfirm('Crear orden de compra desde esta cotización?')) return;
-              const year = new Date().getFullYear();
-              const ocs = window.ORDENES_COMPRA_MOCK || [];
-              const lastNum = ocs.filter(o => o.id.startsWith(`OC-${year}-`)).map(o => Number(o.id.split('-')[2]) || 0).reduce((m, n) => Math.max(m, n), 0);
-              const ocId = `OC-${year}-${String(lastNum + 1).padStart(5, '0')}`;
-              const hoy = new Date().toISOString().slice(0, 10);
-              const entrega = new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10);
-              const nuevaOC = {
-                id: ocId, cliente: cot.cliente, cotizacion_id: cot.id,
-                fecha_recepcion: hoy, fecha_entrega: entrega, estado: 'pendiente',
-                items: cot.items, nro_pedido_cliente: '', factura_asociada: null,
-              };
-              const ocList = [nuevaOC, ...ocs];
-              window.ORDENES_COMPRA_MOCK = ocList;
-              if (window._api?.saveCollection) await window._api.saveCollection('ordenes_compra', ocList);
-              const cotList = (window.COTIZACIONES_MOCK || []).map(c => c.id === cot.id ? { ...c, oc_asociada: ocId } : c);
-              window.COTIZACIONES_MOCK = cotList;
-              if (window._api?.saveCollection) await window._api.saveCollection('cotizaciones', cotList);
-              window.solpToast(`OC ${ocId} creada.`);
-              location.reload();
-            }}><Icon name="arrow_r" size={14}/> Convertir a OC</Btn>
-          )}
+          {cot.estado === 'borrador' && <Btn><Icon name="send" size={14}/> Enviar</Btn>}
+          {cot.estado === 'aprobada' && !cot.oc_asociada && <Btn variant="primary"><Icon name="arrow_r" size={14}/> Convertir a OC</Btn>}
           {cot.estado === 'aprobada' && cot.oc_asociada && <Btn variant="ghost"><Icon name="arrow_r" size={14}/> Ver OC {cot.oc_asociada}</Btn>}
           <Btn variant="primary" onClick={() => setShowProforma(true)}><Icon name="download" size={14}/> Ver proforma</Btn>
         </div>
@@ -6191,11 +7372,32 @@ function OCDetalle({ oc, onBack }) {
   const cli = cliente(oc.cliente);
   const total = calcTotal(oc.items);
   const iva = total * 0.12;
+  const [showDespacho, setShowDespacho] = useState(false);
+  // FIFO lot selection: { [prod_id]: { [lote_id]: cajas_seleccionadas } }
+  const [loteSel, setLoteSel] = useState(() => {
+    const init = {};
+    oc.items.forEach(it => {
+      const lotes = LOTES_MOCK.filter(l => l.prod_id === it.prod_id && l.estado === 'stock')
+        .sort((a,b) => a.fecha_fab.localeCompare(b.fecha_fab));
+      let restante = it.cant_cajas;
+      init[it.prod_id] = {};
+      lotes.forEach(l => {
+        if (restante <= 0) return;
+        const usar = Math.min(l.cajas, restante);
+        init[it.prod_id][l.id] = usar;
+        restante -= usar;
+      });
+    });
+    return init;
+  });
+
+  const loteTotal = (pid) => Object.values(loteSel[pid]||{}).reduce((a,v)=>a+v,0);
+
   return (
     <div className="fadein">
       <div className="page-head">
         <div>
-          <div className="row" style={{ gap: 8, marginBottom: 6 }}>
+          <div className="row" style={{ gap:8, marginBottom:6 }}>
             <Btn size="sm" variant="ghost" onClick={onBack}><Icon name="arrow_l" size={12}/> Órdenes</Btn>
           </div>
           <Eyebrow>Orden de compra</Eyebrow>
@@ -6205,61 +7407,9 @@ function OCDetalle({ oc, onBack }) {
         <div className="row">
           <EstadoChip estado={oc.estado} />
           {oc.estado === 'lista' && !oc.factura_asociada && (
-            <Btn variant="primary" onClick={async () => {
-              if (!await window.solpConfirm('Crear factura desde esta OC y emitirla al SRI?')) return;
-              const facts = window.FACTURAS_MOCK || [];
-              const lastSec = facts.map(f => Number(f.secuencial) || 0).reduce((m, n) => Math.max(m, n), 1000);
-              const sec = String(lastSec + 1).padStart(9, '0');
-              const facId = `FAC-001-001-${sec}`;
-              const hoy = new Date().toISOString().slice(0, 10);
-              // IVA por producto: cada item lee iva_pct de PRODUCTOS_MOCK.
-              // Si no tiene, asume 15% (tarifa general 2026 Decreto 198/2024).
-              // Redondeamos UNA VEZ por linea (consistente con SRI).
-              let subtotal_15 = 0, subtotal_5 = 0, subtotal_0 = 0, iva_total = 0;
-              const itemsFac = oc.items.map(it => {
-                const prod = (window.PRODUCTOS_MOCK || []).find(p => p.id === it.prod_id);
-                const ivaPct = prod && typeof prod.iva_pct === 'number' ? prod.iva_pct : 15;
-                const base = Math.round((it.cant_cajas || 0) * (it.precio_caja || 0) * 100) / 100;
-                const ivaLinea = Math.round(base * ivaPct / 100 * 100) / 100;
-                if (ivaPct === 15) subtotal_15 += base;
-                else if (ivaPct === 5) subtotal_5 += base;
-                else subtotal_0 += base;
-                iva_total += ivaLinea;
-                return {
-                  prod_id: it.prod_id, cant_cajas: it.cant_cajas, precio_unit: it.precio_caja,
-                  subtotal: base, iva_pct: ivaPct, iva_linea: ivaLinea,
-                };
-              });
-              const subtotal = subtotal_15 + subtotal_5 + subtotal_0;
-              const total = Math.round((subtotal + iva_total) * 100) / 100;
-              // Reconciliacion: suma de iva_linea === iva_total
-              const recon = Math.abs(itemsFac.reduce((s, i) => s + i.iva_linea, 0) - iva_total) < 0.01;
-              if (!recon) {
-                window.solpToast('Reconciliacion IVA rota — revisar productos', 'bad');
-                return;
-              }
-              const nuevaFac = {
-                id: facId, cliente: oc.cliente, oc_id: oc.id, fecha_emision: hoy,
-                establecimiento: '001', punto_emision: '001', secuencial: sec,
-                items: itemsFac,
-                subtotal_12: subtotal_15,  // compatibilidad con frontend legacy (renombrado mentalmente a "tarifa estandar")
-                subtotal_15, subtotal_5, subtotal_0,
-                iva: iva_total, total,
-                forma_pago: 'transferencia', forma_pago_codigo: '20',
-                fecha_vencimiento: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
-                pagada: false, estado_sri: 'pendiente', clave_acceso: '', autorizacion_sri: '', fecha_autorizacion: '',
-              };
-              const facList = [nuevaFac, ...facts];
-              window.FACTURAS_MOCK = facList;
-              if (window._api?.saveCollection) await window._api.saveCollection('facturas', facList);
-              const ocList = (window.ORDENES_COMPRA_MOCK || []).map(o => o.id === oc.id ? { ...o, factura_asociada: facId, estado: 'facturada' } : o);
-              window.ORDENES_COMPRA_MOCK = ocList;
-              if (window._api?.saveCollection) await window._api.saveCollection('ordenes_compra', ocList);
-              const r = await window._api?.emitirFactura(facId);
-              if (r?.ok) window.solpToast(`Factura ${facId} creada y enviada al SRI. Estado: ${r.estado_sri}`);
-              else window.solpToast(`Factura ${facId} creada pero hubo problema emitiendo: ${r?.error || 'desconocido'}`);
-              location.reload();
-            }}><Icon name="receipt" size={14}/> Emitir factura SRI</Btn>
+            <Btn variant="primary" onClick={() => setShowDespacho(true)}>
+              <Icon name="truck" size={14}/> Preparar despacho + lotes
+            </Btn>
           )}
           {oc.factura_asociada && <Btn variant="ghost"><Icon name="receipt" size={14}/> Ver {oc.factura_asociada}</Btn>}
         </div>
@@ -6267,45 +7417,139 @@ function OCDetalle({ oc, onBack }) {
 
       <OCProgress estado={oc.estado} />
 
-      <div className="cols-2" style={{ gap: 16, marginTop: 18 }}>
+      {/* Modal despacho con selección de lotes FIFO */}
+      {showDespacho && (
+        <div className="modal-back" onClick={() => setShowDespacho(false)}>
+          <div className="modal-card lg" onClick={e => e.stopPropagation()} style={{ maxWidth: 680 }}>
+            <div className="modal-head">
+              <div style={{ fontFamily:'var(--serif)', fontSize:22 }}>Preparar despacho</div>
+              <Btn variant="ghost" size="sm" onClick={() => setShowDespacho(false)}><Icon name="x" size={16}/></Btn>
+            </div>
+            <div className="modal-body">
+              <div className="alert info" style={{ marginBottom:16 }}>
+                <div className="icon"><Icon name="info" size={16}/></div>
+                <div className="body">
+                  <div className="title">Selección FIFO de lotes</div>
+                  <div className="msg">Los lotes más antiguos se pre-seleccionan automáticamente. La jefa de producción confirma qué lotes y fechas van en la guía.</div>
+                </div>
+              </div>
+              {oc.items.map(it => {
+                const p = producto(it.prod_id);
+                const lotes = LOTES_MOCK.filter(l => l.prod_id === it.prod_id && l.estado === 'stock')
+                  .sort((a,b) => a.fecha_fab.localeCompare(b.fecha_fab));
+                const sel = loteSel[it.prod_id] || {};
+                const totalSel = loteTotal(it.prod_id);
+                const completo = totalSel >= it.cant_cajas;
+                return (
+                  <div key={it.prod_id} style={{ marginBottom:20 }}>
+                    <div className="row" style={{ justifyContent:'space-between', marginBottom:10 }}>
+                      <div>
+                        <div style={{ fontWeight:600 }}>{p?.nombre}</div>
+                        <div className="xs mute">Necesita: {it.cant_cajas} cajas · Seleccionado: <strong style={{ color: completo?'var(--good)':'var(--warn)' }}>{totalSel}</strong></div>
+                      </div>
+                      {completo ? <Chip tone="good"><Icon name="check" size={10}/> Completo</Chip> : <Chip tone="warn">Faltan {it.cant_cajas - totalSel}</Chip>}
+                    </div>
+                    {lotes.length === 0 && <div className="xs mute">Sin lotes en stock para este producto.</div>}
+                    {lotes.map((l, li) => (
+                      <div key={l.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'var(--surface)', border:`1px solid ${sel[l.id]>0?'var(--accent)':'var(--line)'}`, borderRadius:'var(--radius-sm)', marginBottom:6 }}>
+                        {li === 0 && <Chip tone="good" style={{ fontSize:10, flexShrink:0 }}>FIFO 1°</Chip>}
+                        {li > 0 && <span style={{ width:46 }}/>}
+                        <div className="mono xs" style={{ color:'var(--accent-hi)', minWidth:120 }}>{l.id}</div>
+                        <div className="xs mute">Fab: <strong>{l.fecha_fab}</strong></div>
+                        <div className="xs mute">Disponible: {l.cajas} cajas</div>
+                        <div style={{ marginLeft:'auto' }}>
+                          <div className="num-stepper sm">
+                            <button onClick={() => setLoteSel(s=>({...s,[it.prod_id]:{...s[it.prod_id],[l.id]:Math.max(0,(s[it.prod_id]?.[l.id]||0)-1)}}))}>
+                              <Icon name="minus" size={11}/>
+                            </button>
+                            <input type="number" value={sel[l.id]||0} min={0} max={l.cajas}
+                              onChange={e => setLoteSel(s=>({...s,[it.prod_id]:{...s[it.prod_id],[l.id]:Math.min(l.cajas,parseInt(e.target.value)||0)}}))}
+                              style={{ width:50 }}/>
+                            <button onClick={() => setLoteSel(s=>({...s,[it.prod_id]:{...s[it.prod_id],[l.id]:Math.min(l.cajas,(s[it.prod_id]?.[l.id]||0)+1)}}))}>
+                              <Icon name="plus" size={11}/>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+              {/* Resumen de lotes para la guía */}
+              <div style={{ background:'var(--bg-raised)', border:'1px solid var(--line)', borderRadius:'var(--radius-md)', padding:14, marginTop:8 }}>
+                <div className="xs mute" style={{ marginBottom:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'0.08em' }}>Lotes que irán en la guía de remisión</div>
+                {oc.items.flatMap(it => {
+                  const sel = loteSel[it.prod_id] || {};
+                  const p = producto(it.prod_id);
+                  return Object.entries(sel).filter(([,v])=>v>0).map(([lId, cajas]) => {
+                    const l = LOTES_MOCK.find(x => x.id === lId);
+                    return (
+                      <div key={lId} className="row" style={{ justifyContent:'space-between', padding:'4px 0', borderBottom:'1px dashed var(--line)' }}>
+                        <div className="xs"><strong>{p?.nombre}</strong> · <span className="mono">{lId}</span></div>
+                        <div className="xs mute">Fab. {l?.fecha_fab} · <strong>{cajas} cajas</strong></div>
+                      </div>
+                    );
+                  });
+                })}
+              </div>
+            </div>
+            <div className="modal-foot">
+              <Btn onClick={() => setShowDespacho(false)}>Cancelar</Btn>
+              <Btn variant="primary" onClick={() => setShowDespacho(false)}>
+                <Icon name="receipt" size={14}/> Emitir factura con estos lotes
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="cols-2" style={{ gap:16, marginTop:18 }}>
         <div className="panel">
           <Eyebrow>Fechas clave</Eyebrow>
-          <div className="info-grid" style={{ marginTop: 8 }}>
+          <div className="info-grid" style={{ marginTop:8 }}>
             <div><span className="xs mute">Recepción OC</span><div>{oc.fecha_recepcion}</div></div>
             <div><span className="xs mute">Entrega comprometida</span><div>{oc.fecha_entrega}</div></div>
-            <div><span className="xs mute">Cotización origen</span><div className="xs mono">{oc.cotizacion_id || '— directa'}</div></div>
+            <div><span className="xs mute">Cotización origen</span><div className="xs mono">{oc.cotizacion_id||'— directa'}</div></div>
             <div><span className="xs mute">OC cliente</span><div className="xs mono">{oc.nro_pedido_cliente}</div></div>
           </div>
         </div>
         <div className="panel">
           <Eyebrow>Totales</Eyebrow>
-          <div className="tot-rows" style={{ marginTop: 8 }}>
+          <div className="tot-rows" style={{ marginTop:8 }}>
             <div><span>Subtotal</span><span className="mono">{fmtMoney(total)}</span></div>
             <div><span>IVA 12%</span><span className="mono">{fmtMoney(iva)}</span></div>
-            <div className="tot-big"><span>Total</span><span className="mono">{fmtMoney(total + iva)}</span></div>
+            <div className="tot-big"><span>Total</span><span className="mono">{fmtMoney(total+iva)}</span></div>
           </div>
         </div>
       </div>
 
-      <div className="panel panel-flush" style={{ marginTop: 18 }}>
-        <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+      <div className="panel panel-flush" style={{ marginTop:18 }}>
+        <div style={{ padding:18, borderBottom:'1px solid var(--line)' }}>
           <PanelHead title="Ítems solicitados" sub={`${oc.items.length} productos`} />
         </div>
         <table className="tbl">
-          <thead><tr><th>Producto</th><th className="num">Cajas</th><th className="num">Precio caja</th><th className="num">Subtotal</th><th>Disponible</th></tr></thead>
+          <thead><tr><th>Producto</th><th className="num">Cajas</th><th className="num">Precio caja</th><th className="num">Subtotal</th><th>Disponible</th><th>Lotes</th></tr></thead>
           <tbody>
             {oc.items.map((it, i) => {
               const p = producto(it.prod_id);
               const inv = INVENTARIO_PT_MOCK.find(x => x.prod_id === it.prod_id);
               const disp = inv ? (inv.stock_cajas - inv.reservado) : 0;
               const cubre = disp >= it.cant_cajas;
+              const lotes = LOTES_MOCK.filter(l => l.prod_id === it.prod_id && l.estado === 'stock')
+                .sort((a,b)=>a.fecha_fab.localeCompare(b.fecha_fab));
               return (
                 <tr key={i}>
-                  <td><div style={{ fontWeight: 600 }}>{p?.nombre}</div></td>
+                  <td><div style={{ fontWeight:600 }}>{p?.nombre}</div></td>
                   <td className="num mono">{it.cant_cajas}</td>
                   <td className="num mono">{fmtMoney(it.precio_caja)}</td>
                   <td className="num mono">{fmtMoney(it.cant_cajas * it.precio_caja)}</td>
-                  <td><Chip tone={cubre ? 'good' : 'warn'}>{cubre ? `${disp} en stock` : `Falta: ${it.cant_cajas - disp}`}</Chip></td>
+                  <td><Chip tone={cubre?'good':'warn'}>{cubre?`${disp} disp.`:`Falta ${it.cant_cajas-disp}`}</Chip></td>
+                  <td>
+                    <div className="row" style={{ gap:4, flexWrap:'wrap' }}>
+                      {lotes.slice(0,2).map(l=><Chip key={l.id} style={{ fontSize:10 }}>{l.id} · {l.fecha_fab}</Chip>)}
+                      {lotes.length>2 && <Chip style={{ fontSize:10 }}>+{lotes.length-2}</Chip>}
+                    </div>
+                  </td>
                 </tr>
               );
             })}
@@ -6398,23 +7642,8 @@ function FacturaDetalle({ factura, onBack }) {
         </div>
         <div className="row">
           <EstadoChip estado={factura.estado_sri} />
-          {!factura.autorizacion_sri && (
-            <Btn variant="primary" onClick={async () => {
-              if (!await window.solpConfirm('Emitir esta factura al SRI?')) return;
-              const r = await window._api?.emitirFactura(factura.id);
-              if (r?.ok) { window.solpToast('Emitida. Estado: ' + r.estado_sri); location.reload(); }
-              else window.solpToast((r && r.error) || 'Error en emision');
-            }}><Icon name="upload" size={14}/> Emitir al SRI</Btn>
-          )}
-          {factura.clave_acceso && (
-            <a className="btn" href={window._api?.urlXmlFactura(factura.id) || '#'} download style={{ textDecoration: 'none' }}>
-              <Icon name="download" size={14}/> XML
-            </a>
-          )}
-          <a className="btn" href={window._api?.urlPdfFactura(factura.id) || '#'} download style={{ textDecoration: 'none' }}>
-            <Icon name="download" size={14}/> PDF
-          </a>
-          <Btn variant="primary" onClick={() => setDocOpen('ride')}><Icon name="eye" size={14}/> Ver RIDE</Btn>
+          <Btn variant="ghost"><Icon name="download" size={14}/> XML</Btn>
+          <Btn variant="primary" onClick={() => setDocOpen('ride')}><Icon name="download" size={14}/> Ver RIDE</Btn>
         </div>
       </div>
 
@@ -6594,30 +7823,20 @@ function Clientes() {
     setDraft(blank); setSel(null); setModo('nuevo');
   };
   const cancelar = () => { setModo('ver'); setDraft(null); };
-  const persistir = async (lista) => {
-    window.CLIENTES_MOCK = lista;
-    if (window._api?.saveCollection) await window._api.saveCollection('clientes', lista);
-  };
-  const guardar = async () => {
-    let lista;
+  const guardar = () => {
     if (modo === 'nuevo') {
-      lista = [draft, ...clientes];
-      setClientes(lista);
+      setClientes([draft, ...clientes]);
       setSel(draft.id);
     } else {
-      lista = clientes.map(c => c.id === draft.id ? draft : c);
-      setClientes(lista);
+      setClientes(clientes.map(c => c.id === draft.id ? draft : c));
     }
-    await persistir(lista);
     setModo('ver');
     setDraft(null);
   };
-  const eliminar = async () => {
+  const eliminar = () => {
     if (!current) return;
-    if (!await window.solpConfirm(`Eliminar a "${current.razon_social}"? Las facturas y cotizaciones asociadas se conservan.`)) return;
-    const lista = clientes.filter(c => c.id !== current.id);
-    setClientes(lista);
-    await persistir(lista);
+    if (!window.confirm(`Eliminar a "${current.razon_social}"? Las facturas y cotizaciones asociadas se conservan.`)) return;
+    setClientes(clientes.filter(c => c.id !== current.id));
     setSel(null);
   };
 
@@ -6640,16 +7859,7 @@ function Clientes() {
           <div className="page-sub">Datos fiscales completos para facturación electrónica SRI.</div>
         </div>
         <div className="row">
-          <Btn variant="ghost" onClick={() => {
-            const rows = (window.CLIENTES_MOCK || []).map(c => ({
-              id: c.id, razon_social: c.razon_social, nombre_comercial: c.nombre_comercial,
-              ruc: c.ruc, email_fact: c.email_fact, email_contacto: c.email_contacto,
-              telefono: c.telefono, celular: c.celular, contacto: c.contacto_nombre,
-              credito_dias: c.credito_dias, credito_limite: c.credito_limite,
-              agente_retencion: c.agente_retencion ? 'sí' : 'no',
-            }));
-            window.solpExportCSV(`clientes_${new Date().toISOString().slice(0,10)}.csv`, ['id','razon_social','nombre_comercial','ruc','email_fact','email_contacto','telefono','celular','contacto','credito_dias','credito_limite','agente_retencion'], rows);
-          }}><Icon name="download" size={14}/> Exportar CSV</Btn>
+          <Btn variant="ghost"><Icon name="download" size={14}/> Exportar CSV</Btn>
           <Btn variant="primary" onClick={nuevo}><Icon name="plus" size={14}/> Nuevo cliente</Btn>
         </div>
       </div>
@@ -7750,7 +8960,7 @@ function WizardNuevaCotizacion({ onClose, onCreated }) {
 
   const canNext = (step === 1 && !!clienteId) || (step === 2 && items.length > 0) || step === 3;
 
-  const crear = async () => {
+  const crear = () => {
     // Genera un ID incremental tipo COT-YYYY-NNNN
     const year = new Date().getFullYear();
     const lastNum = COTIZACIONES_MOCK
@@ -7767,9 +8977,7 @@ function WizardNuevaCotizacion({ onClose, onCreated }) {
       items: items.map(it => ({ prod_id: it.prod_id, cant_cajas: Number(it.cant_cajas) || 0, precio_caja: Number(it.precio_caja) || 0 })),
       observaciones,
     };
-    const lista = [nueva, ...(window.COTIZACIONES_MOCK || [])];
-    window.COTIZACIONES_MOCK = lista;
-    if (window._api?.saveCollection) await window._api.saveCollection('cotizaciones', lista);
+    COTIZACIONES_MOCK.unshift(nueva);
     if (onCreated) onCreated(nuevaId);
     onClose();
   };

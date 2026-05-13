@@ -500,13 +500,59 @@ def save_inv_molido(data):
 
 
 def load_inv_auxiliar():
-    """Stock de material auxiliar. Estructura: {item_id: {nombre, actual, minimo, unidad}}.
-    item_id ∈ {rollo_empacadora, cartones, fundas_vasos, fundas_jeringas, fundas_cucharas, pintura, guantes, cintas, esparadrapos}"""
-    return _load_or_none("inv:auxiliar") or {}
+    """Stock de material auxiliar. Estructura: lista de
+    [{id, nombre, categoria, unidad, stock, minimo, costo_unit, desactivado}].
+    Migracion: si encuentra dict antiguo {item_id: {...}}, lo convierte a lista."""
+    raw = _load_or_none("inv:auxiliar")
+    if raw is None:
+        return []
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, dict):
+        items = []
+        for k, v in raw.items():
+            if isinstance(v, dict):
+                items.append({
+                    "id": k,
+                    "nombre": v.get("nombre", k),
+                    "categoria": v.get("categoria", "empacadora"),
+                    "unidad": v.get("unidad", "unidades"),
+                    "stock": float(v.get("actual", v.get("stock", 0))),
+                    "minimo": float(v.get("minimo", 0)),
+                    "costo_unit": float(v.get("costo_unit", 0)),
+                    "desactivado": bool(v.get("desactivado", False)),
+                })
+        return items
+    return []
 
 
 def save_inv_auxiliar(data):
     _cfg_set("inv:auxiliar", data)
+
+
+def load_inv_aux_consumo():
+    """Historico de consumo aux. Lista [{aux_id, fecha, usado, stock_tras}]."""
+    return _load_or_none("inv:aux_consumo") or []
+
+
+def save_inv_aux_consumo(data):
+    _cfg_set("inv:aux_consumo", data)
+
+
+def append_aux_consumo(entries):
+    """Agrega entradas al historico. entries = lista de dicts."""
+    existing = load_inv_aux_consumo()
+    existing.extend(entries)
+    save_inv_aux_consumo(existing)
+
+
+def load_qc_templates():
+    """Plantillas QC por producto. {prod_id: {parametros: [{id, nombre, unidad, minimo, maximo, metodo}]}}."""
+    return _load_or_none("qc:templates") or {}
+
+
+def save_qc_templates(data):
+    _cfg_set("qc:templates", data)
 
 
 def load_inv_lotes():

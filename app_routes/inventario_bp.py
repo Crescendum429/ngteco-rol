@@ -7,13 +7,16 @@ from flask import Blueprint, jsonify, request
 from app_routes._auth import require_auth
 from logger import get_logger
 from storage import (
+    append_aux_consumo,
     load_bom,
     load_cambios_molde,
+    load_inv_aux_consumo,
     load_inv_auxiliar,
     load_inv_lotes,
     load_inv_molido,
     load_inv_piezas,
     load_movimientos_inventario,
+    load_qc_templates,
     load_registro_diario,
     save_bom,
     save_cambios_molde,
@@ -22,6 +25,7 @@ from storage import (
     save_inv_molido,
     save_inv_piezas,
     save_movimientos_inventario,
+    save_qc_templates,
     save_registro_diario,
 )
 
@@ -131,9 +135,104 @@ def get_inv_auxiliar():
 @inventario_bp.route("/api/inventario/auxiliar", methods=["PUT"])
 @require_auth
 def put_inv_auxiliar():
-    data = request.get_json(force=True) or {}
+    data = request.get_json(force=True)
     save_inv_auxiliar(data)
     return jsonify({"ok": True})
+
+
+@inventario_bp.route("/api/inventario/auxiliar/registrar-dia", methods=["POST"])
+@require_auth
+def registrar_consumo_aux():
+    """Registra el consumo diario de material auxiliar.
+    Body: { fecha: 'YYYY-MM-DD', items: [{aux_id, usado}] }
+    Descuenta del stock, anade entradas al historico de consumo y crea movimientos.
+    """
+    data = request.get_json(force=True) or {}
+    fecha = data.get("fecha") or date.today().isoformat()
+    items = data.get("items") or []
+    aux_list = load_inv_auxiliar()
+    aux_idx = {a["id"]: a for a in aux_list if isinstance(a, dict)}
+    nuevas_entradas = []
+    movimientos_creados = 0
+    for it in items:
+        aid = it.get("aux_id")
+        usado = float(it.get("usado") or 0)
+        if not aid or usado <= 0 or aid not in aux_idx:
+            continue
+        aux = aux_idx[aid]
+        stock_actual = float(aux.get("stock") or 0)
+        stock_tras = max(0.0, stock_actual - usado)
+        aux["stock"] = stock_tras
+        nuevas_entradas.append({
+            "aux_id": aid, "fecha": fecha,
+            "usado": usado, "stock_tras": stock_tras,
+        })
+        append_mov("aux", "consumo", aid, usado, aux.get("unidad", "u"),
+                   ref=f"aux-dia-{fecha}", nota=f"Consumo diario {aux.get('nombre', aid)}")
+        movimientos_creados += 1
+    if nuevas_entradas:
+        append_aux_consumo(nuevas_entradas)
+        save_inv_auxiliar(aux_list)
+    log.info(f"registrar-dia aux: fecha={fecha} items={len(nuevas_entradas)}")
+    return jsonify({
+        "ok": True, "registrados": len(nuevas_entradas),
+        "movimientos": movimientos_creados, "auxiliar": aux_list,
+    })
+
+
+@inventario_bp.route("/api/inventario/auxiliar/<aux_id>", methods=["DELETE"])
+@require_auth
+def delete_aux_item(aux_id):
+    aux_list = load_inv_auxiliar()
+    target = next((a for a in aux_list if a.get("id") == aux_id), None)
+    if not target:
+        return jsonify({"error": "No existe"}), 404
+    if float(target.get("stock") or 0) > 0:
+        return jsonify({"error": "Tiene stock > 0. Desactivelo en su lugar."}), 400
+    aux_list = [a for a in aux_list if a.get("id") != aux_id]
+    save_inv_auxiliar(aux_list)
+    return jsonify({"ok": True})
+
+
+@inventario_bp.route("/api/inventario/aux-consumo", methods=["GET"])
+@require_auth
+def get_aux_consumo():
+    aid = request.args.get("aux_id")
+    desde = request.args.get("desde")  # YYYY-MM-DD
+    hasta = request.args.get("hasta")
+    rows = load_inv_aux_consumo()
+    if aid:
+        rows = [r for r in rows if r.get("aux_id") == aid]
+    if desde:
+        rows = [r for r in rows if r.get("fecha", "") >= desde]
+    if hasta:
+        rows = [r for r in rows if r.get("fecha", "") <= hasta]
+    return jsonify(rows)
+
+
+# ─── Plantillas QC ───
+
+@inventario_bp.route("/api/qc/<prod_id>", methods=["GET"])
+@require_auth
+def get_qc(prod_id):
+    qc = load_qc_templates()
+    return jsonify(qc.get(prod_id) or {"parametros": []})
+
+
+@inventario_bp.route("/api/qc/<prod_id>", methods=["PUT"])
+@require_auth
+def put_qc(prod_id):
+    data = request.get_json(force=True) or {}
+    qc = load_qc_templates()
+    qc[prod_id] = data
+    save_qc_templates(qc)
+    return jsonify({"ok": True})
+
+
+@inventario_bp.route("/api/qc", methods=["GET"])
+@require_auth
+def get_qc_all():
+    return jsonify(load_qc_templates() or {})
 
 
 # ─── Lotes ───
