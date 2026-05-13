@@ -419,6 +419,109 @@ def migrar_offset_reportes():
     })
 
 
+@nomina_bp.route("/api/nomina/rebalancear-meses", methods=["POST"])
+@require_auth
+def rebalancear_meses():
+    """Asegura que cada reporte solo contenga dias del mes que le corresponde.
+
+    Tras aplicar el shift +1 dia (migrar-offset), algunos dias se desbordan:
+    p.ej. el reporte de abril termina conteniendo el 01/05, y el de marzo
+    contiene el 01/04. Este endpoint reagrupa los dias huerfanos al reporte
+    correcto. Idempotente.
+    """
+    from procesar_rol import emp_name as _emp_name
+    reps = list_reportes() or []
+    if not reps:
+        return jsonify({"error": "No hay reportes guardados"}), 400
+
+    # 1. Cargar todos los reportes
+    cache = {}
+    for rep in reps:
+        rid = rep["id"]
+        try:
+            data, cls = load_reporte(rid)
+            cache[rid] = {"data": data or [], "cls": cls or {}}
+        except Exception:
+            log.exception(f"rebalancear: error cargando {rid}")
+            cache[rid] = {"data": [], "cls": {}}
+
+    # 2. Identificar dias huerfanos (dia que no pertenece al mes del reporte)
+    movimientos = []  # (from_rid, to_pid, emp_name, ds)
+    for rid, content in cache.items():
+        if "-" not in rid:
+            continue
+        for empn, days_cls in content["cls"].items():
+            for ds in list(days_cls.keys()):
+                parts = ds.split("-")
+                if len(parts) != 3:
+                    continue
+                try:
+                    y = 2000 + int(parts[0]) if int(parts[0]) < 100 else int(parts[0])
+                    m = int(parts[1])
+                    target_pid = f"{y}-{m:02d}"
+                except Exception:
+                    continue
+                if target_pid != rid:
+                    movimientos.append((rid, target_pid, empn, ds))
+
+    # 3. Aplicar movimientos
+    nuevos_reportes = set()
+    for from_rid, to_pid, empn, ds in movimientos:
+        if to_pid not in cache:
+            cache[to_pid] = {"data": [], "cls": {}}
+            nuevos_reportes.add(to_pid)
+
+        # Mover en cls
+        if empn in cache[from_rid]["cls"] and ds in cache[from_rid]["cls"][empn]:
+            day_data = cache[from_rid]["cls"][empn].pop(ds)
+            cache[to_pid]["cls"].setdefault(empn, {})[ds] = day_data
+            if not cache[from_rid]["cls"][empn]:
+                del cache[from_rid]["cls"][empn]
+
+        # Mover en data raw — buscar el empleado por nombre limpio
+        from_data = cache[from_rid]["data"]
+        for i, item in enumerate(from_data):
+            if len(item) != 3:
+                continue
+            emp_raw, days_raw, nid = item
+            if _emp_name(emp_raw) != empn:
+                continue
+            if ds not in (days_raw or {}):
+                continue
+            pairs = days_raw.pop(ds)
+            # Insertar en to_pid
+            to_data = cache[to_pid]["data"]
+            found_target = False
+            for j, to_item in enumerate(to_data):
+                to_emp_raw, to_days_raw, to_nid = to_item
+                if _emp_name(to_emp_raw) == empn:
+                    to_days_raw[ds] = pairs
+                    found_target = True
+                    break
+            if not found_target:
+                to_data.append((emp_raw, {ds: pairs}, nid))
+            break
+
+    # 4. Guardar todo
+    for rid, content in cache.items():
+        try:
+            y, m = rid.split("-")
+            label = f"{MES_NAMES[int(m)-1]} {y}"
+        except Exception:
+            label = rid
+        try:
+            save_reporte(rid, label, content["data"], content["cls"])
+        except Exception:
+            log.exception(f"rebalancear: error guardando {rid}")
+
+    log.info(f"rebalancear: {len(movimientos)} dias movidos, {len(nuevos_reportes)} reportes nuevos")
+    return jsonify({
+        "movimientos": len(movimientos),
+        "reportes_nuevos": sorted(nuevos_reportes),
+        "reportes_afectados": sorted(set(m[0] for m in movimientos) | set(m[1] for m in movimientos)),
+    })
+
+
 @nomina_bp.route("/api/nomina/importar-primer-dia/<periodo_id>", methods=["POST"])
 @require_auth
 def importar_primer_dia(periodo_id):

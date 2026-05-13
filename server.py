@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "4.2.9"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "4.3.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -669,6 +669,15 @@ def _build_login_patch():
     urlXmlFactura: (factura_id) => '/api/sri/xml/' + encodeURIComponent(factura_id),
     migrarOffsetHistorico: async () => {
       const r = await fetch('/api/nomina/migrar-offset', { method: 'POST', credentials: 'same-origin' });
+      try {
+        const j = await r.json();
+        return r.ok ? j : { error: j.error || `HTTP ${r.status}` };
+      } catch {
+        return { error: `HTTP ${r.status} (respuesta no es JSON)` };
+      }
+    },
+    rebalancearMeses: async () => {
+      const r = await fetch('/api/nomina/rebalancear-meses', { method: 'POST', credentials: 'same-origin' });
       try {
         const j = await r.json();
         return r.ok ? j : { error: j.error || `HTTP ${r.status}` };

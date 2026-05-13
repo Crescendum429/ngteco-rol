@@ -2859,16 +2859,29 @@ function NomStepSubir({ periodoId, onNext, onSelectPeriodo }) {
       <div className="panel panel-flush">
         <div style={{ padding: '18px', borderBottom: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <PanelHead title="Períodos guardados" sub="Selecciona uno para revisar o recalcular" />
-          <Btn size="sm" variant="ghost" title="Aplica +1 dia a las fechas de los reportes ya subidos (soluciona offset del reloj NGTeco sin re-subir XLS). Idempotente." onClick={async () => {
-            if (!await window.solpConfirm('Aplicar corrección de offset +1 día a TODOS los reportes históricos guardados?\n\nSolo se ejecuta una vez por reporte (es idempotente). No re-subir XLS después de esto.')) return;
-            const r = await window._api?.migrarOffsetHistorico();
-            if (r?.migrados !== undefined) {
-              window.solpToast(`${r.total} reporte(s) migrados. ${r.saltados_ya_migrados?.length || 0} ya estaban listos.`, 'ok');
-              setTimeout(() => location.reload(), 1500);
-            } else {
-              window.solpToast(r?.error || 'Error en migración', 'bad');
-            }
-          }}><Icon name="arrow_l" size={12}/> Corregir offset histórico</Btn>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn size="sm" variant="ghost" title="Aplica +1 dia a las fechas de los reportes ya subidos (soluciona offset del reloj NGTeco sin re-subir XLS). Idempotente." onClick={async () => {
+              if (!await window.solpConfirm('Aplicar corrección de offset +1 día a TODOS los reportes históricos guardados?\n\nSolo se ejecuta una vez por reporte (es idempotente). No re-subir XLS después de esto.')) return;
+              const r = await window._api?.migrarOffsetHistorico();
+              if (r?.migrados !== undefined) {
+                window.solpToast(`${r.total} reporte(s) migrados. ${r.saltados_ya_migrados?.length || 0} ya estaban listos.`, 'ok');
+                setTimeout(() => location.reload(), 1500);
+              } else {
+                window.solpToast(r?.error || 'Error en migración', 'bad');
+              }
+            }}><Icon name="arrow_l" size={12}/> Corregir offset histórico</Btn>
+            <Btn size="sm" variant="ghost" title="Mueve los dias huerfanos al reporte del mes que les corresponde. Util tras corregir el offset si quedaron dias desbordados (p.ej. 01/05 al final del reporte de abril)." onClick={async () => {
+              if (!await window.solpConfirm('Reagrupar dias huerfanos al reporte del mes correcto?\n\nMueve dias que cayeron en otro mes al reporte donde pertenecen. Idempotente.')) return;
+              const r = await window._api?.rebalancearMeses();
+              if (r?.movimientos !== undefined) {
+                const nuevos = (r.reportes_nuevos || []).length;
+                window.solpToast(`${r.movimientos} dia(s) reubicado(s). ${nuevos > 0 ? nuevos + ' reporte(s) creado(s).' : 'Sin reportes nuevos.'}`, 'ok');
+                setTimeout(() => location.reload(), 1500);
+              } else {
+                window.solpToast(r?.error || 'Error rebalanceando', 'bad');
+              }
+            }}><Icon name="calendar" size={12}/> Reagrupar días</Btn>
+          </div>
         </div>
         {periodos.length === 0 && <div className="xs mute" style={{ padding: 18 }}>Sin reportes guardados.</div>}
         {periodos.map((r, i) => {
