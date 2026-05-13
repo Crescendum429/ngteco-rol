@@ -2882,9 +2882,34 @@ function Home({ setPage, role }) {
   const saludoHora = _hoy.getHours();
   const saludo = saludoHora < 12 ? 'Buenos días' : saludoHora < 19 ? 'Buenas tardes' : 'Buenas noches';
 
+  // Alertas del backend (datos incompletos, stock bajo, OC sugeridas, etc.)
+  const [alertasBackend, setAlertasBackend] = useState(() => Array.isArray(window.ALERTAS) ? window.ALERTAS : []);
+  React.useEffect(() => {
+    if (!window._api?.fetchAlertas) return;
+    window._api.fetchAlertas().then(arr => { if (Array.isArray(arr)) setAlertasBackend(arr); });
+  }, []);
+  const descartarAlerta = async (id) => {
+    setAlertasBackend(prev => prev.filter(a => a.id !== id));
+    try { await window._api?.descartarAlerta(id); } catch (e) {}
+  };
+  const sevTone = { warn: 'warn', error: 'bad', info: 'info', good: 'good' };
+  const sevIcon = { warn: 'alert', error: 'alert', info: 'info', good: 'check', datos_incompletos: 'edit', stock_bajo: 'alert', manual: 'info' };
+
   const alertas = [];
-  if (anomsCount > 0) alertas.push({ tone: 'warn', icon: 'alert', ttl: `${anomsCount} anomalía${anomsCount !== 1 ? 's' : ''} en el reporte de horas`, cap: `${ultimo.label} · revisar en Nómina`, go: 'nomina' });
-  if (ultimo.total > 0) alertas.push({ tone: 'good', icon: 'check', ttl: 'Nómina lista para transferir', cap: `${fmtMoney(ultimo.total)} — ${EMPLEADOS_MOCK.length} empleados`, go: 'nomina' });
+  if (anomsCount > 0) alertas.push({ id: 'sys-anom', tone: 'warn', icon: 'alert', ttl: `${anomsCount} anomalía${anomsCount !== 1 ? 's' : ''} en el reporte de horas`, cap: `${ultimo.label} · revisar en Nómina`, go: 'nomina' });
+  if (ultimo.total > 0) alertas.push({ id: 'sys-nom-lista', tone: 'good', icon: 'check', ttl: 'Nómina lista para transferir', cap: `${fmtMoney(ultimo.total)} — ${EMPLEADOS_MOCK.length} empleados`, go: 'nomina' });
+  // Sumar alertas del backend
+  alertasBackend.forEach(a => {
+    alertas.push({
+      id: a.id,
+      tone: sevTone[a.severidad] || 'info',
+      icon: sevIcon[a.tipo] || sevIcon[a.severidad] || 'info',
+      ttl: a.titulo || '(sin título)',
+      cap: a.descripcion || '',
+      go: a.destino?.page,
+      dismissible: true,
+    });
+  });
 
   const modules = [
     { key: 'nomina',    title: 'Nómina',           desc: 'Subir reporte del reloj, revisar horas y calcular sueldos del mes.',  meta: '3 pasos',          illus: <IllusJeringa size={56} color="var(--accent-hi)"/> },
@@ -2950,20 +2975,34 @@ function Home({ setPage, role }) {
             </div>
             <Chip tone="accent">{alertas.length}</Chip>
           </div>
-          {alertas.map((a, i) => (
-            <button key={i} className="list-row" style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 0, cursor: 'pointer' }} onClick={() => setPage(a.go)}>
-              <div className="ico" style={{
-                background: a.tone === 'warn' ? 'var(--warn-soft)' : a.tone === 'good' ? 'var(--good-soft)' : 'var(--accent-soft)',
-                color: a.tone === 'warn' ? 'var(--warn)' : a.tone === 'good' ? 'var(--good)' : 'var(--accent-hi)',
-              }}>
-                <Icon name={a.icon} size={16} />
-              </div>
-              <div className="body">
-                <div className="ttl">{a.ttl}</div>
-                <div className="cap">{a.cap}</div>
-              </div>
-              <Icon name="chev_r" size={14} className="mute" />
-            </button>
+          {alertas.length === 0 && (
+            <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>
+              No hay alertas. Todo al día.
+            </div>
+          )}
+          {alertas.map((a) => (
+            <div key={a.id} className="list-row" style={{ position: 'relative' }}>
+              <button onClick={() => a.go && setPage(a.go)} disabled={!a.go}
+                style={{ display: 'contents', textAlign: 'left', background: 'transparent', border: 0, cursor: a.go ? 'pointer' : 'default' }}>
+                <div className="ico" style={{
+                  background: a.tone === 'warn' ? 'var(--warn-soft)' : a.tone === 'good' ? 'var(--good-soft)' : a.tone === 'bad' ? 'var(--bad-soft)' : a.tone === 'info' ? 'var(--info-soft)' : 'var(--accent-soft)',
+                  color: a.tone === 'warn' ? 'var(--warn)' : a.tone === 'good' ? 'var(--good)' : a.tone === 'bad' ? 'var(--bad)' : a.tone === 'info' ? 'var(--info)' : 'var(--accent-hi)',
+                }}>
+                  <Icon name={a.icon} size={16} />
+                </div>
+                <div className="body">
+                  <div className="ttl">{a.ttl}</div>
+                  <div className="cap">{a.cap}</div>
+                </div>
+                {a.go && <Icon name="chev_r" size={14} className="mute" />}
+              </button>
+              {a.dismissible && (
+                <button title="Descartar" onClick={(e) => { e.stopPropagation(); descartarAlerta(a.id); }}
+                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text-mute)', padding: 6, borderRadius: 6 }}>
+                  <Icon name="x" size={14} />
+                </button>
+              )}
+            </div>
           ))}
         </div>
 
@@ -4894,13 +4933,21 @@ function TabProductos({ nuevoTick }) {
               <button key={p.id} className="prod-card static" onClick={() => openProd(p)} style={p.desactivado ? { opacity: 0.55, filter: 'grayscale(1)' } : {}}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                   <ProductIllus kind={p.kind} size={42} />
-                  {p.desactivado ? <Chip tone="bad">DESACTIVADO</Chip> : <Chip>{fmtNum(p.unidades_caja)} u/caja</Chip>}
+                  {p.desactivado
+                    ? <Chip tone="bad">DESACTIVADO</Chip>
+                    : (p.datos_incompletos && p.datos_incompletos.length > 0
+                        ? <Chip tone="warn" title={`Faltan: ${p.datos_incompletos.join(', ')}`}>Datos incompletos</Chip>
+                        : <Chip>{fmtNum(p.unidades_caja)} u/caja</Chip>)}
                 </div>
                 <div style={{ fontWeight: 600, marginTop: 10 }}>{p.nombre}</div>
-                <div className="xs mute" style={{ marginBottom: 12 }}>{p.peso_g} g · factor {p.factor}x</div>
+                <div className="xs mute" style={{ marginBottom: 12 }}>
+                  {p.peso_g > 0 ? `${p.peso_g} g` : <span style={{ color: 'var(--warn)' }}>peso ?</span>} · factor {p.factor}x
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 12, borderTop: '1px dashed var(--line)' }}>
                   <span className="xs mute">costo unitario</span>
-                  <strong style={{ fontFamily: 'var(--serif)', fontSize: 18, color: 'var(--accent-hi)' }}>${p.costo_unit.toFixed(4)}</strong>
+                  {p.costo_unit > 0
+                    ? <strong style={{ fontFamily: 'var(--serif)', fontSize: 18, color: 'var(--accent-hi)' }}>${p.costo_unit.toFixed(4)}</strong>
+                    : <span className="xs" style={{ color: 'var(--warn)' }}>sin calcular</span>}
                 </div>
               </button>
             ))}

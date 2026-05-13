@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "5.1.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "5.2.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -351,6 +351,16 @@ def _build_data_jsx():
         overrides_js.append(f"window.INV_MOVIMIENTOS = {json.dumps(movimientos, ensure_ascii=False)};")
     except Exception:
         log.exception("error cargando aux_consumo/qc_tpl/movimientos")
+    # Inyectar alertas para que Home las muestre en el primer render sin fetch
+    try:
+        from app_routes.alertas_bp import _generar_alertas
+        from storage import load_alertas_descartadas
+        descartadas = set(load_alertas_descartadas() or [])
+        alertas_activas = [a for a in _generar_alertas() if a.get("id") not in descartadas]
+        overrides_js.append(f"window.ALERTAS = {json.dumps(alertas_activas, ensure_ascii=False)};")
+    except Exception:
+        log.exception("error cargando alertas")
+        overrides_js.append("window.ALERTAS = [];")
     overrides_js.append(f"window.APP_VERSION = {json.dumps(APP_VERSION)};")
     # Override SBU del frontend con el valor real del backend (env var SBU_VIGENTE
     # o 470 default). Asi no se desincronizan.
@@ -826,6 +836,23 @@ def _build_login_patch():
       });
       try { return r.ok ? await r.json() : await r.json(); } catch { return { error: `HTTP ${r.status}` }; }
     },
+    fetchAlertas: async () => {
+      const r = await fetch('/api/alertas', { credentials: 'same-origin' });
+      return r.ok ? r.json() : [];
+    },
+    descartarAlerta: async (id) => {
+      const r = await fetch('/api/alertas/' + encodeURIComponent(id) + '/descartar', {
+        method: 'POST', credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    crearAlertaPersistente: async (data) => {
+      const r = await fetch('/api/alertas/persistente', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data), credentials: 'same-origin',
+      });
+      return r.ok ? r.json() : { error: 'Error' };
+    },
   };
 })();
 """
@@ -966,6 +993,7 @@ def get_dashboard():
 # Blueprints — registrados al final para que helpers y decoradores
 # definidos arriba ya esten disponibles si los blueprints los importan
 # ═══════════════════════════════════════════════════════════════
+from app_routes.alertas_bp import alertas_bp
 from app_routes.auth_bp import auth_bp
 from app_routes.catalogo_bp import catalogo_bp
 from app_routes.comercial_bp import comercial_bp
@@ -974,6 +1002,7 @@ from app_routes.nomina_bp import nomina_bp
 from app_routes.observability_bp import obs_bp
 from app_routes.sri_bp import sri_bp
 
+app.register_blueprint(alertas_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(catalogo_bp)
 app.register_blueprint(comercial_bp)

@@ -555,6 +555,25 @@ def save_qc_templates(data):
     _cfg_set("qc:templates", data)
 
 
+def load_alertas_persistentes():
+    """Alertas creadas manualmente (ej. OC sugeridas del chat). Lista persistente.
+    Estructura: [{id, tipo, titulo, descripcion, fecha_creacion, ref, meta}]"""
+    return _load_or_none("alertas:persistentes") or []
+
+
+def save_alertas_persistentes(data):
+    _cfg_set("alertas:persistentes", data)
+
+
+def load_alertas_descartadas():
+    """Set de IDs de alertas que el usuario descarto. Las descartadas no se muestran."""
+    return _load_or_none("alertas:descartadas") or []
+
+
+def save_alertas_descartadas(data):
+    _cfg_set("alertas:descartadas", list(data))
+
+
 def load_inv_lotes():
     """Lotes de producto terminado. Estructura: [{id, producto_id, cliente_id?, fecha_elaboracion, fecha_caducidad, cantidad_cajas, unidades_caja, peso_neto, peso_total, responsable, despachado, despachado_en}]"""
     return _load_or_none("inv:lotes") or []

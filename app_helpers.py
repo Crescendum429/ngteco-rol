@@ -45,18 +45,20 @@ def mat_to_js(key, mat):
 
 
 def prod_to_js(key, prod):
+    di = prod.get("datos_incompletos")
     return {
         "id": key,
         "kind": prod.get("kind", "vaso"),
         "nombre": prod.get("nombre", key),
-        "unidades_caja": int(prod.get("unidades_caja", 1000)),
-        "peso_g": float(prod.get("peso_g", 0)),
+        "unidades_caja": int(prod.get("unidades_caja", 1000) or 0),
+        "peso_g": float(prod.get("peso_g", 0) or 0),
         "material": prod.get("material_desc", ""),
-        "factor": float(prod.get("factor_complejidad", 1.0)),
-        "costo_unit": float(prod.get("costo_unit", 0)),
-        "costo_caja": float(prod.get("costo_caja", 0)),
-        "iva_pct": float(prod.get("iva_pct", 15)),  # IVA aplicable: 0, 5, 15
+        "factor": float(prod.get("factor_complejidad", 1.0) or 1.0),
+        "costo_unit": float(prod.get("costo_unit", 0) or 0),
+        "costo_caja": float(prod.get("costo_caja", 0) or 0),
+        "iva_pct": float(prod.get("iva_pct", 15) or 15),
         "desactivado": bool(prod.get("desactivado", False)),
+        "datos_incompletos": di if isinstance(di, list) else ([] if not di else ["(sin detalle)"]),
     }
 
 
