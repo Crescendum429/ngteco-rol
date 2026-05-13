@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "5.2.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "5.3.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -319,10 +319,16 @@ def _build_data_jsx():
 
     if clientes_js is not None:
         overrides_js.append(f"window.CLIENTES_MOCK = {json.dumps(clientes_js, ensure_ascii=False)};")
-    if inv_mp is not None:
-        overrides_js.append(f"window.INVENTARIO_MP_MOCK = {json.dumps(inv_mp, ensure_ascii=False)};")
-    if inv_pt is not None:
-        overrides_js.append(f"window.INVENTARIO_PT_MOCK = {json.dumps(inv_pt, ensure_ascii=False)};")
+    # Stock MP y PT siempre se calculan dinamicamente desde movimientos/lotes.
+    # No leemos inv:mp ni inv:pt del storage. Son derivados, no source-of-truth.
+    try:
+        from storage import compute_stock_mp, compute_stock_pt
+        overrides_js.append(f"window.INVENTARIO_MP_MOCK = {json.dumps(compute_stock_mp(), ensure_ascii=False)};")
+        overrides_js.append(f"window.INVENTARIO_PT_MOCK = {json.dumps(compute_stock_pt(), ensure_ascii=False)};")
+    except Exception:
+        log.exception("error computando stock dinamico")
+        overrides_js.append("window.INVENTARIO_MP_MOCK = [];")
+        overrides_js.append("window.INVENTARIO_PT_MOCK = [];")
     if cotizaciones is not None:
         overrides_js.append(f"window.COTIZACIONES_MOCK = {json.dumps(cotizaciones, ensure_ascii=False)};")
     if ordenes is not None:

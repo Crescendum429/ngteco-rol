@@ -1293,92 +1293,26 @@ textarea.doc-editable-input { display: block; width: 100%; resize: vertical; min
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const SBU_2026 = 470;
 
-const EMPLEADOS_MOCK = [
-  { id: 'jp', nombre: 'Juan Pérez',      cargo: 'Operador maquinas',   salario: 520, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 45, fondos_reserva: true,  iniciales: 'JP', color: 'oklch(72% 0.14 295)' },
-  { id: 'mr', nombre: 'María Rodríguez', cargo: 'Supervisora turno',   salario: 640, horas_base: 8, transporte: 2.00, region: 'Sierra/Amazonia', prestamo_iess: 0,  fondos_reserva: true,  iniciales: 'MR', color: 'oklch(72% 0.14 30)' },
-  { id: 'cl', nombre: 'Carlos López',    cargo: 'Operador extrusión',  salario: 480, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 30, fondos_reserva: false, iniciales: 'CL', color: 'oklch(72% 0.14 200)' },
-  { id: 'ar', nombre: 'Ana Ramírez',     cargo: 'Empacadora',          salario: 470, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 0,  fondos_reserva: true,  iniciales: 'AR', color: 'oklch(72% 0.14 140)' },
-  { id: 'lm', nombre: 'Luis Morales',    cargo: 'Molinero',            salario: 495, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 55, fondos_reserva: true,  iniciales: 'LM', color: 'oklch(72% 0.14 70)' },
-  { id: 'pg', nombre: 'Patricia Gómez',  cargo: 'Operadora ensamble',  salario: 470, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 0,  fondos_reserva: false, iniciales: 'PG', color: 'oklch(72% 0.14 330)' },
-  { id: 'rv', nombre: 'Roberto Vargas',  cargo: 'Mantenimiento',       salario: 580, horas_base: 8, transporte: 2.00, region: 'Sierra/Amazonia', prestamo_iess: 0,  fondos_reserva: true,  iniciales: 'RV', color: 'oklch(72% 0.14 260)' },
-  { id: 'sc', nombre: 'Sofía Castillo',  cargo: 'Operadora jeringas',  salario: 485, horas_base: 8, transporte: 1.50, region: 'Sierra/Amazonia', prestamo_iess: 20, fondos_reserva: false, iniciales: 'SC', color: 'oklch(72% 0.14 100)' },
-];
+const EMPLEADOS_MOCK = [];
 
 // Beneficios / descuentos recurrentes con vigencia (desde / hasta en formato YYYY-MM, hasta null = indefinido)
 // Tipos: prestamo_iess, prestamo_empresa, transporte_bono, alimentacion, comision, otro_desc, otro_ben
-const BENEFICIOS_RECURRENTES_MOCK = [
-  { id: 'b1', empleado_id: 'jp', tipo: 'prestamo_iess',     monto: 45, desde: '2025-11', hasta: '2026-10', nota: 'Préstamo quirografario 12 cuotas' },
-  { id: 'b2', empleado_id: 'cl', tipo: 'prestamo_empresa',  monto: 30, desde: '2026-01', hasta: '2026-06', nota: 'Adelanto equipos' },
-  { id: 'b3', empleado_id: 'lm', tipo: 'prestamo_iess',     monto: 55, desde: '2025-06', hasta: '2027-05', nota: 'Préstamo hipotecario' },
-  { id: 'b4', empleado_id: 'sc', tipo: 'prestamo_iess',     monto: 20, desde: '2026-03', hasta: '2026-08', nota: '6 cuotas' },
-  { id: 'b5', empleado_id: 'mr', tipo: 'transporte_bono',   monto: 15, desde: '2026-01', hasta: null,      nota: 'Ruta extendida' },
-];
+const BENEFICIOS_RECURRENTES_MOCK = [];
 
 
-const MATERIALES_MOCK = [
-  { id: 'pp_omo',         nombre: 'PP Homopolímero',  costo_kg: 1.75, merma: 3.1, color: 'oklch(70% 0.12 220)' },
-  { id: 'pp_clarificado', nombre: 'PP Clarificado',   costo_kg: 2.25, merma: 2.8, color: 'oklch(70% 0.12 180)' },
-  { id: 'pe_alta',        nombre: 'PE Alta Densidad', costo_kg: 1.85, merma: 4.2, color: 'oklch(70% 0.12 140)' },
-  { id: 'pe_baja',        nombre: 'PE Baja Densidad', costo_kg: 2.00, merma: 3.8, color: 'oklch(70% 0.12 100)' },
-  { id: 'pvc',            nombre: 'PVC',              costo_kg: 2.10, merma: 5.1, color: 'oklch(70% 0.12 30)' },
-];
+const MATERIALES_MOCK = [];
 
-const EMPAQUES_MOCK = [
-  { id: 'caja',                  nombre: 'Caja',                   costo: 1.00,   unidad: 'caja' },
-  { id: 'funda_individual',      nombre: 'Funda individual',       costo: 0.004,  unidad: 'unidad' },
-  { id: 'funda_exterior_simple', nombre: 'Funda exterior simple',  costo: 0.080,  unidad: 'caja' },
-  { id: 'funda_exterior_doble',  nombre: 'Funda exterior doble',   costo: 0.150,  unidad: 'caja' },
-  { id: 'cinta_embalaje',        nombre: 'Cinta embalaje',         costo: 0.015,  unidad: 'caja' },
-  { id: 'tinta_tampo',           nombre: 'Tinta de tampo',         costo: 0.002,  unidad: 'unidad' },
-];
+const EMPAQUES_MOCK = [];
 
-const PRODUCTOS_MOCK = [
-  { id: 'v_life',      kind: 'vaso',    nombre: 'Vaso Life',              unidades_caja: 2500, peso_g: 2.920, material: 'PP Clarificado / PP Omo 66/33', factor: 1.0, costo_unit: 0.0082, costo_caja: 20.50 },
-  { id: 'v_solplast',  kind: 'vaso',    nombre: 'Vaso Solplast',          unidades_caja: 2500, peso_g: 2.546, material: 'PP Homopolímero',                factor: 1.0, costo_unit: 0.0067, costo_caja: 16.75 },
-  { id: 'v_farm_ant',  kind: 'vaso',    nombre: 'Vaso Farmayala antiguo', unidades_caja: 2000, peso_g: 3.296, material: 'PP Homopolímero',                factor: 1.0, costo_unit: 0.0082, costo_caja: 16.40 },
-  { id: 'v_lamosan',   kind: 'vaso',    nombre: 'Vaso Lamosan',           unidades_caja: 2500, peso_g: 2.874, material: 'PP Homopolímero',                factor: 1.0, costo_unit: 0.0076, costo_caja: 19.00 },
-  { id: 'v_farm_new',  kind: 'vaso',    nombre: 'Vaso Farmayala nuevo',   unidades_caja: 2000, peso_g: 3.182, material: 'PP Homopolímero',                factor: 1.0, costo_unit: 0.0080, costo_caja: 16.00 },
-  { id: 'v_pequena',   kind: 'vaso',    nombre: 'Vaso Pequeño',           unidades_caja: 3500, peso_g: 2.208, material: 'PP Homopolímero',                factor: 1.0, costo_unit: 0.0058, costo_caja: 20.30 },
-  { id: 'cuchara_5ml', kind: 'cuchara', nombre: 'Cuchara 5ml',            unidades_caja: 8000, peso_g: 0.260, material: 'PP Clarificado / PP Omo',        factor: 1.0, costo_unit: 0.0011, costo_caja: 8.80 },
-  { id: 'gotero',      kind: 'gotero',  nombre: 'Gotero completo',        unidades_caja: 1000, peso_g: 3.290, material: 'Mezcla + PVC',                   factor: 1.8, costo_unit: 0.0194, costo_caja: 19.40 },
-  { id: 'j_sin_tampo', kind: 'jeringa', nombre: 'Jeringa sin tampo',      unidades_caja: 1000, peso_g: 7.886, material: 'PP Clarif + PE Alta + PE Baja',  factor: 2.5, costo_unit: 0.0231, costo_caja: 23.10 },
-  { id: 'j_farmayala', kind: 'jeringa', nombre: 'Jeringa Farmayala',      unidades_caja: 1000, peso_g: 7.886, material: 'PP Clarif + PE Alta + PE Baja',  factor: 3.0, costo_unit: 0.0256, costo_caja: 25.60 },
-  { id: 'j_life',      kind: 'jeringa', nombre: 'Jeringa Life',           unidades_caja: 1200, peso_g: 7.058, material: 'PP Clarif + PE Alta + PE Baja',  factor: 3.3, costo_unit: 0.0249, costo_caja: 29.88 },
-];
+const PRODUCTOS_MOCK = [];
 
-const GASTOS_FIJOS_MOCK = {
-  electricidad:  550, agua: 45, tinta: 60, tinner: 30,
-  solvente: 45, transporte: 150, mantenimiento: 80,
-};
+const GASTOS_FIJOS_MOCK = {};
 
-const NOMINA_HISTORICA = [
-  { id: '2025-09', label: 'Sep 2025', total: 4285.40, h50: 28.5, h100: 4.0, empleados: 8 },
-  { id: '2025-10', label: 'Oct 2025', total: 4410.20, h50: 32.0, h100: 6.5, empleados: 8 },
-  { id: '2025-11', label: 'Nov 2025', total: 4580.75, h50: 38.0, h100: 8.0, empleados: 8 },
-  { id: '2025-12', label: 'Dic 2025', total: 5120.00, h50: 45.5, h100: 12.0, empleados: 8 }, // 13ro
-  { id: '2026-01', label: 'Ene 2026', total: 4490.60, h50: 30.0, h100: 5.0, empleados: 8 },
-  { id: '2026-02', label: 'Feb 2026', total: 4525.30, h50: 34.0, h100: 7.0, empleados: 8 },
-  { id: '2026-03', label: 'Mar 2026', total: 5240.50, h50: 36.0, h100: 8.5, empleados: 8 }, // 14to
-  { id: '2026-04', label: 'Abr 2026', total: 4612.80, h50: 32.5, h100: 6.0, empleados: 8 },
-];
+const NOMINA_HISTORICA = [];
 
-const NOMINA_ULTIMO = [
-  { id: 'jp', nombre: 'Juan Pérez',      dias: 22, horas: 179.5, h50: 5.5, h100: 1.5, quincena: 260, extras: 18.20, transporte: 33.00, ingresos: 571.20, iess: 53.98, neto: 517.22, fondos: 47.60, total: 564.82 },
-  { id: 'mr', nombre: 'María Rodríguez', dias: 22, horas: 181.0, h50: 7.0, h100: 2.0, quincena: 320, extras: 28.45, transporte: 44.00, ingresos: 712.45, iess: 67.33, neto: 645.12, fondos: 59.30, total: 704.42 },
-  { id: 'cl', nombre: 'Carlos López',    dias: 20, horas: 160.0, h50: 0.0, h100: 0.0, quincena: 240, extras:  0.00, transporte: 30.00, ingresos: 510.00, iess: 48.20, neto: 461.80, fondos: 0.00, total: 461.80 },
-  { id: 'ar', nombre: 'Ana Ramírez',     dias: 22, horas: 176.0, h50: 3.0, h100: 0.0, quincena: 235, extras:  8.10, transporte: 33.00, ingresos: 511.10, iess: 48.30, neto: 462.80, fondos: 42.60, total: 505.40 },
-  { id: 'lm', nombre: 'Luis Morales',    dias: 21, horas: 168.0, h50: 4.0, h100: 0.0, quincena: 247.5, extras: 11.40, transporte: 31.50, ingresos: 537.90, iess: 50.83, neto: 432.07, fondos: 44.82, total: 476.89 },
-  { id: 'pg', nombre: 'Patricia Gómez',  dias: 22, horas: 176.0, h50: 2.5, h100: 0.0, quincena: 235, extras:  6.80, transporte: 33.00, ingresos: 509.80, iess: 48.18, neto: 461.62, fondos: 0.00, total: 461.62 },
-  { id: 'rv', nombre: 'Roberto Vargas',  dias: 21, horas: 168.0, h50: 6.0, h100: 2.5, quincena: 290, extras: 31.10, transporte: 42.00, ingresos: 653.10, iess: 61.72, neto: 591.38, fondos: 54.36, total: 645.74 },
-  { id: 'sc', nombre: 'Sofía Castillo',  dias: 22, horas: 178.0, h50: 4.5, h100: 0.5, quincena: 242.5, extras: 15.30, transporte: 33.00, ingresos: 533.30, iess: 50.40, neto: 462.90, fondos: 0.00, total: 462.90 },
-];
+const NOMINA_ULTIMO = [];
 
-const ANOMALIAS_MOCK = [
-  { emp: 'Juan Pérez',      fecha: '03/04', issue: 'missing OUT', detalle: 'Entrada 07:00, sin salida. Asumió 16:00.' },
-  { emp: 'Ana Ramírez',     fecha: '12/04', issue: 'entrada faltante', detalle: 'Salida 16:03 sin entrada registrada.' },
-  { emp: 'Luis Morales',    fecha: '18/04', issue: 'fechas cruzadas', detalle: 'Salida 00:15 (día siguiente).' },
-  { emp: 'Sofía Castillo',  fecha: '22/04', issue: 'missing OUT', detalle: 'Entrada 07:02, sin salida.' },
-];
+const ANOMALIAS_MOCK = [];
 
 // Sub-componentes de jeringa y gotero — se registran como hijos del producto padre
 // El producto "jeringa" agrupa cajas, pero internamente se produce N de cada pieza.
@@ -1396,49 +1330,7 @@ const SUBCOMPONENTES_MOCK = {
   ],
 };
 
-const REGISTROS_RECIENTES = [
-  { id: 'reg-2026-04-17', fecha: '2026-04-17', material: 145.2, cajas: 42, obs: 'Arranque lento maquina 2',
-    productos: [
-      { prod_id: 'v_life',     cajas: 18, virgen: 52.4, molido_usado: 3.2, desecho: 1.8, molido_gen: 1.2 },
-      { prod_id: 'j_life',     cajas: 8,  virgen: 42.6, molido_usado: 0,   desecho: 2.2, molido_gen: 1.5,
-        subcomp: { canula: 9600, piston: 9600, tapon: 9600, acordeon: 9600 } },
-      { prod_id: 'cuchara_5ml', cajas: 8, virgen: 14.0, molido_usado: 1.2, desecho: 0.4, molido_gen: 0.3 },
-      { prod_id: 'gotero',     cajas: 8,  virgen: 28.5, molido_usado: 0.5, desecho: 1.9, molido_gen: 0.9,
-        subcomp: { gotero_b: 8000, capuchon: 8000 } },
-    ] },
-  { id: 'reg-2026-04-16', fecha: '2026-04-16', material: 162.5, cajas: 51, obs: '',
-    productos: [
-      { prod_id: 'v_life',     cajas: 22, virgen: 58.0, molido_usado: 4.0, desecho: 1.5, molido_gen: 1.8 },
-      { prod_id: 'v_solplast', cajas: 12, virgen: 28.0, molido_usado: 2.5, desecho: 0.9, molido_gen: 0.6 },
-      { prod_id: 'j_farmayala', cajas: 10, virgen: 52.0, molido_usado: 1.2, desecho: 2.0, molido_gen: 1.6,
-        subcomp: { canula: 10000, piston: 10000, tapon: 10000, acordeon: 10000 } },
-      { prod_id: 'cuchara_5ml', cajas: 7, virgen: 12.5, molido_usado: 0.8, desecho: 0.3, molido_gen: 0.2 },
-    ] },
-  { id: 'reg-2026-04-15', fecha: '2026-04-15', material: 158.0, cajas: 49, obs: 'Cambio molde vaso Life',
-    productos: [
-      { prod_id: 'v_life',     cajas: 16, virgen: 44.0, molido_usado: 2.0, desecho: 2.8, molido_gen: 1.0 },
-      { prod_id: 'v_lamosan',  cajas: 10, virgen: 24.2, molido_usado: 1.8, desecho: 0.6, molido_gen: 0.5 },
-      { prod_id: 'j_life',     cajas: 9,  virgen: 47.0, molido_usado: 0.5, desecho: 2.1, molido_gen: 1.4,
-        subcomp: { canula: 10800, piston: 10800, tapon: 10800, acordeon: 10800 } },
-      { prod_id: 'cuchara_5ml', cajas: 14, virgen: 24.0, molido_usado: 2.2, desecho: 0.5, molido_gen: 0.4 },
-    ] },
-  { id: 'reg-2026-04-14', fecha: '2026-04-14', material: 141.8, cajas: 44, obs: '',
-    productos: [
-      { prod_id: 'v_life',      cajas: 20, virgen: 52.0, molido_usado: 3.5, desecho: 1.6, molido_gen: 1.2 },
-      { prod_id: 'v_pequena',   cajas: 6,  virgen: 13.5, molido_usado: 1.0, desecho: 0.4, molido_gen: 0.3 },
-      { prod_id: 'gotero',      cajas: 10, virgen: 35.0, molido_usado: 0,   desecho: 2.2, molido_gen: 1.1,
-        subcomp: { gotero_b: 10000, capuchon: 10000 } },
-      { prod_id: 'cuchara_5ml', cajas: 8,  virgen: 13.0, molido_usado: 1.5, desecho: 0.5, molido_gen: 0.3 },
-    ] },
-  { id: 'reg-2026-04-13', fecha: '2026-04-13', material: 156.4, cajas: 50, obs: '',
-    productos: [
-      { prod_id: 'v_life',      cajas: 25, virgen: 66.0, molido_usado: 4.5, desecho: 2.0, molido_gen: 1.5 },
-      { prod_id: 'v_farm_new',  cajas: 8,  virgen: 24.0, molido_usado: 1.2, desecho: 0.7, molido_gen: 0.4 },
-      { prod_id: 'j_sin_tampo', cajas: 10, virgen: 50.0, molido_usado: 1.0, desecho: 2.3, molido_gen: 1.6,
-        subcomp: { canula: 10000, piston: 10000, tapon: 10000, acordeon: 10000 } },
-      { prod_id: 'cuchara_5ml', cajas: 7,  virgen: 12.2, molido_usado: 1.0, desecho: 0.3, molido_gen: 0.2 },
-    ] },
-];
+const REGISTROS_RECIENTES = [];
 
 // ════════════════════════ EMISOR (Solplast) ════════════════════════
 const EMISOR = {
@@ -1458,373 +1350,62 @@ const EMISOR = {
 };
 
 // ════════════════════════ CLIENTES ════════════════════════
-const CLIENTES_MOCK = [
-  { id: 'cli-farbiopharma',
-    razon_social: 'FARBIOPHARMA S.A.', nombre_comercial: 'Farbiopharma',
-    ruc: '1791773373001', tipo: 'Sociedad', obligado_contabilidad: true,
-    email_fact: 'contabildad@farbiopharma.com', email_contacto: 'compras@farbiopharma.com',
-    telefono: '02-2555-444', celular: '099-1234567',
-    contacto_nombre: 'Ing. Paola Romero', contacto_cargo: 'Jefa de Compras',
-    dir_matriz:   { calle: 'Guayas', numero: 'E3 296', interseccion: 'Pichincha', ciudad: 'Quito', referencia: '' },
-    dir_sucursal: { calle: 'Guayas', numero: 'E3 296', interseccion: 'Pichincha', ciudad: 'Quito', referencia: 'Punto de entrega: bodega planta baja' },
-    credito_dias: 30, credito_limite: 25000,
-    agente_retencion: false, resolucion_retencion: '',
-    notas: 'Cliente frecuente. Pedidos recurrentes de jeringas dosificadoras.' },
-
-  { id: 'cli-farmayala',
-    razon_social: 'Farmayala Pharmaceutical Company S.A.', nombre_comercial: 'Farmayala',
-    ruc: '1792438576001', tipo: 'Sociedad', obligado_contabilidad: true,
-    email_fact: 'facturacion@farmayala.com.ec', email_contacto: 'compras@farmayala.com.ec',
-    telefono: '02-2445-678', celular: '099-2233445',
-    contacto_nombre: 'Ec. Luis Morales', contacto_cargo: 'Gerente de Abastecimiento',
-    dir_matriz:   { calle: 'Av. Eloy Alfaro', numero: 'N34-551', interseccion: 'Portugal', ciudad: 'Quito', referencia: '' },
-    dir_sucursal: { calle: 'Av. Eloy Alfaro', numero: 'N34-551', interseccion: 'Portugal', ciudad: 'Quito', referencia: 'Bodega posterior, horario 8am-4pm' },
-    credito_dias: 30, credito_limite: 40000,
-    agente_retencion: true, resolucion_retencion: 'Res. SRI 2024-001',
-    notas: 'Exige certificado de calidad firmado en cada entrega.' },
-
-  { id: 'cli-life',
-    razon_social: 'Laboratorios Life C.A.', nombre_comercial: 'Life',
-    ruc: '1790012393001', tipo: 'Sociedad', obligado_contabilidad: true,
-    email_fact: 'facturacion@life.com.ec', email_contacto: 'abastecimiento@life.com.ec',
-    telefono: '02-2461-111', celular: '',
-    contacto_nombre: 'Ing. Carla Benítez', contacto_cargo: 'Coordinadora de Compras',
-    dir_matriz:   { calle: 'Av. 10 de Agosto', numero: 'N50-123', interseccion: 'El Inca', ciudad: 'Quito', referencia: '' },
-    dir_sucursal: { calle: 'Av. 10 de Agosto', numero: 'N50-123', interseccion: 'El Inca', ciudad: 'Quito', referencia: '' },
-    credito_dias: 45, credito_limite: 60000,
-    agente_retencion: true, resolucion_retencion: 'Res. SRI 2023-047',
-    notas: '' },
-
-  { id: 'cli-lamosan',
-    razon_social: 'Laboratorios Lamosan CIA. LTDA.', nombre_comercial: 'Lamosan',
-    ruc: '0990057128001', tipo: 'Sociedad', obligado_contabilidad: true,
-    email_fact: 'contabilidad@lamosan.com', email_contacto: 'compras@lamosan.com',
-    telefono: '04-2288-432', celular: '098-8812345',
-    contacto_nombre: 'Sra. Martha Cedeño', contacto_cargo: 'Compras',
-    dir_matriz:   { calle: 'Av. Francisco de Orellana', numero: '204', interseccion: 'Kennedy Norte', ciudad: 'Guayaquil', referencia: '' },
-    dir_sucursal: { calle: 'Av. Francisco de Orellana', numero: '204', interseccion: 'Kennedy Norte', ciudad: 'Guayaquil', referencia: '' },
-    credito_dias: 30, credito_limite: 20000,
-    agente_retencion: false, resolucion_retencion: '',
-    notas: 'Pedidos trimestrales. Solicita muestra antes de cada lote nuevo.' },
-
-  { id: 'cli-solgen',
-    razon_social: 'Solgen Distribuidora S.A.', nombre_comercial: 'Solgen',
-    ruc: '1793167432001', tipo: 'Sociedad', obligado_contabilidad: true,
-    email_fact: 'facturacion@solgen.ec', email_contacto: 'info@solgen.ec',
-    telefono: '02-3983-211', celular: '',
-    contacto_nombre: 'Sr. Jorge Paredes', contacto_cargo: 'Gerente',
-    dir_matriz:   { calle: 'Av. Eloy Alfaro', numero: 'N50-118', interseccion: 'Carcelén Industrial', ciudad: 'Quito', referencia: '' },
-    dir_sucursal: { calle: 'Av. Eloy Alfaro', numero: 'N50-118', interseccion: 'Carcelén Industrial', ciudad: 'Quito', referencia: '' },
-    credito_dias: 15, credito_limite: 8000,
-    agente_retencion: false, resolucion_retencion: '',
-    notas: '' },
-
-  { id: 'cli-kronos',
-    razon_social: 'Laboratorios Kronos S.A.', nombre_comercial: 'Kronos',
-    ruc: '1790345678001', tipo: 'Sociedad', obligado_contabilidad: true,
-    email_fact: 'facturacion@kronos.com.ec', email_contacto: 'compras@kronos.com.ec',
-    telefono: '02-2456-789', celular: '099-8877665',
-    contacto_nombre: 'Sr. Alejandro Mercado', contacto_cargo: 'Desarrollo de Proveedores',
-    dir_matriz:   { calle: 'Av. 6 de Diciembre', numero: 'N34-556', interseccion: 'Gaspar de Villarroel', ciudad: 'Quito', referencia: '' },
-    dir_sucursal: { calle: 'Av. 6 de Diciembre', numero: 'N34-556', interseccion: 'Gaspar de Villarroel', ciudad: 'Quito', referencia: '' },
-    credito_dias: 45, credito_limite: 30000,
-    agente_retencion: true, resolucion_retencion: 'Res. SRI 2024-015',
-    notas: 'Cliente nuevo — primera cotización enviada oct 2022.' },
-
-  { id: 'cli-farmacorp',
-    razon_social: 'Farmacorp Ecuador S.A.', nombre_comercial: 'Farmacorp',
-    ruc: '1790765432001', tipo: 'Sociedad', obligado_contabilidad: true,
-    email_fact: 'facturacion@farmacorp.ec', email_contacto: 'compras@farmacorp.ec',
-    telefono: '02-2445-999', celular: '',
-    contacto_nombre: 'Dra. Silvia Rueda', contacto_cargo: 'Procurement',
-    dir_matriz:   { calle: 'Av. Naciones Unidas', numero: 'N36-99', interseccion: 'Corea', ciudad: 'Quito', referencia: 'Edificio Metropolitan, piso 5' },
-    dir_sucursal: { calle: 'Av. Naciones Unidas', numero: 'N36-99', interseccion: 'Corea', ciudad: 'Quito', referencia: '' },
-    credito_dias: 30, credito_limite: 35000,
-    agente_retencion: true, resolucion_retencion: 'Res. SRI 2023-089',
-    notas: '' },
-];
+const CLIENTES_MOCK = [];
 
 // ════════════════════════ COTIZACIONES ════════════════════════
 // Estados: borrador | enviada | aprobada | rechazada | convertida (a OC)
-const COTIZACIONES_MOCK = [
-  { id: 'COT-2026-0042', cliente: 'cli-farmayala', fecha: '2026-04-15', validez_dias: 15, estado: 'aprobada',
-    items: [
-      { prod_id: 'j_farmayala', cant_cajas: 40, precio_caja: 42.00 },
-      { prod_id: 'gotero',      cant_cajas: 20, precio_caja: 32.50 },
-    ], observaciones: 'Entrega en 15 días hábiles. Certificado de calidad adjunto.', oc_asociada: 'OC-FA-20260418' },
-  { id: 'COT-2026-0043', cliente: 'cli-life',     fecha: '2026-04-16', validez_dias: 15, estado: 'enviada',
-    items: [
-      { prod_id: 'j_life', cant_cajas: 50, precio_caja: 48.50 },
-      { prod_id: 'v_life', cant_cajas: 30, precio_caja: 34.00 },
-    ], observaciones: '' },
-  { id: 'COT-2026-0044', cliente: 'cli-lamosan',  fecha: '2026-04-17', validez_dias: 20, estado: 'borrador',
-    items: [
-      { prod_id: 'v_lamosan', cant_cajas: 25, precio_caja: 31.20 },
-    ], observaciones: 'Cliente pidió muestra antes.' },
-  { id: 'COT-2026-0041', cliente: 'cli-solgen',   fecha: '2026-04-10', validez_dias: 10, estado: 'rechazada',
-    items: [
-      { prod_id: 'cuchara_5ml', cant_cajas: 100, precio_caja: 14.20 },
-    ], observaciones: 'Precio no compite con proveedor actual.' },
-];
+const COTIZACIONES_MOCK = [];
 
 // ════════════════════════ ÓRDENES DE COMPRA ════════════════════════
 // Estados: pendiente | en_produccion | lista | facturada | entregada
-const ORDENES_COMPRA_MOCK = [
-  { id: 'OC-FA-20260418', cliente: 'cli-farmayala', cotizacion_id: 'COT-2026-0042', fecha_recepcion: '2026-04-18', fecha_entrega: '2026-05-03', estado: 'en_produccion',
-    items: [
-      { prod_id: 'j_farmayala', cant_cajas: 40, precio_caja: 42.00 },
-      { prod_id: 'gotero',      cant_cajas: 20, precio_caja: 32.50 },
-    ], nro_pedido_cliente: 'OC-FA-4582', factura_asociada: null },
-  { id: 'OC-LF-20260412', cliente: 'cli-life',     cotizacion_id: null, fecha_recepcion: '2026-04-12', fecha_entrega: '2026-04-28', estado: 'lista',
-    items: [
-      { prod_id: 'v_life', cant_cajas: 60, precio_caja: 34.00 },
-    ], nro_pedido_cliente: 'OC-LIFE-8821', factura_asociada: 'FAC-001-001-000001234' },
-  { id: 'OC-FA-20260405', cliente: 'cli-farmayala', cotizacion_id: null, fecha_recepcion: '2026-04-05', fecha_entrega: '2026-04-20', estado: 'entregada',
-    items: [
-      { prod_id: 'j_farmayala', cant_cajas: 25, precio_caja: 42.00 },
-    ], nro_pedido_cliente: 'OC-FA-4501', factura_asociada: 'FAC-001-001-000001230' },
-];
+const ORDENES_COMPRA_MOCK = [];
 
 // ════════════════════════ FACTURAS (SRI) ════════════════════════
 // Estados SRI: pendiente | firmada | enviada | autorizada | rechazada | anulada
 // establecimiento = 001, punto_emision = 001, secuencial incremental
-const FACTURAS_MOCK = [
-  { id: 'FAC-001-001-000001234', cliente: 'cli-life', oc_id: 'OC-LF-20260412', fecha_emision: '2026-04-22',
-    establecimiento: '001', punto_emision: '001', secuencial: '000001234',
-    clave_acceso: '2204202601179001239300120010010000012341234567813',
-    autorizacion_sri: '2204202617001791234567890001001000012341234567817',
-    estado_sri: 'autorizada', fecha_autorizacion: '2026-04-22 14:32',
-    items: [
-      { prod_id: 'v_life', cant_cajas: 60, precio_unit: 34.00, subtotal: 2040.00 },
-    ],
-    subtotal_12: 2040.00, subtotal_0: 0, iva: 244.80, total: 2284.80,
-    forma_pago: 'transferencia', fecha_vencimiento: '2026-06-06', pagada: false,
-    guia_asociada: 'GR-001-001-000000892', cert_calidad: 'CC-2026-0345' },
-  { id: 'FAC-001-001-000001230', cliente: 'cli-farmayala', oc_id: 'OC-FA-20260405', fecha_emision: '2026-04-20',
-    establecimiento: '001', punto_emision: '001', secuencial: '000001230',
-    clave_acceso: '2004202601179243857600120010010000012301234567819',
-    autorizacion_sri: '2004202617001792438576001001001000012301234567813',
-    estado_sri: 'autorizada', fecha_autorizacion: '2026-04-20 11:15',
-    items: [
-      { prod_id: 'j_farmayala', cant_cajas: 25, precio_unit: 42.00, subtotal: 1050.00 },
-    ],
-    subtotal_12: 1050.00, subtotal_0: 0, iva: 126.00, total: 1176.00,
-    forma_pago: 'transferencia', fecha_vencimiento: '2026-05-20', pagada: true,
-    guia_asociada: 'GR-001-001-000000888', cert_calidad: 'CC-2026-0343' },
-];
+const FACTURAS_MOCK = [];
 
 // ════════════════════════ GUÍAS DE REMISIÓN ════════════════════════
-const GUIAS_MOCK = [
-  { id: 'GR-001-001-000000892', factura_id: 'FAC-001-001-000001234', fecha_emision: '2026-04-22',
-    punto_partida: 'Solplast · Carcelén Ind., Quito', punto_llegada: 'Life · 10 de Agosto N50, Quito',
-    transportista: 'Transportes Pichincha S.A.', ruc_transportista: '1791234567001', placa: 'PBA-4582',
-    motivo: 'Venta', estado_sri: 'autorizada', clave_acceso: '...2204...' },
-  { id: 'GR-001-001-000000888', factura_id: 'FAC-001-001-000001230', fecha_emision: '2026-04-20',
-    punto_partida: 'Solplast · Carcelén Ind., Quito', punto_llegada: 'Farmayala · Eloy Alfaro N34-551, Quito',
-    transportista: 'Flete propio', ruc_transportista: '', placa: 'PBE-1122',
-    motivo: 'Venta', estado_sri: 'autorizada', clave_acceso: '...2004...' },
-];
+const GUIAS_MOCK = [];
 
 // ════════════════════════ CERTIFICADOS DE CALIDAD ════════════════════════
-const CERTIFICADOS_MOCK = [
-  { id: 'CC-2026-0345', factura_id: 'FAC-001-001-000001234', fecha: '2026-04-22', lote: 'L-26-04-118',
-    controlado_por: 'Ing. M. Rodríguez', observaciones: 'Todos los parámetros dentro de especificación.' },
-  { id: 'CC-2026-0343', factura_id: 'FAC-001-001-000001230', fecha: '2026-04-20', lote: 'L-26-04-112',
-    controlado_por: 'Ing. M. Rodríguez', observaciones: 'Aprobado. Espesor de pared dentro de tolerancia.' },
-];
+const CERTIFICADOS_MOCK = [];
 
 // ════════════════════════ INVENTARIO — MATERIA PRIMA ════════════════════════
 // Stock por material, con mínimo y movimientos recientes
-const INVENTARIO_MP_MOCK = [
-  { id: 'pp_omo',         stock_kg: 420.5, minimo_kg: 200, ultima_entrada: '2026-04-10', costo_prom_kg: 1.75 },
-  { id: 'pp_clarificado', stock_kg: 312.0, minimo_kg: 250, ultima_entrada: '2026-04-15', costo_prom_kg: 2.25 },
-  { id: 'pe_alta',        stock_kg: 185.8, minimo_kg: 150, ultima_entrada: '2026-04-08', costo_prom_kg: 1.85 },
-  { id: 'pe_baja',        stock_kg:  95.2, minimo_kg: 100, ultima_entrada: '2026-04-08', costo_prom_kg: 2.00 }, // bajo mínimo
-  { id: 'pvc',            stock_kg:  48.0, minimo_kg:  50, ultima_entrada: '2026-03-28', costo_prom_kg: 2.10 }, // bajo mínimo
-];
+const INVENTARIO_MP_MOCK = [];
 
 // ════════════════════════ INVENTARIO — PRODUCTO TERMINADO ════════════════════════
-const INVENTARIO_PT_MOCK = [
-  { prod_id: 'v_life',      stock_cajas: 48, minimo_cajas: 20, reservado: 30 },  // reservado por OC-LIFE
-  { prod_id: 'v_solplast',  stock_cajas: 22, minimo_cajas: 15, reservado: 0  },
-  { prod_id: 'v_lamosan',   stock_cajas:  8, minimo_cajas: 10, reservado: 0  },  // bajo mínimo
-  { prod_id: 'v_farm_new',  stock_cajas: 15, minimo_cajas: 10, reservado: 0  },
-  { prod_id: 'v_pequena',   stock_cajas:  6, minimo_cajas:  8, reservado: 0  },  // bajo mínimo
-  { prod_id: 'cuchara_5ml', stock_cajas: 42, minimo_cajas: 20, reservado: 0  },
-  { prod_id: 'gotero',      stock_cajas: 18, minimo_cajas: 15, reservado: 20 },  // reservado OC-FARMAYALA
-  { prod_id: 'j_life',      stock_cajas:  9, minimo_cajas: 10, reservado: 0  },  // bajo mínimo
-  { prod_id: 'j_farmayala', stock_cajas: 14, minimo_cajas: 10, reservado: 40 },  // reservado OC-FARMAYALA
-  { prod_id: 'j_sin_tampo', stock_cajas: 12, minimo_cajas: 10, reservado: 0  },
-];
+const INVENTARIO_PT_MOCK = [];
 
 // ════════════════════════ MOVIMIENTOS DE INVENTARIO (historial) ════════════════════════
-const MOV_INVENTARIO_MOCK = [
-  { id: 1, fecha: '2026-04-18', tipo: 'salida', clase: 'pt',  item_id: 'v_life',      cantidad: 12, unidad: 'cajas', ref: 'OC-LF-20260412', nota: 'Despacho parcial' },
-  { id: 2, fecha: '2026-04-18', tipo: 'produccion', clase: 'pt', item_id: 'j_farmayala', cantidad: 8, unidad: 'cajas', ref: 'reg-2026-04-17', nota: 'Registro diario' },
-  { id: 3, fecha: '2026-04-15', tipo: 'entrada', clase: 'mp',  item_id: 'pp_clarificado', cantidad: 500, unidad: 'kg', ref: 'FACT-PROV-9912', nota: 'Compra a Resiquim' },
-  { id: 4, fecha: '2026-04-10', tipo: 'entrada', clase: 'mp',  item_id: 'pp_omo',          cantidad: 800, unidad: 'kg', ref: 'FACT-PROV-9908', nota: 'Compra a Resiquim' },
-  { id: 5, fecha: '2026-04-17', tipo: 'consumo', clase: 'mp',  item_id: 'pp_clarificado', cantidad: 52.4, unidad: 'kg', ref: 'reg-2026-04-17', nota: 'Consumo Vaso Life' },
-];
+const MOV_INVENTARIO_MOCK = [];
 
 // ════════════════════════ LOTES DE PRODUCCIÓN ════════════════════════
 // Cada caja en bodega pertenece a un lote con fecha de fabricación
-const LOTES_MOCK = [
-  { id: 'L-26-04-118', prod_id: 'v_life',      cajas: 18, fecha_fab: '2026-04-17', estado: 'stock' },
-  { id: 'L-26-04-117', prod_id: 'v_life',      cajas: 22, fecha_fab: '2026-04-16', estado: 'stock' },
-  { id: 'L-26-04-116', prod_id: 'v_life',      cajas: 8,  fecha_fab: '2026-04-15', estado: 'stock' },
-  { id: 'L-26-04-115', prod_id: 'v_solplast',  cajas: 22, fecha_fab: '2026-04-15', estado: 'stock' },
-  { id: 'L-26-04-114', prod_id: 'v_lamosan',   cajas: 8,  fecha_fab: '2026-04-14', estado: 'stock' },
-  { id: 'L-26-04-113', prod_id: 'v_farm_new',  cajas: 15, fecha_fab: '2026-04-13', estado: 'stock' },
-  { id: 'L-26-04-112', prod_id: 'cuchara_5ml', cajas: 42, fecha_fab: '2026-04-16', estado: 'stock' },
-  { id: 'L-26-04-111', prod_id: 'gotero',      cajas: 18, fecha_fab: '2026-04-15', estado: 'stock' },
-  { id: 'L-26-04-110', prod_id: 'j_life',      cajas: 9,  fecha_fab: '2026-04-14', estado: 'stock' },
-  { id: 'L-26-04-109', prod_id: 'j_farmayala', cajas: 14, fecha_fab: '2026-04-13', estado: 'stock' },
-  { id: 'L-26-04-108', prod_id: 'j_sin_tampo', cajas: 12, fecha_fab: '2026-04-16', estado: 'stock' },
-  { id: 'L-26-04-107', prod_id: 'v_pequena',   cajas: 6,  fecha_fab: '2026-04-12', estado: 'stock' },
-  // Lote ya despachado (referencia histórica)
-  { id: 'L-26-04-105', prod_id: 'j_farmayala', cajas: 25, fecha_fab: '2026-04-05', estado: 'despachado', oc: 'OC-FA-20260405' },
-  { id: 'L-26-04-098', prod_id: 'v_life',      cajas: 60, fecha_fab: '2026-03-28', estado: 'despachado', oc: 'OC-LF-20260412' },
-];
+const LOTES_MOCK = [];
 
 // ════════════════════════ INVENTARIO — PIEZAS SUELTAS ════════════════════════
 // Piezas que están en proceso / semi-terminadas, con estado cruda o impresa
-const INVENTARIO_PIEZAS_MOCK = [
-  { id: 'ps-canula-cruda',    pieza: 'Cánula',         producto: 'j_life',      estado: 'cruda',   cantidad: 12400, unidad: 'unidades', ultima_actualizacion: '2026-04-17' },
-  { id: 'ps-piston-cruda',    pieza: 'Pistón',         producto: 'j_life',      estado: 'cruda',   cantidad: 11800, unidad: 'unidades', ultima_actualizacion: '2026-04-17' },
-  { id: 'ps-tapon-cruda',     pieza: 'Tapón',          producto: 'j_farmayala', estado: 'cruda',   cantidad: 8500,  unidad: 'unidades', ultima_actualizacion: '2026-04-16' },
-  { id: 'ps-acordeon-imp',    pieza: 'Acordeón',       producto: 'j_farmayala', estado: 'impresa', cantidad: 6000,  unidad: 'unidades', ultima_actualizacion: '2026-04-16' },
-  { id: 'ps-gotero-cruda',    pieza: 'Gotero (base)',  producto: 'gotero',      estado: 'cruda',   cantidad: 4200,  unidad: 'unidades', ultima_actualizacion: '2026-04-15' },
-  { id: 'ps-capuchon-imp',    pieza: 'Capuchón',       producto: 'gotero',      estado: 'impresa', cantidad: 3800,  unidad: 'unidades', ultima_actualizacion: '2026-04-15' },
-  { id: 'ps-tapon-imp',       pieza: 'Tapón',          producto: 'j_life',      estado: 'impresa', cantidad: 9600,  unidad: 'unidades', ultima_actualizacion: '2026-04-17' },
-];
+const INVENTARIO_PIEZAS_MOCK = [];
 
 // ════════════════════════ INVENTARIO — MOLIDO SEGREGADO ════════════════════════
 // Molido en bin separado por origen de pieza
-const INVENTARIO_MOLIDO_MOCK = [
-  { id: 'mol-canula',   origen: 'Cánula',     producto: 'j_life',      kg: 8.4,  color: 'oklch(70% 0.12 220)' },
-  { id: 'mol-vaso',     origen: 'Vaso',       producto: 'v_life',      kg: 12.2, color: 'oklch(70% 0.12 155)' },
-  { id: 'mol-piston',   origen: 'Pistón',     producto: 'j_life',      kg: 5.8,  color: 'oklch(70% 0.12 220)' },
-  { id: 'mol-tapon',    origen: 'Tapón',      producto: 'j_farmayala', kg: 3.1,  color: 'oklch(70% 0.12 200)' },
-  { id: 'mol-acordeon', origen: 'Acordeón',   producto: 'j_farmayala', kg: 2.6,  color: 'oklch(70% 0.12 180)' },
-  { id: 'mol-alta',     origen: 'PE Alta',    producto: null,          kg: 4.0,  color: 'oklch(70% 0.12 140)' },
-  { id: 'mol-baja',     origen: 'PE Baja',    producto: null,          kg: 1.9,  color: 'oklch(70% 0.12 100)' },
-  { id: 'mol-mazarota', origen: 'Mazarota',   producto: null,          kg: 6.7,  color: 'oklch(70% 0.12 60)'  },
-];
+const INVENTARIO_MOLIDO_MOCK = [];
 
 // ════════════════════════ INVENTARIO — MATERIAL AUXILIAR ════════════════════════
-const INVENTARIO_AUX_MOCK = [
-  { id: 'aux-rollo-emp',   nombre: 'Rollos empacadora',      categoria: 'empacadora', stock: 4,   unidad: 'rollos', minimo: 2, ultima_entrada: '2026-04-10' },
-  { id: 'aux-carton-60',   nombre: 'Cartones 60×40×40',      categoria: 'empacadora', stock: 120, unidad: 'unidades', minimo: 50, ultima_entrada: '2026-04-08' },
-  { id: 'aux-funda-peq',   nombre: 'Fundas pequeñas',        categoria: 'fundas',     stock: 5000, unidad: 'unidades', minimo: 2000, ultima_entrada: '2026-04-15' },
-  { id: 'aux-funda-med',   nombre: 'Fundas medianas',        categoria: 'fundas',     stock: 2200, unidad: 'unidades', minimo: 1000, ultima_entrada: '2026-04-15' },
-  { id: 'aux-funda-ext',   nombre: 'Fundas exteriores doble',categoria: 'fundas',     stock: 800,  unidad: 'unidades', minimo: 400, ultima_entrada: '2026-04-15' },
-  { id: 'aux-pintura',     nombre: 'Pintura tampo',          categoria: 'impresion',  stock: 1.2, unidad: 'kg', minimo: 0.5, ultima_entrada: '2026-03-20' },
-  { id: 'aux-guantes',     nombre: 'Guantes nitrilo (caja)', categoria: 'seguridad',  stock: 3,   unidad: 'cajas', minimo: 2, ultima_entrada: '2026-04-01' },
-  { id: 'aux-cinta',       nombre: 'Cinta de embalaje',      categoria: 'empacadora', stock: 12,  unidad: 'rollos', minimo: 6, ultima_entrada: '2026-04-10' },
-  { id: 'aux-esparadrapo', nombre: 'Esparadrapo (rollo)',    categoria: 'seguridad',  stock: 5,   unidad: 'rollos', minimo: 3, ultima_entrada: '2026-04-01' },
-];
+const INVENTARIO_AUX_MOCK = [];
 
 // ════════════════════════ RECETAS ════════════════════════
 // Cuántas piezas consume cada caja — solo para jeringa y gotero
-const RECETAS_MOCK = {
-  'gotero': {
-    unidades_caja: 1000,
-    piezas: [
-      { pieza_id: 'gotero_b', nombre: 'Gotero (base)', cantidad: 1000 },
-      { pieza_id: 'capuchon',  nombre: 'Capuchón',      cantidad: 1000 },
-    ],
-  },
-  'j_sin_tampo': {
-    unidades_caja: 1000,
-    piezas: [
-      { pieza_id: 'canula',   nombre: 'Cánula',   cantidad: 1000 },
-      { pieza_id: 'piston',   nombre: 'Pistón',   cantidad: 1000 },
-      { pieza_id: 'tapon',    nombre: 'Tapón',    cantidad: 1000 },
-      { pieza_id: 'acordeon', nombre: 'Acordeón', cantidad: 1000 },
-    ],
-  },
-  'j_farmayala': {
-    unidades_caja: 1000,
-    piezas: [
-      { pieza_id: 'canula',   nombre: 'Cánula',   cantidad: 1000 },
-      { pieza_id: 'piston',   nombre: 'Pistón',   cantidad: 1000 },
-      { pieza_id: 'tapon',    nombre: 'Tapón',    cantidad: 1000 },
-      { pieza_id: 'acordeon', nombre: 'Acordeón', cantidad: 1000 },
-    ],
-  },
-  'j_life': {
-    unidades_caja: 1200,
-    piezas: [
-      { pieza_id: 'canula',   nombre: 'Cánula',   cantidad: 1200 },
-      { pieza_id: 'piston',   nombre: 'Pistón',   cantidad: 1200 },
-      { pieza_id: 'tapon',    nombre: 'Tapón',    cantidad: 1200 },
-      { pieza_id: 'acordeon', nombre: 'Acordeón', cantidad: 1200 },
-    ],
-  },
-};
+const RECETAS_MOCK = {};
 
 // ════════════════════════ CLIENTE ASOCIADO POR PRODUCTO ════════════════════════
-const PRODUCTO_CLIENTE_MOCK = {
-  'v_lamosan':   'cli-lamosan',
-  'v_farm_ant':  'cli-farmayala',
-  'v_farm_new':  'cli-farmayala',
-  'j_farmayala': 'cli-farmayala',
-  'j_life':      'cli-life',
-  'v_life':      'cli-life',
-};
+const PRODUCTO_CLIENTE_MOCK = {};
 
 // ════════════════════════ PLANTILLAS QC ════════════════════════
 // Parámetros físicos de control de calidad por producto
-const QC_TEMPLATES_MOCK = {
-  'v_life': {
-    parametros: [
-      { id: 'peso',      nombre: 'Peso',       unidad: 'g',    minimo: 2.75, maximo: 3.10, metodo: 'Balanza analítica' },
-      { id: 'capacidad', nombre: 'Capacidad',  unidad: 'ml',   minimo: 4.8,  maximo: 5.2,  metodo: 'Llenado con agua' },
-      { id: 'espesor',   nombre: 'Espesor pared', unidad: 'mm', minimo: 0.35, maximo: 0.55, metodo: 'Calibrador' },
-    ],
-  },
-  'v_solplast': {
-    parametros: [
-      { id: 'peso',      nombre: 'Peso',       unidad: 'g',  minimo: 2.40, maximo: 2.70, metodo: 'Balanza analítica' },
-      { id: 'capacidad', nombre: 'Capacidad',  unidad: 'ml', minimo: 4.8,  maximo: 5.2,  metodo: 'Llenado con agua' },
-    ],
-  },
-  'gotero': {
-    parametros: [
-      { id: 'peso',       nombre: 'Peso total',      unidad: 'g',    minimo: 3.10, maximo: 3.50, metodo: 'Balanza analítica' },
-      { id: 'dosaje',     nombre: 'Dosaje por gota', unidad: 'mg',   minimo: 38,   maximo: 55,   metodo: 'Pesaje 20 gotas / 20' },
-      { id: 'hermet',     nombre: 'Hermeticidad',    unidad: 'pass', minimo: 1,    maximo: 1,    metodo: 'Presión 0.5 bar 30 s' },
-    ],
-  },
-  'j_sin_tampo': {
-    parametros: [
-      { id: 'peso',        nombre: 'Peso total',    unidad: 'g',  minimo: 7.60, maximo: 8.20, metodo: 'Balanza analítica' },
-      { id: 'vol_nominal', nombre: 'Vol. nominal',  unidad: 'ml', minimo: 4.85, maximo: 5.15, metodo: 'Llenado graduado' },
-      { id: 'fuerza',      nombre: 'Fuerza émbolo', unidad: 'N',  minimo: 3.0,  maximo: 15.0, metodo: 'Tensiómetro' },
-      { id: 'hermet',      nombre: 'Hermeticidad',  unidad: 'pass', minimo: 1,  maximo: 1,    metodo: 'Presión inversa' },
-    ],
-  },
-  'j_farmayala': {
-    parametros: [
-      { id: 'peso',        nombre: 'Peso total',    unidad: 'g',  minimo: 7.60, maximo: 8.20, metodo: 'Balanza analítica' },
-      { id: 'vol_nominal', nombre: 'Vol. nominal',  unidad: 'ml', minimo: 4.85, maximo: 5.15, metodo: 'Llenado graduado' },
-      { id: 'fuerza',      nombre: 'Fuerza émbolo', unidad: 'N',  minimo: 3.0,  maximo: 15.0, metodo: 'Tensiómetro' },
-    ],
-  },
-  'j_life': {
-    parametros: [
-      { id: 'peso',        nombre: 'Peso total',    unidad: 'g',  minimo: 6.80, maximo: 7.40, metodo: 'Balanza analítica' },
-      { id: 'vol_nominal', nombre: 'Vol. nominal',  unidad: 'ml', minimo: 4.85, maximo: 5.15, metodo: 'Llenado graduado' },
-      { id: 'fuerza',      nombre: 'Fuerza émbolo', unidad: 'N',  minimo: 2.5,  maximo: 12.0, metodo: 'Tensiómetro' },
-    ],
-  },
-  'cuchara_5ml': {
-    parametros: [
-      { id: 'peso',      nombre: 'Peso',       unidad: 'g',  minimo: 0.22, maximo: 0.30, metodo: 'Balanza analítica' },
-      { id: 'capacidad', nombre: 'Capacidad',  unidad: 'ml', minimo: 4.8,  maximo: 5.2,  metodo: 'Llenado con agua' },
-    ],
-  },
-};
+const QC_TEMPLATES_MOCK = {};
 
 // ════════════════════════ PANORÁMICA MENSUAL ════════════════════════
 // Producción diaria del mes actual para la vista hoja-de-contador
@@ -1852,27 +1433,11 @@ const PANORAMICA_MES_MOCK = (() => {
   return dias;
 })();
 
-const COSTOS_EVOLUCION = {
-  'Vaso Life':         [0.0076, 0.0078, 0.0080, 0.0080, 0.0081, 0.0082, 0.0082, 0.0082],
-  'Jeringa Life':      [0.0235, 0.0240, 0.0245, 0.0248, 0.0248, 0.0249, 0.0249, 0.0249],
-  'Gotero':            [0.0180, 0.0185, 0.0188, 0.0190, 0.0192, 0.0193, 0.0194, 0.0194],
-  'Cuchara 5ml':       [0.0009, 0.0010, 0.0010, 0.0011, 0.0011, 0.0011, 0.0011, 0.0011],
-};
+const COSTOS_EVOLUCION = {};
 const COSTOS_EVOLUCION_MESES = NOMINA_HISTORICA.map(m => m.label);
 
 // Producción por mes (último)
-const PRODUCCION_MES = [
-  { id: 'v_life',      cajas: 52, unidades: 130000 },
-  { id: 'v_solplast',  cajas: 28, unidades: 70000 },
-  { id: 'v_farm_new',  cajas: 18, unidades: 36000 },
-  { id: 'v_lamosan',   cajas: 12, unidades: 30000 },
-  { id: 'v_pequena',   cajas: 8,  unidades: 28000 },
-  { id: 'cuchara_5ml', cajas: 15, unidades: 120000 },
-  { id: 'gotero',      cajas: 10, unidades: 10000 },
-  { id: 'j_sin_tampo', cajas: 14, unidades: 14000 },
-  { id: 'j_farmayala', cajas: 9,  unidades: 9000 },
-  { id: 'j_life',      cajas: 7,  unidades: 8400 },
-];
+const PRODUCCION_MES = [];
 
 // Fallback globals — llenas por el backend; en demo se inicializan vacías
 if (!window.HORAS_DETALLE)         window.HORAS_DETALLE         = {};
@@ -2967,43 +2532,52 @@ function Home({ setPage, role }) {
 
       {/* Alerts + quick activity */}
       <div className="cols-2" style={{ marginBottom: 18 }}>
-        <div className="panel panel-flush">
-          <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="panel panel-flush" style={{ display: 'flex', flexDirection: 'column', maxHeight: 420 }}>
+          <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <div>
               <h3 className="panel-title">Alertas inteligentes</h3>
-              <div className="panel-sub">Requieren tu atención esta semana</div>
+              <div className="panel-sub">{alertas.length === 0 ? 'Todo al día' : 'Requieren tu atención'}</div>
             </div>
             <Chip tone="accent">{alertas.length}</Chip>
           </div>
-          {alertas.length === 0 && (
-            <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>
-              No hay alertas. Todo al día.
-            </div>
-          )}
-          {alertas.map((a) => (
-            <div key={a.id} className="list-row" style={{ position: 'relative' }}>
-              <button onClick={() => a.go && setPage(a.go)} disabled={!a.go}
-                style={{ display: 'contents', textAlign: 'left', background: 'transparent', border: 0, cursor: a.go ? 'pointer' : 'default' }}>
-                <div className="ico" style={{
-                  background: a.tone === 'warn' ? 'var(--warn-soft)' : a.tone === 'good' ? 'var(--good-soft)' : a.tone === 'bad' ? 'var(--bad-soft)' : a.tone === 'info' ? 'var(--info-soft)' : 'var(--accent-soft)',
-                  color: a.tone === 'warn' ? 'var(--warn)' : a.tone === 'good' ? 'var(--good)' : a.tone === 'bad' ? 'var(--bad)' : a.tone === 'info' ? 'var(--info)' : 'var(--accent-hi)',
-                }}>
-                  <Icon name={a.icon} size={16} />
-                </div>
-                <div className="body">
-                  <div className="ttl">{a.ttl}</div>
-                  <div className="cap">{a.cap}</div>
-                </div>
-                {a.go && <Icon name="chev_r" size={14} className="mute" />}
-              </button>
-              {a.dismissible && (
-                <button title="Descartar" onClick={(e) => { e.stopPropagation(); descartarAlerta(a.id); }}
-                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text-mute)', padding: 6, borderRadius: 6 }}>
-                  <Icon name="x" size={14} />
+          <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            {alertas.length === 0 && (
+              <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-dim)', fontSize: 13 }}>
+                No hay alertas pendientes.
+              </div>
+            )}
+            {alertas.map((a) => (
+              <div key={a.id} style={{
+                display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                borderBottom: '1px solid var(--line)',
+              }}>
+                <button onClick={() => a.go && setPage(a.go)} disabled={!a.go}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, background: 'transparent', border: 0, padding: 0, cursor: a.go ? 'pointer' : 'default', textAlign: 'left', color: 'var(--text)', minWidth: 0 }}>
+                  <div style={{
+                    flexShrink: 0, width: 36, height: 36, borderRadius: 10,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    background: a.tone === 'warn' ? 'var(--warn-soft)' : a.tone === 'good' ? 'var(--good-soft)' : a.tone === 'bad' ? 'var(--bad-soft)' : a.tone === 'info' ? 'var(--info-soft)' : 'var(--accent-soft)',
+                    color: a.tone === 'warn' ? 'var(--warn)' : a.tone === 'good' ? 'var(--good)' : a.tone === 'bad' ? 'var(--bad)' : a.tone === 'info' ? 'var(--info)' : 'var(--accent-hi)',
+                  }}>
+                    <Icon name={a.icon} size={16} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 500, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.ttl}</div>
+                    <div className="xs mute" style={{ marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.cap}</div>
+                  </div>
+                  {a.go && <Icon name="chev_r" size={14} className="mute" />}
                 </button>
-              )}
-            </div>
-          ))}
+                {a.dismissible && (
+                  <button title="Descartar alerta" onClick={(e) => { e.stopPropagation(); descartarAlerta(a.id); }}
+                    style={{ flexShrink: 0, background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--text-mute)', padding: 8, borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                    <Icon name="x" size={14} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="panel">

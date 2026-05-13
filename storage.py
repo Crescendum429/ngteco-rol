@@ -574,6 +574,83 @@ def save_alertas_descartadas(data):
     _cfg_set("alertas:descartadas", list(data))
 
 
+# ─── Stock dinamico calculado desde movimientos ───
+# El stock real NUNCA se persiste como tal: se deriva del log de movimientos
+# (entradas - consumos) y de los lotes (PT). Asi nunca hay desincronizacion.
+
+def compute_stock_mp():
+    """Stock de materia prima por material, calculado desde movimientos.
+    Retorna lista [{id, stock_kg, minimo_kg, costo_prom_kg, ultima_entrada}]."""
+    movs = load_movimientos_inventario() or []
+    materiales = load_materiales() or {}
+    if not isinstance(materiales, dict):
+        materiales = {}
+    by_id = {}
+    for mat_id, mat in materiales.items():
+        by_id[mat_id] = {
+            "id": mat_id,
+            "stock_kg": 0.0,
+            "minimo_kg": float(mat.get("minimo_kg") or 0),
+            "costo_prom_kg": float(mat.get("costo_kg") or 0),
+            "ultima_entrada": "",
+        }
+    for m in movs:
+        if not isinstance(m, dict) or m.get("clase") != "mp":
+            continue
+        item = m.get("item_id")
+        if not item:
+            continue
+        if item not in by_id:
+            by_id[item] = {"id": item, "stock_kg": 0.0, "minimo_kg": 0, "costo_prom_kg": 0, "ultima_entrada": ""}
+        cant = float(m.get("cantidad") or 0)
+        tipo = m.get("tipo")
+        if tipo in ("entrada", "produccion"):
+            by_id[item]["stock_kg"] += cant
+            fecha = m.get("fecha") or ""
+            if fecha > by_id[item]["ultima_entrada"]:
+                by_id[item]["ultima_entrada"] = fecha
+        elif tipo in ("consumo", "salida"):
+            by_id[item]["stock_kg"] -= cant
+        elif tipo == "ajuste":
+            by_id[item]["stock_kg"] += cant  # ajuste positivo por default
+    # Redondear y filtrar inactivos (sin stock ni minimo)
+    for v in by_id.values():
+        v["stock_kg"] = round(v["stock_kg"], 2)
+    return [v for v in by_id.values() if v["stock_kg"] != 0 or v["minimo_kg"] > 0]
+
+
+def compute_stock_pt():
+    """Stock de producto terminado por producto, desde lotes en stock.
+    Retorna lista [{prod_id, stock_cajas, reservado, minimo_cajas}]."""
+    lotes = load_inv_lotes() or []
+    productos = load_productos() or {}
+    if not isinstance(productos, dict):
+        productos = {}
+    by_id = {pid: {"prod_id": pid, "stock_cajas": 0, "reservado": 0, "minimo_cajas": int(p.get("minimo_cajas") or 0)} for pid, p in productos.items()}
+    for l in lotes:
+        if not isinstance(l, dict):
+            continue
+        if l.get("despachado"):
+            continue
+        pid = l.get("producto_id")
+        if not pid:
+            continue
+        if pid not in by_id:
+            by_id[pid] = {"prod_id": pid, "stock_cajas": 0, "reservado": 0, "minimo_cajas": 0}
+        by_id[pid]["stock_cajas"] += int(l.get("cantidad_cajas") or 0)
+    return [v for v in by_id.values() if v["stock_cajas"] != 0 or v["minimo_cajas"] > 0]
+
+
+def compute_stock_aux():
+    """Stock de material auxiliar. Para mantener coherencia: stock_inicial del
+    item + entradas - consumos. El item ya guarda 'stock' actualizado por el
+    endpoint registrar-dia, asi que lo retornamos directo."""
+    aux = load_inv_auxiliar() or []
+    if not isinstance(aux, list):
+        return []
+    return [a for a in aux if isinstance(a, dict)]
+
+
 def load_inv_lotes():
     """Lotes de producto terminado. Estructura: [{id, producto_id, cliente_id?, fecha_elaboracion, fecha_caducidad, cantidad_cajas, unidades_caja, peso_neto, peso_total, responsable, despachado, despachado_en}]"""
     return _load_or_none("inv:lotes") or []
