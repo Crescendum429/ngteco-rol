@@ -2750,7 +2750,7 @@ function Sidebar({ page, setPage, role, open, onClose, theme, setTheme, onLogout
             <div className="avatar">{role === 'operario' ? 'OP' : 'AD'}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600 }}>{role === 'operario' ? 'Operario' : 'Admin Solplast'}</div>
-              <div className="xs mute">v4.0 · Demo</div>
+              <div className="xs mute">v{window.APP_VERSION || '5.0.0'}</div>
             </div>
             <Btn variant="ghost" size="sm" title="Cerrar sesión" onClick={onLogout}><Icon name="logout" size={14} /></Btn>
           </div>
@@ -2850,7 +2850,7 @@ function Login({ onLogin }) {
         </Btn>
 
         <div style={{ marginTop: 20, textAlign: 'center', fontSize: 11, color: 'var(--text-mute)' }}>
-          Soluciones Plásticas del Ecuador · v4.0
+          Soluciones Plásticas del Ecuador · v{window.APP_VERSION || '5.0.0'}
         </div>
       </form>
     </div>

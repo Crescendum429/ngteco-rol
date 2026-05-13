@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "5.0.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "5.0.1"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -236,21 +236,27 @@ def _build_data_jsx():
     hoy = date.today()
     mes_actual = hoy.strftime("%Y-%m")
     registros_diarios = list_registros_diarios(mes_actual)
-    # list_registros_diarios returns a dict {fecha: val}
     fechas_recientes = sorted(registros_diarios.keys())[-5:]
     registros = []
     for fecha in fechas_recientes:
         try:
             reg = load_registro_diario(fecha)
             if reg:
-                registros.append({
+                # Preserva detalle por producto (productos, subcomp, tachos, desecho_emp)
+                # que el v3 necesita para RegistroDetalle.
+                entry = {
+                    "id": reg.get("id") or f"reg-{fecha}",
                     "fecha": reg.get("fecha", fecha),
                     "material": float(reg.get("total_material_kg", 0)),
                     "cajas": int(reg.get("total_cajas", 0)),
                     "obs": reg.get("observaciones", ""),
-                })
+                }
+                for k in ("productos", "loteNum", "desecho_total_kg", "molido_gen_kg"):
+                    if k in reg:
+                        entry[k] = reg[k]
+                registros.append(entry)
         except Exception:
-            pass
+            log.exception(f"cargando registro {fecha}")
 
     gastos_raw = load_gastos_fijos(mes_actual)
     gastos_fijos_js = {
@@ -303,7 +309,10 @@ def _build_data_jsx():
         f"window.BANCO_POR_EMP = {json.dumps(banco_por_emp, ensure_ascii=False)};",
         f"window.OVERRIDES_POR_PERIODO = {json.dumps(overrides_por_periodo, ensure_ascii=False)};",
         f"window.LATEST_PERIODO = {json.dumps(latest_id)};",
-        f"window.REGISTROS_RECIENTES = {json.dumps(registros, ensure_ascii=False)};",
+        # Solo override si hay registros reales. Si no, el HTML conserva el
+        # mock de Design para que la UI no se vea vacia en demo.
+        (f"window.REGISTROS_RECIENTES = {json.dumps(registros, ensure_ascii=False)};"
+         if registros else "/* sin registros: se conservan los mocks */"),
         f"window.COSTOS_EVOLUCION_MESES = window.NOMINA_HISTORICA.map(m => m.label);",
         f"window.BENEFICIOS_RECURRENTES_MOCK = {json.dumps(beneficios_rec, ensure_ascii=False)};",
     ]

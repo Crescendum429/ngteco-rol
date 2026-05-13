@@ -273,7 +273,7 @@ def _cfg_get(key, default=None):
                 return res.data[0]["value"]
         except Exception:
             pass
-    return default if default is not None else {}
+    return default
 
 
 def _cfg_set(key, value):
