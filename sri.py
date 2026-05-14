@@ -398,6 +398,217 @@ def build_factura_xml(factura: dict, emisor: dict, cliente: dict, ambiente: str 
     return xml
 
 
+def build_nota_credito_xml(nota: dict, emisor: dict, cliente: dict, ambiente: str = AMBIENTE_PRUEBAS) -> str:
+    """Construye XML de nota de credito (cod_doc 04) segun ficha 1.1.0 SRI.
+
+    Una nota de credito anula total o parcialmente una factura previa.
+    Requiere los datos del documento modificado: codDocModificado=01,
+    numDocModificado (estab-pto-secuencial), fechaEmisionDocSustento.
+
+    nota: dict con id, fecha_emision, clave_acceso, establecimiento,
+          punto_emision, secuencial, ambiente, factura_referencia (id),
+          factura_clave_acceso, factura_fecha, items [], motivo
+    """
+    fecha_dt = datetime.strptime(nota["fecha_emision"], "%Y-%m-%d")
+
+    items_xml = []
+    suma_base_12 = Decimal("0")
+    suma_base_0 = Decimal("0")
+    suma_iva = Decimal("0")
+    for it in nota.get("items", []):
+        cant = _to_dec(it.get("cant_cajas", it.get("cantidad", 0)))
+        precio = _to_dec(it.get("precio_unit", it.get("precio_caja", 0)))
+        total_item = (cant * precio).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        descuento = _to_dec(it.get("descuento", 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        base = (total_item - descuento).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        tarifa = _to_dec(it.get("iva_pct", 15))
+        iva_item = (base * tarifa / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if tarifa == 0:
+            suma_base_0 += base
+        else:
+            suma_base_12 += base
+        suma_iva += iva_item
+        cp = IVA_CODIGO.get(int(tarifa), "4")
+        items_xml.append(f"""    <detalle>
+      <codigoInterno>{_xml_escape(it.get("prod_id", ""))}</codigoInterno>
+      <descripcion>{_xml_escape(it.get("descripcion", it.get("prod_id", "")))}</descripcion>
+      <cantidad>{_fmt_dec(cant, 6)}</cantidad>
+      <precioUnitario>{_fmt_dec(precio, 6)}</precioUnitario>
+      <descuento>{_fmt_dec(descuento)}</descuento>
+      <precioTotalSinImpuesto>{_fmt_dec(base)}</precioTotalSinImpuesto>
+      <impuestos>
+        <impuesto>
+          <codigo>2</codigo>
+          <codigoPorcentaje>{cp}</codigoPorcentaje>
+          <tarifa>{_fmt_dec(tarifa)}</tarifa>
+          <baseImponible>{_fmt_dec(base)}</baseImponible>
+          <valor>{_fmt_dec(iva_item)}</valor>
+        </impuesto>
+      </impuestos>
+    </detalle>""")
+
+    total_sin_imp = (suma_base_12 + suma_base_0).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    valor_modificacion = (total_sin_imp + suma_iva).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    # Doc modificado: la factura original. numDocModificado = estab-pto-secuencial
+    fac_estab = str(nota.get("factura_establecimiento", "001")).zfill(3)
+    fac_pto = str(nota.get("factura_punto_emision", "001")).zfill(3)
+    fac_sec = str(nota.get("factura_secuencial", "1")).zfill(9)
+    num_doc_mod = f"{fac_estab}-{fac_pto}-{fac_sec}"
+    fecha_doc_sustento = nota.get("factura_fecha_emision") or nota["fecha_emision"]
+    try:
+        fdoc = datetime.strptime(fecha_doc_sustento, "%Y-%m-%d").strftime("%d/%m/%Y")
+    except Exception:
+        fdoc = fecha_dt.strftime("%d/%m/%Y")
+
+    ident_comprador = cliente.get("ruc") or cliente.get("cedula") or "9999999999999"
+    tipo_id = cliente.get("tipo_identificacion")
+    if not tipo_id:
+        tipo_id = "04" if len(ident_comprador) == 13 else "05" if len(ident_comprador) == 10 else "07"
+
+    dir_emisor = emisor.get("dir_matriz", {})
+    dir_str = ", ".join(filter(None, [
+        dir_emisor.get("calle", ""), dir_emisor.get("numero", ""),
+        dir_emisor.get("interseccion", ""), dir_emisor.get("ciudad", ""),
+    ])) or "Ecuador"
+
+    total_impuestos = f"""      <totalImpuesto>
+        <codigo>2</codigo>
+        <codigoPorcentaje>4</codigoPorcentaje>
+        <baseImponible>{_fmt_dec(suma_base_12)}</baseImponible>
+        <valor>{_fmt_dec(suma_iva)}</valor>
+      </totalImpuesto>"""
+    if suma_base_0 > 0:
+        total_impuestos += f"""
+      <totalImpuesto>
+        <codigo>2</codigo>
+        <codigoPorcentaje>0</codigoPorcentaje>
+        <baseImponible>{_fmt_dec(suma_base_0)}</baseImponible>
+        <valor>0.00</valor>
+      </totalImpuesto>"""
+
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<notaCredito id="comprobante" version="1.1.0">
+  <infoTributaria>
+    <ambiente>{ambiente}</ambiente>
+    <tipoEmision>{TIPO_EMISION_NORMAL}</tipoEmision>
+    <razonSocial>{_xml_escape(emisor.get("razon_social", ""))}</razonSocial>
+    <nombreComercial>{_xml_escape(emisor.get("nombre_comercial", emisor.get("razon_social", "")))}</nombreComercial>
+    <ruc>{emisor.get("ruc", "")}</ruc>
+    <claveAcceso>{nota["clave_acceso"]}</claveAcceso>
+    <codDoc>{COD_DOC["nota_credito"]}</codDoc>
+    <estab>{str(nota.get("establecimiento", "001")).zfill(3)}</estab>
+    <ptoEmi>{str(nota.get("punto_emision", "001")).zfill(3)}</ptoEmi>
+    <secuencial>{str(nota.get("secuencial", "1")).zfill(9)}</secuencial>
+    <dirMatriz>{_xml_escape(dir_str)}</dirMatriz>
+  </infoTributaria>
+  <infoNotaCredito>
+    <fechaEmision>{fecha_dt.strftime("%d/%m/%Y")}</fechaEmision>
+    <dirEstablecimiento>{_xml_escape(dir_str)}</dirEstablecimiento>
+    <tipoIdentificacionComprador>{tipo_id}</tipoIdentificacionComprador>
+    <razonSocialComprador>{_xml_escape(cliente.get("razon_social", "CONSUMIDOR FINAL"))}</razonSocialComprador>
+    <identificacionComprador>{ident_comprador}</identificacionComprador>
+    <obligadoContabilidad>{"SI" if emisor.get("obligado_contabilidad") else "NO"}</obligadoContabilidad>
+    <codDocModificado>{COD_DOC["factura"]}</codDocModificado>
+    <numDocModificado>{num_doc_mod}</numDocModificado>
+    <fechaEmisionDocSustento>{fdoc}</fechaEmisionDocSustento>
+    <totalSinImpuestos>{_fmt_dec(total_sin_imp)}</totalSinImpuestos>
+    <valorModificacion>{_fmt_dec(valor_modificacion)}</valorModificacion>
+    <moneda>DOLAR</moneda>
+    <totalConImpuestos>
+{total_impuestos}
+    </totalConImpuestos>
+    <motivo>{_xml_escape(nota.get("motivo", "Devolucion"))}</motivo>
+  </infoNotaCredito>
+  <detalles>
+{chr(10).join(items_xml)}
+  </detalles>
+</notaCredito>
+"""
+    return xml
+
+
+def build_guia_remision_xml(guia: dict, emisor: dict, cliente: dict, ambiente: str = AMBIENTE_PRUEBAS) -> str:
+    """Construye XML de guia de remision (cod_doc 06) segun ficha 1.1.0 SRI.
+
+    guia: dict con id, fecha_emision, clave_acceso, establecimiento, punto_emision,
+          secuencial, transportista (ruc, razon_social), placa, punto_partida,
+          fecha_inicio, fecha_fin, motivo, destinatarios [{ identificacion,
+          razon_social, direccion, motivo, doc_aduanero?, ruta?, fecha_inicio,
+          fecha_fin, detalles [{cod_principal, descripcion, cantidad}]}]
+    """
+    fecha_dt = datetime.strptime(guia["fecha_emision"], "%Y-%m-%d")
+    fecha_ini = datetime.strptime(guia.get("fecha_inicio", guia["fecha_emision"]), "%Y-%m-%d").strftime("%d/%m/%Y")
+    fecha_fin = datetime.strptime(guia.get("fecha_fin", guia["fecha_emision"]), "%Y-%m-%d").strftime("%d/%m/%Y")
+
+    transp = guia.get("transportista") or {}
+    transp_ruc = transp.get("ruc") or "9999999999999"
+    transp_id_tipo = "04" if len(transp_ruc) == 13 else "05" if len(transp_ruc) == 10 else "07"
+
+    dir_emisor = emisor.get("dir_matriz", {})
+    dir_str = ", ".join(filter(None, [
+        dir_emisor.get("calle", ""), dir_emisor.get("numero", ""),
+        dir_emisor.get("interseccion", ""), dir_emisor.get("ciudad", ""),
+    ])) or "Ecuador"
+
+    destinatarios_xml = []
+    for d in guia.get("destinatarios") or [{"identificacion": cliente.get("ruc") or "",
+                                            "razon_social": cliente.get("razon_social", ""),
+                                            "direccion": (cliente.get("dir_matriz") or {}).get("calle", ""),
+                                            "motivo": guia.get("motivo", "Venta"),
+                                            "detalles": guia.get("items", [])}]:
+        det_dest_xml = []
+        for it in d.get("detalles", []):
+            det_dest_xml.append(f"""        <detalle>
+          <codigoInterno>{_xml_escape(it.get("prod_id", it.get("cod_principal", "")))}</codigoInterno>
+          <descripcion>{_xml_escape(it.get("descripcion", it.get("prod_id", "")))}</descripcion>
+          <cantidad>{_fmt_dec(it.get("cant_cajas", it.get("cantidad", 0)), 6)}</cantidad>
+        </detalle>""")
+        destinatarios_xml.append(f"""    <destinatario>
+      <identificacionDestinatario>{d.get("identificacion") or "9999999999999"}</identificacionDestinatario>
+      <razonSocialDestinatario>{_xml_escape(d.get("razon_social", "CONSUMIDOR FINAL"))}</razonSocialDestinatario>
+      <dirDestinatario>{_xml_escape(d.get("direccion", "Ecuador"))}</dirDestinatario>
+      <motivoTraslado>{_xml_escape(d.get("motivo", guia.get("motivo", "Venta")))}</motivoTraslado>
+      <ruta>{_xml_escape(d.get("ruta", ""))}</ruta>
+      <detalles>
+{chr(10).join(det_dest_xml)}
+      </detalles>
+    </destinatario>""")
+
+    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<guiaRemision id="comprobante" version="1.1.0">
+  <infoTributaria>
+    <ambiente>{ambiente}</ambiente>
+    <tipoEmision>{TIPO_EMISION_NORMAL}</tipoEmision>
+    <razonSocial>{_xml_escape(emisor.get("razon_social", ""))}</razonSocial>
+    <nombreComercial>{_xml_escape(emisor.get("nombre_comercial", emisor.get("razon_social", "")))}</nombreComercial>
+    <ruc>{emisor.get("ruc", "")}</ruc>
+    <claveAcceso>{guia["clave_acceso"]}</claveAcceso>
+    <codDoc>{COD_DOC["guia_remision"]}</codDoc>
+    <estab>{str(guia.get("establecimiento", "001")).zfill(3)}</estab>
+    <ptoEmi>{str(guia.get("punto_emision", "001")).zfill(3)}</ptoEmi>
+    <secuencial>{str(guia.get("secuencial", "1")).zfill(9)}</secuencial>
+    <dirMatriz>{_xml_escape(dir_str)}</dirMatriz>
+  </infoTributaria>
+  <infoGuiaRemision>
+    <dirEstablecimiento>{_xml_escape(dir_str)}</dirEstablecimiento>
+    <dirPartida>{_xml_escape(guia.get("punto_partida", dir_str))}</dirPartida>
+    <razonSocialTransportista>{_xml_escape(transp.get("razon_social", ""))}</razonSocialTransportista>
+    <tipoIdentificacionTransportista>{transp_id_tipo}</tipoIdentificacionTransportista>
+    <rucTransportista>{transp_ruc}</rucTransportista>
+    <obligadoContabilidad>{"SI" if emisor.get("obligado_contabilidad") else "NO"}</obligadoContabilidad>
+    <fechaIniTransporte>{fecha_ini}</fechaIniTransporte>
+    <fechaFinTransporte>{fecha_fin}</fechaFinTransporte>
+    <placa>{_xml_escape(transp.get("placa", guia.get("placa", "")))}</placa>
+  </infoGuiaRemision>
+  <destinatarios>
+{chr(10).join(destinatarios_xml)}
+  </destinatarios>
+</guiaRemision>
+"""
+    return xml
+
+
 # ═══════════════════════════════════════════════════════════════
 # 3. Firma XAdES-BES — requiere .p12 configurado
 # ═══════════════════════════════════════════════════════════════

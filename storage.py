@@ -402,6 +402,40 @@ def save_clientes(data):
     _cfg_set("crm:clientes", data)
 
 
+def load_notas_credito():
+    return _load_or_none("crm:notas_credito") or []
+
+
+def save_notas_credito(data):
+    _cfg_set("crm:notas_credito", data)
+
+
+def load_notas_debito():
+    return _load_or_none("crm:notas_debito") or []
+
+
+def save_notas_debito(data):
+    _cfg_set("crm:notas_debito", data)
+
+
+def load_retenciones_recibidas():
+    """Comprobantes de retencion que clientes nos emiten al pagar."""
+    return _load_or_none("crm:retenciones_recibidas") or []
+
+
+def save_retenciones_recibidas(data):
+    _cfg_set("crm:retenciones_recibidas", data)
+
+
+def load_pagos_recibidos():
+    """Pagos recibidos contra facturas. Soporta pagos parciales."""
+    return _load_or_none("crm:pagos_recibidos") or []
+
+
+def save_pagos_recibidos(data):
+    _cfg_set("crm:pagos_recibidos", data)
+
+
 def load_cotizaciones():
     return _load_or_none("crm:cotizaciones")
 

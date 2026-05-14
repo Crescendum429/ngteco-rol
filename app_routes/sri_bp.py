@@ -172,6 +172,212 @@ def sri_emitir(factura_id):
     })
 
 
+@sri_bp.route("/api/sri/emitir-nota-credito/<path:nota_id>", methods=["POST"])
+@require_auth
+def sri_emitir_nota_credito(nota_id):
+    """Emite una nota de credito al SRI (cod_doc 04). Misma maquina que factura."""
+    from storage import load_notas_credito, save_notas_credito, reservar_secuencial_sri
+    notas = load_notas_credito() or []
+    nota = next((n for n in notas if isinstance(n, dict) and n.get("id") == nota_id), None)
+    if not nota:
+        return jsonify({"error": "Nota de credito no encontrada"}), 404
+    if nota.get("estado_sri") == "autorizada":
+        return jsonify({"error": "Nota ya autorizada"}), 409
+
+    emisor = load_emisor() or {}
+    if not sri_mod.validar_ruc_ecuador(emisor.get("ruc", "")):
+        return jsonify({"error": "RUC emisor invalido"}), 400
+
+    cliente = _find_cliente(nota.get("cliente")) or {}
+    ambiente = os.environ.get("SRI_AMBIENTE", sri_mod.AMBIENTE_PRUEBAS)
+    simulado = os.environ.get("SRI_SIMULADO", "true").lower() in ("1", "true", "yes")
+
+    fecha_em = nota.get("fecha_emision") or date.today().isoformat()
+    try:
+        fecha_dt = datetime.strptime(fecha_em, "%Y-%m-%d")
+    except Exception:
+        fecha_dt = datetime.now()
+    fecha_str = fecha_dt.strftime("%d%m%Y")
+
+    estab = str(nota.get("establecimiento", "001")).zfill(3)
+    pto = str(nota.get("punto_emision", "001")).zfill(3)
+    if nota.get("secuencial") and nota.get("estado_sri") == "rechazada":
+        secuencial = str(nota["secuencial"]).zfill(9)
+    else:
+        sec_num = reservar_secuencial_sri(sri_mod.COD_DOC["nota_credito"], estab, pto)
+        secuencial = str(sec_num).zfill(9)
+        nota["secuencial"] = secuencial
+        nota["establecimiento"] = estab
+        nota["punto_emision"] = pto
+
+    clave = sri_mod.generar_clave_acceso(
+        fecha_emision=fecha_str, cod_doc=sri_mod.COD_DOC["nota_credito"],
+        ruc_emisor=emisor["ruc"], ambiente=ambiente, estab=estab,
+        pto_emision=pto, secuencial=secuencial,
+    )
+    nota["clave_acceso"] = clave
+    nota["ambiente"] = ambiente
+
+    try:
+        xml_str = sri_mod.build_nota_credito_xml(nota, emisor, cliente, ambiente=ambiente)
+    except ValueError as ve:
+        return jsonify({"error": f"Nota invalida: {ve}"}), 422
+
+    xml_firmado, firma_estado = sri_mod.firmar_xml(xml_str)
+    nota["xml_firma_estado"] = firma_estado
+    if not firma_estado.startswith("FIRMADO") and not simulado:
+        save_notas_credito(notas)
+        return jsonify({"error": "Sin firma valida, no se envia al SRI", "firma_estado": firma_estado}), 422
+
+    rec = sri_mod.enviar_recepcion(xml_firmado, ambiente=ambiente)
+    nota["sri_recepcion"] = rec
+    aut = sri_mod.consultar_autorizacion(clave, ambiente=ambiente)
+    nota["estado_sri"] = aut.get("estado", "EN_PROCESO")
+    nota["autorizacion_sri"] = aut.get("numero_autorizacion", "")
+    nota["fecha_autorizacion"] = aut.get("fecha_autorizacion", "")
+    nota["sri_mensajes"] = aut.get("mensajes", []) + rec.get("mensajes", [])
+
+    try:
+        _cfg_set(f"sri:xml:{clave}", {"xml": xml_firmado, "doc_id": nota_id, "cod_doc": "04"})
+    except Exception:
+        log.exception(f"emit-nc {nota_id}: error guardando XML")
+
+    idx = next((i for i, n in enumerate(notas) if n.get("id") == nota_id), None)
+    if idx is not None:
+        notas[idx] = nota
+    save_notas_credito(notas)
+    audit.record("nota_credito", "emitir_sri", nota_id, after={"clave_acceso": clave, "estado_sri": nota["estado_sri"]})
+
+    return jsonify({"ok": True, "clave_acceso": clave, "estado_sri": nota["estado_sri"],
+                    "autorizacion_sri": nota["autorizacion_sri"], "firma_estado": firma_estado})
+
+
+@sri_bp.route("/api/sri/emitir-guia/<path:guia_id>", methods=["POST"])
+@require_auth
+def sri_emitir_guia(guia_id):
+    """Emite una guia de remision al SRI (cod_doc 06)."""
+    from storage import load_guias, save_guias, reservar_secuencial_sri
+    guias = load_guias() or []
+    guia = next((g for g in guias if isinstance(g, dict) and g.get("id") == guia_id), None)
+    if not guia:
+        return jsonify({"error": "Guia no encontrada"}), 404
+    if guia.get("estado_sri") == "autorizada":
+        return jsonify({"error": "Guia ya autorizada"}), 409
+
+    emisor = load_emisor() or {}
+    if not sri_mod.validar_ruc_ecuador(emisor.get("ruc", "")):
+        return jsonify({"error": "RUC emisor invalido"}), 400
+
+    cliente = _find_cliente(guia.get("cliente") or guia.get("destinatario_id")) or {}
+    ambiente = os.environ.get("SRI_AMBIENTE", sri_mod.AMBIENTE_PRUEBAS)
+    simulado = os.environ.get("SRI_SIMULADO", "true").lower() in ("1", "true", "yes")
+
+    fecha_em = guia.get("fecha_emision") or date.today().isoformat()
+    try:
+        fecha_dt = datetime.strptime(fecha_em, "%Y-%m-%d")
+    except Exception:
+        fecha_dt = datetime.now()
+    fecha_str = fecha_dt.strftime("%d%m%Y")
+
+    estab = str(guia.get("establecimiento", "001")).zfill(3)
+    pto = str(guia.get("punto_emision", "001")).zfill(3)
+    if guia.get("secuencial") and guia.get("estado_sri") == "rechazada":
+        secuencial = str(guia["secuencial"]).zfill(9)
+    else:
+        sec_num = reservar_secuencial_sri(sri_mod.COD_DOC["guia_remision"], estab, pto)
+        secuencial = str(sec_num).zfill(9)
+        guia["secuencial"] = secuencial
+        guia["establecimiento"] = estab
+        guia["punto_emision"] = pto
+
+    clave = sri_mod.generar_clave_acceso(
+        fecha_emision=fecha_str, cod_doc=sri_mod.COD_DOC["guia_remision"],
+        ruc_emisor=emisor["ruc"], ambiente=ambiente, estab=estab,
+        pto_emision=pto, secuencial=secuencial,
+    )
+    guia["clave_acceso"] = clave
+    guia["ambiente"] = ambiente
+
+    xml_str = sri_mod.build_guia_remision_xml(guia, emisor, cliente, ambiente=ambiente)
+    xml_firmado, firma_estado = sri_mod.firmar_xml(xml_str)
+    guia["xml_firma_estado"] = firma_estado
+    if not firma_estado.startswith("FIRMADO") and not simulado:
+        save_guias(guias)
+        return jsonify({"error": "Sin firma valida", "firma_estado": firma_estado}), 422
+
+    rec = sri_mod.enviar_recepcion(xml_firmado, ambiente=ambiente)
+    aut = sri_mod.consultar_autorizacion(clave, ambiente=ambiente)
+    guia["estado_sri"] = aut.get("estado", "EN_PROCESO")
+    guia["autorizacion_sri"] = aut.get("numero_autorizacion", "")
+    guia["fecha_autorizacion"] = aut.get("fecha_autorizacion", "")
+    guia["sri_mensajes"] = aut.get("mensajes", []) + rec.get("mensajes", [])
+
+    try:
+        _cfg_set(f"sri:xml:{clave}", {"xml": xml_firmado, "doc_id": guia_id, "cod_doc": "06"})
+    except Exception:
+        log.exception(f"emit-guia {guia_id}: error guardando XML")
+
+    idx = next((i for i, g in enumerate(guias) if g.get("id") == guia_id), None)
+    if idx is not None:
+        guias[idx] = guia
+    save_guias(guias)
+    audit.record("guia_remision", "emitir_sri", guia_id, after={"clave_acceso": clave, "estado_sri": guia["estado_sri"]})
+
+    return jsonify({"ok": True, "clave_acceso": clave, "estado_sri": guia["estado_sri"],
+                    "autorizacion_sri": guia["autorizacion_sri"], "firma_estado": firma_estado})
+
+
+@sri_bp.route("/api/sri/anular/<path:doc_id>", methods=["POST"])
+@require_auth
+def sri_anular(doc_id):
+    """Marca una factura/nota como anulada y registra fecha de solicitud.
+    SRI permite solicitar anulacion hasta 90 dias post-autorizacion.
+    El comunicado oficial debe presentarse en el portal SRI; esta API
+    solo refleja el estado interno."""
+    kind = request.args.get("kind", "factura")  # factura | nota_credito | nota_debito
+    if kind == "factura":
+        items = load_facturas() or []
+        save_fn = save_facturas
+        entity = "factura"
+    elif kind == "nota_credito":
+        from storage import load_notas_credito as load_fn, save_notas_credito as save_fn
+        items = load_fn() or []
+        entity = "nota_credito"
+    elif kind == "nota_debito":
+        from storage import load_notas_debito as load_fn, save_notas_debito as save_fn
+        items = load_fn() or []
+        entity = "nota_debito"
+    else:
+        return jsonify({"error": f"kind invalido: {kind}"}), 400
+
+    item = next((x for x in items if isinstance(x, dict) and x.get("id") == doc_id), None)
+    if not item:
+        return jsonify({"error": "No encontrado"}), 404
+    if item.get("estado_sri") != "autorizada":
+        return jsonify({"error": f"Solo se pueden anular comprobantes autorizados. Estado actual: {item.get('estado_sri')}"}), 400
+
+    fecha_aut = item.get("fecha_autorizacion", "")
+    if fecha_aut:
+        try:
+            fa = datetime.fromisoformat(fecha_aut.replace("Z", "")).date()
+            dias_pasados = (date.today() - fa).days
+            if dias_pasados > 90:
+                return jsonify({"error": f"Solo se puede anular dentro de 90 dias post-autorizacion. Pasaron {dias_pasados} dias."}), 400
+        except Exception:
+            pass
+
+    item["estado_sri_previo"] = item.get("estado_sri")
+    item["estado_sri"] = "anulada"
+    item["fecha_anulacion"] = date.today().isoformat()
+    item["motivo_anulacion"] = (request.get_json(silent=True) or {}).get("motivo", "")
+
+    save_fn(items)
+    audit.record(entity, "anular", doc_id, before={"estado_sri": "autorizada"},
+                 after={"estado_sri": "anulada", "motivo": item["motivo_anulacion"]})
+    log.info(f"sri_anular {kind} {doc_id}: anulada")
+    return jsonify({"ok": True, "estado_sri": "anulada"})
+
+
 @sri_bp.route("/api/sri/autorizar/<clave>", methods=["GET"])
 @require_auth
 def sri_autorizar(clave):
