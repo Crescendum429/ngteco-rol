@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "5.3.1"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "5.3.2"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -224,7 +224,36 @@ def _build_panoramica_prod_diaria(registros_mes):
     return out
 
 
+_DATA_JSX_CACHE = {"v": None, "exp": 0.0}
+_DATA_JSX_TTL = float(os.environ.get("DATA_JSX_CACHE_TTL", "30"))  # segundos
+
+
+def _invalidate_data_jsx_cache():
+    """Llamar despues de cualquier mutacion via API que cambie datos visibles."""
+    _DATA_JSX_CACHE["v"] = None
+    _DATA_JSX_CACHE["exp"] = 0.0
+
+
+@app.after_request
+def _invalidate_cache_on_mutation(response):
+    """Invalida el cache de data.jsx tras cualquier POST/PUT/DELETE exitoso a /api/*."""
+    if request.path.startswith("/api/") and request.method in ("POST", "PUT", "DELETE") and response.status_code < 400:
+        _invalidate_data_jsx_cache()
+    return response
+
+
 def _build_data_jsx():
+    import time
+    now = time.time()
+    if _DATA_JSX_CACHE["v"] is not None and _DATA_JSX_CACHE["exp"] > now:
+        return _DATA_JSX_CACHE["v"]
+    result = _build_data_jsx_uncached()
+    _DATA_JSX_CACHE["v"] = result
+    _DATA_JSX_CACHE["exp"] = now + _DATA_JSX_TTL
+    return result
+
+
+def _build_data_jsx_uncached():
     emp_db = load_empleados()
     empleados_js = [_emp_to_js(k, v, i) for i, (k, v) in enumerate(emp_db.items()) if not v.get("ocultar")]
 
