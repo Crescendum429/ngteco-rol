@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "5.3.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "5.3.1"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -169,6 +169,61 @@ from nomina_logic import (
 
 
 
+def _build_panoramica_mes(registros_mes, hoy):
+    """Construye lista de 31 dias del mes actual con cajas/material/desecho reales.
+    Los dias sin registro quedan en 0. Los dias finde / futuros llevan flag.
+    """
+    from calendar import monthrange
+    anio = hoy.year
+    mes = hoy.month
+    dias_mes = monthrange(anio, mes)[1]
+    by_fecha = {r["fecha"]: r for r in registros_mes if isinstance(r, dict) and r.get("fecha")}
+    result = []
+    for d in range(1, dias_mes + 1):
+        fecha = f"{anio}-{mes:02d}-{d:02d}"
+        from datetime import date as _date
+        dow = _date(anio, mes, d).weekday()  # 0=lun, 6=dom
+        es_finde = dow >= 5
+        es_futuro = d > hoy.day
+        reg = by_fecha.get(fecha)
+        if reg:
+            desecho = float(reg.get("desecho_total_kg") or 0)
+            result.append({
+                "dia": d, "fecha": fecha, "esFinde": es_finde, "esFuturo": False,
+                "cajas": int(reg.get("cajas") or 0),
+                "material_kg": float(reg.get("material") or 0),
+                "desecho_kg": round(desecho, 1),
+                "registro_id": reg.get("id") or f"reg-{fecha}",
+            })
+        else:
+            result.append({
+                "dia": d, "fecha": fecha, "esFinde": es_finde, "esFuturo": es_futuro,
+                "cajas": 0, "material_kg": 0, "desecho_kg": 0,
+            })
+    return result
+
+
+def _build_panoramica_prod_diaria(registros_mes):
+    """{fecha: {prod_id: cajas}} desde registros_mes[].productos[]."""
+    out = {}
+    for r in registros_mes:
+        if not isinstance(r, dict):
+            continue
+        fecha = r.get("fecha")
+        prods = r.get("productos") or []
+        if not fecha or not isinstance(prods, list):
+            continue
+        out[fecha] = {}
+        for p in prods:
+            if not isinstance(p, dict):
+                continue
+            pid = p.get("prod_id")
+            cajas = int(p.get("cajas") or 0)
+            if pid and cajas > 0:
+                out[fecha][pid] = out[fecha].get(pid, 0) + cajas
+    return out
+
+
 def _build_data_jsx():
     emp_db = load_empleados()
     empleados_js = [_emp_to_js(k, v, i) for i, (k, v) in enumerate(emp_db.items()) if not v.get("ocultar")]
@@ -236,14 +291,13 @@ def _build_data_jsx():
     hoy = date.today()
     mes_actual = hoy.strftime("%Y-%m")
     registros_diarios = list_registros_diarios(mes_actual)
-    fechas_recientes = sorted(registros_diarios.keys())[-5:]
-    registros = []
-    for fecha in fechas_recientes:
+    fechas_mes = sorted(registros_diarios.keys())
+    # registros_mes: TODO el mes (para panoramica). registros_recientes: ultimos 5 (para sidebar Registro).
+    registros_mes = []
+    for fecha in fechas_mes:
         try:
             reg = load_registro_diario(fecha)
             if reg:
-                # Preserva detalle por producto (productos, subcomp, tachos, desecho_emp)
-                # que el v3 necesita para RegistroDetalle.
                 entry = {
                     "id": reg.get("id") or f"reg-{fecha}",
                     "fecha": reg.get("fecha", fecha),
@@ -251,12 +305,14 @@ def _build_data_jsx():
                     "cajas": int(reg.get("total_cajas", 0)),
                     "obs": reg.get("observaciones", ""),
                 }
-                for k in ("productos", "loteNum", "desecho_total_kg", "molido_gen_kg"):
+                for k in ("productos", "loteNum", "desecho_total_kg", "molido_gen_kg",
+                          "desecho_empacadora", "tachos_armados"):
                     if k in reg:
                         entry[k] = reg[k]
-                registros.append(entry)
+                registros_mes.append(entry)
         except Exception:
             log.exception(f"cargando registro {fecha}")
+    registros = registros_mes[-5:]  # ultimos 5 para la lista de registros recientes
 
     gastos_raw = load_gastos_fijos(mes_actual)
     gastos_fijos_js = {
@@ -309,10 +365,20 @@ def _build_data_jsx():
         f"window.BANCO_POR_EMP = {json.dumps(banco_por_emp, ensure_ascii=False)};",
         f"window.OVERRIDES_POR_PERIODO = {json.dumps(overrides_por_periodo, ensure_ascii=False)};",
         f"window.LATEST_PERIODO = {json.dumps(latest_id)};",
-        # Solo override si hay registros reales. Si no, el HTML conserva el
-        # mock de Design para que la UI no se vea vacia en demo.
-        (f"window.REGISTROS_RECIENTES = {json.dumps(registros, ensure_ascii=False)};"
-         if registros else "/* sin registros: se conservan los mocks */"),
+        f"window.REGISTROS_RECIENTES = {json.dumps(registros, ensure_ascii=False)};",
+        f"window.REGISTROS_MES = {json.dumps(registros_mes, ensure_ascii=False)};",
+        # PANORAMICA_MES_MOCK y PANORAMICA_PROD_DIARIA son const en data.jsx
+        # (array/objeto vacio). Aqui los mutamos en sitio para que los componentes
+        # los vean poblados sin reasignar la const.
+        f"(function() {{"
+        f"  const __pmes = {json.dumps(_build_panoramica_mes(registros_mes, hoy), ensure_ascii=False)};"
+        f"  if (typeof PANORAMICA_MES_MOCK !== 'undefined') {{"
+        f"    PANORAMICA_MES_MOCK.length = 0;"
+        f"    PANORAMICA_MES_MOCK.push(...__pmes);"
+        f"  }}"
+        f"  const __ppd = {json.dumps(_build_panoramica_prod_diaria(registros_mes), ensure_ascii=False)};"
+        f"  if (typeof PANORAMICA_PROD_DIARIA !== 'undefined') Object.assign(PANORAMICA_PROD_DIARIA, __ppd);"
+        f"}})();",
         f"window.COSTOS_EVOLUCION_MESES = window.NOMINA_HISTORICA.map(m => m.label);",
         f"window.BENEFICIOS_RECURRENTES_MOCK = {json.dumps(beneficios_rec, ensure_ascii=False)};",
     ]
@@ -352,9 +418,24 @@ def _build_data_jsx():
         aux_consumo = load_inv_aux_consumo() or []
         qc_tpl = load_qc_templates() or {}
         movimientos = load_movimientos_inventario() or []
+        # Reagrupa aux_consumo por aux_id (formato esperado por AUX_CONSUMO_HISTORICO)
+        aux_hist_groups = {}
+        for r in aux_consumo:
+            if not isinstance(r, dict) or not r.get("aux_id"):
+                continue
+            aux_hist_groups.setdefault(r["aux_id"], []).append({
+                "fecha": r.get("fecha"), "usado": r.get("usado"), "stock_tras": r.get("stock_tras"),
+            })
         overrides_js.append(f"window.AUX_CONSUMO = {json.dumps(aux_consumo, ensure_ascii=False)};")
         overrides_js.append(f"window.QC_TPL = {json.dumps(qc_tpl, ensure_ascii=False)};")
         overrides_js.append(f"window.INV_MOVIMIENTOS = {json.dumps(movimientos, ensure_ascii=False)};")
+        # Mutar AUX_CONSUMO_HISTORICO en sitio
+        overrides_js.append(
+            f"(function() {{"
+            f"  const __ah = {json.dumps(aux_hist_groups, ensure_ascii=False)};"
+            f"  if (typeof AUX_CONSUMO_HISTORICO !== 'undefined') Object.assign(AUX_CONSUMO_HISTORICO, __ah);"
+            f"}})();"
+        )
     except Exception:
         log.exception("error cargando aux_consumo/qc_tpl/movimientos")
     # Inyectar alertas para que Home las muestre en el primer render sin fetch

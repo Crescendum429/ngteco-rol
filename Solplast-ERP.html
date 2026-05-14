@@ -1414,24 +1414,9 @@ const MES_ACTUAL = HOY.getMonth();
 const ANIO_ACTUAL = HOY.getFullYear();
 const DIAS_EN_MES = new Date(ANIO_ACTUAL, MES_ACTUAL + 1, 0).getDate();
 
-const PANORAMICA_MES_MOCK = (() => {
-  const dias = [];
-  for (let d = 1; d <= DIAS_EN_MES; d++) {
-    const fecha = `${ANIO_ACTUAL}-${String(MES_ACTUAL+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dow = new Date(ANIO_ACTUAL, MES_ACTUAL, d).getDay();
-    const esFinde = dow === 0 || dow === 6;
-    const esFuturo = d > HOY.getDate();
-    if (esFinde || esFuturo) { dias.push({ dia: d, fecha, esFinde, esFuturo, cajas: 0, material_kg: 0, desecho_kg: 0 }); continue; }
-    // Simular datos
-    const seed = d * 7;
-    const cajas = 30 + (seed % 28);
-    const material_kg = 90 + (seed % 80);
-    const desecho_kg = parseFloat((material_kg * (0.02 + (seed % 5) * 0.005)).toFixed(1));
-    const registro_id = `reg-${fecha}`;
-    dias.push({ dia: d, fecha, esFinde, esFuturo: false, cajas, material_kg, desecho_kg, registro_id });
-  }
-  return dias;
-})();
+// Panoramica mensual: el backend la rellena via data-overrides mutando este array.
+// Sin backend, queda vacio — nunca se inventan datos.
+const PANORAMICA_MES_MOCK = [];
 
 const COSTOS_EVOLUCION = {};
 const COSTOS_EVOLUCION_MESES = NOMINA_HISTORICA.map(m => m.label);
@@ -1493,53 +1478,11 @@ if (Array.isArray(window.INV_MOVIMIENTOS) && window.INV_MOVIMIENTOS.length) {
   MOV_INVENTARIO_MOCK.push(...window.INV_MOVIMIENTOS);
 }
 
-// ════════════════════════ HISTORIAL CONSUMO AUXILIAR (30 días) ════════════════════════
-// { [aux_id]: [{ fecha, usado, stock_tras }] } — últimos 30 días laborables
-const AUX_CONSUMO_HISTORICO = (() => {
-  const hist = {};
-  INVENTARIO_AUX_MOCK.forEach(aux => {
-    const entries = [];
-    let stock = aux.stock;
-    for (let d = DIAS_EN_MES; d >= 1; d--) {
-      const dow = new Date(ANIO_ACTUAL, MES_ACTUAL, d).getDay();
-      if (dow === 0 || dow === 6) continue;
-      if (d > HOY.getDate()) continue;
-      const seed = (d * 13 + aux.id.length * 7) % 100;
-      const usado = seed < 70 ? Math.round(aux.stock * 0.04 * (seed % 5 + 1) / 5) : 0;
-      const fecha = `${ANIO_ACTUAL}-${String(MES_ACTUAL+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      entries.unshift({ fecha, usado, stock_tras: Math.max(0, stock) });
-      stock += usado; // reverse-reconstruct
-    }
-    hist[aux.id] = entries;
-  });
-  return hist;
-})();
+// Historial consumo auxiliar: el backend lo rellena via data-overrides.
+const AUX_CONSUMO_HISTORICO = {};
 
-// Override del backend: window.AUX_CONSUMO = [{ aux_id, fecha, usado, stock_tras }]
-if (Array.isArray(window.AUX_CONSUMO) && window.AUX_CONSUMO.length) {
-  const m = {};
-  window.AUX_CONSUMO.forEach(r => {
-    if (!m[r.aux_id]) m[r.aux_id] = [];
-    m[r.aux_id].push({ fecha: r.fecha, usado: r.usado, stock_tras: r.stock_tras });
-  });
-  Object.keys(AUX_CONSUMO_HISTORICO).forEach(k => delete AUX_CONSUMO_HISTORICO[k]);
-  Object.assign(AUX_CONSUMO_HISTORICO, m);
-}
-
-// Producción por día por producto (para panorámica)
-const PANORAMICA_PROD_DIARIA = (() => {
-  const prods = ['v_life','v_solplast','v_lamosan','cuchara_5ml','j_life','j_farmayala','gotero'];
-  const res = {};
-  PANORAMICA_MES_MOCK.filter(d => !d.esFinde && !d.esFuturo && d.cajas > 0).forEach(dia => {
-    const seed = dia.dia * 3;
-    res[dia.fecha] = {};
-    prods.forEach((pid, pi) => {
-      const val = ((seed + pi * 7) % 20);
-      if (val > 14) res[dia.fecha][pid] = val;
-    });
-  });
-  return res;
-})();
+// Produccion por dia por producto: el backend la rellena via data-overrides.
+const PANORAMICA_PROD_DIARIA = {};
 
 const fmtMoney = (n, d = 2) => '$' + Number(n || 0).toLocaleString('es-EC', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtMoneyShort = (n) => {
