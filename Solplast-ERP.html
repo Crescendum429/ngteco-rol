@@ -1297,6 +1297,8 @@ textarea.doc-editable-input { display: block; width: 100%; resize: vertical; min
       if (body !== undefined) opts.body = JSON.stringify(body);
       const r = await fetch(path, opts);
       if (!r.ok) {
+        // 404 = collection not yet in backend → soft miss, caller uses fallback
+        if (r.status === 404) return null;
         const e = await r.json().catch(() => ({}));
         throw Object.assign(new Error(e.error || 'HTTP ' + r.status), { status: r.status });
       }
@@ -1375,6 +1377,50 @@ textarea.doc-editable-input { display: block; width: 100%; resize: vertical; min
     registrarDiaAux: (data)  => apiFetch('POST', '/api/inventario/auxiliar/registrar-dia', data),
     fetchAuxConsumo: (auxId) => apiFetch('GET',  `/api/inventario/aux-consumo?aux_id=${auxId}`),
     deleteAux:       (id)    => apiFetch('DELETE',`/api/inventario/auxiliar/${id}`),
+
+    // ── SRI ──
+    sriConfig:       ()                    => apiFetch('GET',  '/api/sri/config'),
+    sriSecuenciales: (p = {})              => apiFetch('GET',  `/api/sri/secuenciales?${new URLSearchParams(p)}`),
+    setSriSecuencial:(data)                => apiFetch('PUT',  '/api/sri/secuenciales', data),
+    sriEmitirNC:     (id)                  => apiFetch('POST', `/api/sri/emitir-nota-credito/${id}`),
+    sriAnular:       (id, motivo, kind='factura') => apiFetch('POST', `/api/sri/anular/${id}?kind=${kind}`, { motivo }),
+
+    // ── Colecciones con fallback localStorage (notas, retenciones, pagos) ──
+    async fetchNotas(tipo = 'credito') {
+      const r = await apiFetch('GET', `/api/collection/notas_${tipo}`);
+      return r || window._ls(`nc:${tipo}`) || [];
+    },
+    async saveNotas(tipo, data) {
+      await apiFetch('PUT', `/api/collection/notas_${tipo}`, data);
+      window._ls(`nc:${tipo}`, data);
+    },
+    async fetchRetenciones() {
+      const r = await apiFetch('GET', '/api/collection/retenciones_recibidas');
+      return r || window._ls('retenciones') || [];
+    },
+    async saveRetenciones(data) {
+      await apiFetch('PUT', '/api/collection/retenciones_recibidas', data);
+      window._ls('retenciones', data);
+    },
+    async fetchPagos() {
+      const r = await apiFetch('GET', '/api/collection/pagos_recibidos');
+      return r || window._ls('pagos') || [];
+    },
+    async savePagos(data) {
+      await apiFetch('PUT', '/api/collection/pagos_recibidos', data);
+      window._ls('pagos', data);
+    },
+  };
+
+  // localStorage key-value helper
+  window._ls = function(key, value) {
+    try {
+      if (value === undefined) {
+        const s = localStorage.getItem('sp:' + key);
+        return s ? JSON.parse(s) : null;
+      }
+      localStorage.setItem('sp:' + key, JSON.stringify(value));
+    } catch(e) {}
   };
 })();
 </script>
@@ -2384,6 +2430,7 @@ const NAV_ITEMS = [
   { key: 'inventario',    label: 'Inventario',       icon: 'package',   group: 'Producción' },
   { key: 'pedidos',       label: 'Pedidos',          icon: 'receipt',   group: 'Comercial' },
   { key: 'clientes',      label: 'Clientes',         icon: 'users',     group: 'Comercial' },
+  { key: 'contabilidad',  label: 'Contabilidad',     icon: 'dollar',    group: 'Comercial' },
   { key: 'configuracion', label: 'Configuración',    icon: 'settings',  group: 'Sistema' },
   { key: 'auditoria',     label: 'Auditoría',        icon: 'clock',     group: 'Sistema' },
 ];
@@ -2446,7 +2493,7 @@ function Sidebar({ page, setPage, role, open, onClose, theme, setTheme, onLogout
             <div className="avatar">{role === 'operario' ? 'OP' : 'AD'}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600 }}>{role === 'operario' ? 'Operario' : 'Admin Solplast'}</div>
-              <div className="xs mute">v{window.APP_VERSION || '5.8.0'}</div>
+              <div className="xs mute">v{window.APP_VERSION || '5.8.2'}</div>
             </div>
             <Btn variant="ghost" size="sm" title="Cerrar sesión" onClick={onLogout}><Icon name="logout" size={14} /></Btn>
           </div>
@@ -2546,7 +2593,7 @@ function Login({ onLogin }) {
         </Btn>
 
         <div style={{ marginTop: 20, textAlign: 'center', fontSize: 11, color: 'var(--text-mute)' }}>
-          Soluciones Plásticas del Ecuador · v{window.APP_VERSION || '5.8.0'}
+          Soluciones Plásticas del Ecuador · v{window.APP_VERSION || '5.8.2'}
         </div>
       </form>
     </div>
@@ -4786,6 +4833,17 @@ function ProductEditor({ form, setForm, sel }) {
             <Input label="Peso por unidad (g)" type="number" step="0.001" value={form.peso_g} onChange={e => set('peso_g', parseFloat(e.target.value)||0)} />
             <Input label="Factor mano de obra" type="number" step="0.1" value={form.factor} onChange={e => set('factor', parseFloat(e.target.value)||1)} hint="Jeringas: mayor tiempo-máquina" />
           </div>
+          {/* IVA */}
+          <div className="field" style={{ marginTop:8 }}>
+            <label>IVA del producto <span className="xs mute">(0% exento · 5% reducido · 15% estándar)</span></label>
+            <Seg value={String(form.iva_pct ?? 0)} onChange={v => set('iva_pct', Number(v))}
+              options={[{value:'0',label:'0% Exento'},{value:'5',label:'5% Reducido'},{value:'15',label:'15% Estándar'}]} />
+            <div className="xs mute" style={{ marginTop:4 }}>
+              {(form.iva_pct??0)===0 && 'La mayoría de envases Solplast es exento (art. 55 LORTI)'}
+              {(form.iva_pct??0)===15 && 'Aplica a vasos Life (Lamosan) y similares cotizados con IVA'}
+            </div>
+          </div>
+
           {/* Cliente asociado */}
           <div className="field" style={{ marginTop:8 }}>
             <label>Cliente asociado <span className="xs mute">(opcional — deja vacío si es genérico)</span></label>
@@ -6891,7 +6949,7 @@ Object.assign(window, { Inventario });
 // Pedidos — Cotizaciones, OC, Facturas (SRI), Guías, Certificados
 // Flujo: Cotización → Orden de compra → Factura electrónica + Guía remisión + Certificado calidad
 
-function Pedidos() {
+function Pedidos({ setPage }) {
   const [tab, setTab] = useState('pipeline');
   const [sel, setSel] = useState(null); // { kind, id }
   const [showWizard, setShowWizard] = useState(false);
@@ -6930,7 +6988,7 @@ function Pedidos() {
       {tab === 'pipeline' && <PedidosPipeline onOpen={(kind, id) => { setTab(kind); setSel({ kind, id }); }} />}
       {tab === 'cot'  && <CotizacionesTab selId={sel?.kind === 'cot'  ? sel.id : null} clearSel={() => setSel(null)} />}
       {tab === 'oc'   && <OrdenesTab       selId={sel?.kind === 'oc'   ? sel.id : null} clearSel={() => setSel(null)} />}
-      {tab === 'fact' && <FacturasTab      selId={sel?.kind === 'fact' ? sel.id : null} clearSel={() => setSel(null)} />}
+      {tab === 'fact' && <FacturasTab      selId={sel?.kind === 'fact' ? sel.id : null} clearSel={() => setSel(null)} setPage={setPage} />}
       {tab === 'guia' && <GuiasTab         selId={sel?.kind === 'guia' ? sel.id : null} clearSel={() => setSel(null)} />}
       {tab === 'cert' && <CertificadosTab  selId={sel?.kind === 'cert' ? sel.id : null} clearSel={() => setSel(null)} />}
 
@@ -7557,14 +7615,14 @@ function OCProgress({ estado }) {
 }
 
 // ═══════════════════════ Facturas ═══════════════════════
-function FacturasTab({ selId, clearSel }) {
+function FacturasTab({ selId, clearSel, setPage }) {
   const [detail, setDetail] = useState(selId || null);
   React.useEffect(() => { if (selId) setDetail(selId); }, [selId]);
 
   if (detail) {
     const f = FACTURAS_MOCK.find(x => x.id === detail);
     if (!f) return null;
-    return <FacturaDetalle factura={f} onBack={() => { setDetail(null); clearSel(); }} />;
+    return <FacturaDetalle factura={f} onBack={() => { setDetail(null); clearSel(); }} setPage={setPage} />;
   }
 
   const items = FACTURAS_MOCK.slice().sort((a, b) => b.fecha_emision.localeCompare(a.fecha_emision));
@@ -7596,9 +7654,35 @@ function FacturasTab({ selId, clearSel }) {
   );
 }
 
-function FacturaDetalle({ factura, onBack }) {
+function FacturaDetalle({ factura: facturaProp, onBack, setPage }) {
+  const [factura,    setFactura]    = useState(facturaProp);
+  const [docOpen,    setDocOpen]    = useState(null);
+  const [showAnular, setShowAnular] = useState(false);
+  const [motivo,     setMotivo]     = useState('');
+  const [saving,     setSaving]     = useState(false);
   const cli = cliente(factura.cliente);
-  const [docOpen, setDocOpen] = useState(null); // 'ride' | 'guia' | 'cert' | null
+
+  // Days since authorization (90-day anulación window)
+  const diasDesdeAut = factura.fecha_autorizacion
+    ? Math.floor((Date.now() - new Date(factura.fecha_autorizacion.slice(0,10)+'T00:00:00')) / 86400000)
+    : 999;
+  const puedeAnular = factura.estado_sri === 'autorizada' && diasDesdeAut <= 90;
+
+  async function anular() {
+    if (!motivo.trim()) { alert('Ingresa el motivo de anulación'); return; }
+    setSaving(true);
+    try {
+      const r = await window._apiUtil.sriAnular(factura.id, motivo, 'factura');
+      if (r?.ok) {
+        setFactura(f => ({ ...f, estado_sri:'anulada', motivo_anulacion: motivo }));
+        const idx = FACTURAS_MOCK.findIndex(x => x.id === factura.id);
+        if (idx >= 0) { FACTURAS_MOCK[idx].estado_sri = 'anulada'; FACTURAS_MOCK[idx].motivo_anulacion = motivo; }
+        setShowAnular(false);
+      } else alert('Error: ' + (r?.error||'desconocido'));
+    } catch(e) { alert(e.message); }
+    setSaving(false);
+  }
+
   return (
     <div className="fadein">
       {docOpen === 'ride' && <RideFactura facturaId={factura.id} onClose={() => setDocOpen(null)} />}
@@ -7608,69 +7692,113 @@ function FacturaDetalle({ factura, onBack }) {
       {docOpen === 'cert' && factura.cert_calidad && (
         <RideCertificado certId={factura.cert_calidad} onClose={() => setDocOpen(null)} />
       )}
+
       <div className="page-head">
         <div>
-          <div className="row" style={{ gap: 8, marginBottom: 6 }}>
+          <div className="row" style={{ gap:8, marginBottom:6 }}>
             <Btn size="sm" variant="ghost" onClick={onBack}><Icon name="arrow_l" size={12}/> Facturas</Btn>
           </div>
           <Eyebrow>Factura electrónica SRI</Eyebrow>
           <h1 className="page-title">{factura.id}</h1>
           <div className="page-sub">{cli?.razon_social} · emitida {factura.fecha_emision}</div>
         </div>
-        <div className="row">
-          <EstadoChip estado={factura.estado_sri} />
-          <Btn variant="ghost"><Icon name="download" size={14}/> XML</Btn>
-          <Btn variant="primary" onClick={() => setDocOpen('ride')}><Icon name="download" size={14}/> Ver RIDE</Btn>
+        <div className="row" style={{ flexWrap:'wrap', gap:8 }}>
+          <EstadoSRI estado={factura.estado_sri}/>
+          {factura.estado_sri === 'autorizada' && setPage && (
+            <Btn variant="ghost" onClick={() => setPage('contabilidad')}>
+              <Icon name="doc" size={14}/> Nota de crédito
+            </Btn>
+          )}
+          {puedeAnular && (
+            <Btn variant="ghost" className="danger" onClick={() => setShowAnular(true)}>
+              <Icon name="x" size={14}/> Anular
+            </Btn>
+          )}
+          <Btn variant="ghost" onClick={() => setDocOpen('ride')}><Icon name="download" size={14}/> Ver RIDE</Btn>
         </div>
       </div>
 
-      <div className="panel panel-flush" style={{ marginBottom: 16, background: 'var(--good-soft)', borderColor: 'var(--good)' }}>
-        <div style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--good)', color: 'var(--bg)', display: 'grid', placeItems: 'center' }}>
-            <Icon name="check" size={18} />
+      {/* Anulación modal */}
+      <Modal open={showAnular} onClose={() => setShowAnular(false)} title="Anular factura"
+        footer={<>
+          <Btn onClick={() => setShowAnular(false)}>Cancelar</Btn>
+          <Btn variant="danger" className="danger" onClick={anular} disabled={saving||!motivo.trim()}>
+            {saving?'Anulando…':'Confirmar anulación'}
+          </Btn>
+        </>}>
+        <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+          <div className="alert warn">
+            <div className="icon"><Icon name="alert" size={16}/></div>
+            <div className="body">
+              <div className="title">Anulación de factura SRI</div>
+              <div className="msg">Esta acción solo se puede deshacer contactando al SRI directamente. La factura lleva {diasDesdeAut} días desde la autorización (límite: 90 días).</div>
+            </div>
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 600 }}>Autorizada por el SRI</div>
-            <div className="xs mute">Autorización {factura.autorizacion_sri} · {factura.fecha_autorizacion}</div>
+          <div className="field" style={{ margin:0 }}>
+            <label>Motivo de anulación</label>
+            <textarea className="input" rows={3} value={motivo} onChange={e=>setMotivo(e.target.value)}
+              placeholder="Ej: Error en datos del cliente, devolución total del pedido…" style={{ resize:'vertical' }}/>
           </div>
         </div>
-      </div>
+      </Modal>
 
-      <div className="cols-2" style={{ gap: 16, marginBottom: 18 }}>
+      {factura.estado_sri === 'anulada' && (
+        <div className="alert bad" style={{ marginBottom:14 }}>
+          <div className="icon"><Icon name="x" size={16}/></div>
+          <div className="body">
+            <div className="title">Factura anulada</div>
+            <div className="msg">{factura.motivo_anulacion || 'Sin motivo registrado'} · {factura.fecha_anulacion}</div>
+          </div>
+        </div>
+      )}
+
+      {factura.estado_sri === 'autorizada' && (
+        <div className="panel panel-flush" style={{ marginBottom:16, background:'var(--good-soft)', borderColor:'var(--good)' }}>
+          <div style={{ padding:14, display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ width:42, height:42, borderRadius:10, background:'var(--good)', color:'var(--bg)', display:'grid', placeItems:'center' }}><Icon name="check" size={18}/></div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontWeight:600 }}>Autorizada por el SRI</div>
+              <div className="xs mute">Auth. {factura.autorizacion_sri} · {factura.fecha_autorizacion}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="cols-2" style={{ gap:16, marginBottom:18 }}>
         <div className="panel">
           <Eyebrow>Información fiscal</Eyebrow>
-          <div className="info-grid" style={{ marginTop: 8 }}>
+          <div className="info-grid" style={{ marginTop:8 }}>
             <div><span className="xs mute">Establecimiento</span><div className="mono">{factura.establecimiento}</div></div>
             <div><span className="xs mute">Punto emisión</span><div className="mono">{factura.punto_emision}</div></div>
             <div><span className="xs mute">Secuencial</span><div className="mono">{factura.secuencial}</div></div>
             <div><span className="xs mute">Forma de pago</span><div>{factura.forma_pago}</div></div>
-            <div style={{ gridColumn: '1 / -1' }}>
+            <div style={{ gridColumn:'1/-1' }}>
               <span className="xs mute">Clave de acceso (49 dígitos)</span>
-              <div className="mono xs" style={{ wordBreak: 'break-all', padding: 6, background: 'var(--bg-raised)', borderRadius: 4, marginTop: 4 }}>{factura.clave_acceso}</div>
+              <div className="mono xs" style={{ wordBreak:'break-all', padding:6, background:'var(--bg-raised)', borderRadius:4, marginTop:4 }}>{factura.clave_acceso}</div>
             </div>
           </div>
         </div>
         <div className="panel">
           <Eyebrow>Totales</Eyebrow>
-          <div className="tot-rows" style={{ marginTop: 8 }}>
+          <div className="tot-rows" style={{ marginTop:8 }}>
             <div><span>Subtotal 12%</span><span className="mono">{fmtMoney(factura.subtotal_12)}</span></div>
             <div><span>Subtotal 0%</span><span className="mono">{fmtMoney(factura.subtotal_0)}</span></div>
             <div><span>IVA 12%</span><span className="mono">{fmtMoney(factura.iva)}</span></div>
             <div className="tot-big"><span>Total</span><span className="mono">{fmtMoney(factura.total)}</span></div>
           </div>
-          <div style={{ marginTop: 12, padding: 10, background: 'var(--bg-raised)', borderRadius: 6, fontSize: 12.5 }}>
-            <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div style={{ marginTop:12, padding:10, background:'var(--bg-raised)', borderRadius:6, fontSize:12.5 }}>
+            <div className="row" style={{ justifyContent:'space-between' }}>
               <span>Vencimiento</span><span className="mono">{factura.fecha_vencimiento}</span>
             </div>
-            <div className="row" style={{ justifyContent: 'space-between', marginTop: 4 }}>
-              <span>Estado</span><Chip tone={factura.pagada ? 'good' : 'warn'}>{factura.pagada ? 'Pagada' : 'Por cobrar'}</Chip>
+            <div className="row" style={{ justifyContent:'space-between', marginTop:4 }}>
+              <span>Estado pago</span><Chip tone={factura.pagada?'good':'warn'}>{factura.pagada?'Pagada':'Por cobrar'}</Chip>
             </div>
           </div>
         </div>
       </div>
 
       <div className="panel panel-flush">
-        <div style={{ padding: 18, borderBottom: '1px solid var(--line)' }}>
+        <div style={{ padding:18, borderBottom:'1px solid var(--line)' }}>
           <PanelHead title="Detalle de ítems" sub={`${factura.items.length} productos`} />
         </div>
         <table className="tbl">
@@ -9453,15 +9581,17 @@ function Configuracion() {
         <div>
           <Eyebrow>Sistema</Eyebrow>
           <h1 className="page-title"><em>Configuración</em></h1>
-          <div className="page-sub">Datos fiscales de Solplast y subcomponentes por tipo de producto.</div>
+          <div className="page-sub">Datos fiscales de Solplast, subcomponentes por producto y configuración SRI.</div>
         </div>
       </div>
       <div className="tabs">
-        <button className={`tab ${tab === 'emisor'  ? 'on' : ''}`} onClick={() => setTab('emisor')}>Datos Solplast</button>
-        <button className={`tab ${tab === 'subcomp' ? 'on' : ''}`} onClick={() => setTab('subcomp')}>Subcomponentes</button>
+        <button className={`tab ${tab==='emisor'  ?'on':''}`} onClick={() => setTab('emisor')}>Datos Solplast</button>
+        <button className={`tab ${tab==='subcomp' ?'on':''}`} onClick={() => setTab('subcomp')}>Subcomponentes</button>
+        <button className={`tab ${tab==='sri'     ?'on':''}`} onClick={() => setTab('sri')}>Configuración SRI</button>
       </div>
       {tab === 'emisor'  && <ConfigEmisor />}
       {tab === 'subcomp' && <ConfigSubcomponentes />}
+      {tab === 'sri'     && <ConfigSRI />}
     </div>
   );
 }
@@ -9633,6 +9763,150 @@ function ConfigSubcomponentes() {
   );
 }
 
+// ─── ConfigSRI ───────────────────────────────────────────────────────────────
+function ConfigSRI() {
+  const [cfg,     setCfg]     = useState(null);
+  const [secs,    setSecs]    = useState(null);
+  const [editSec, setEditSec] = useState({}); // { key: valor_editable }
+  const [saving,  setSaving]  = useState(false);
+  const [saved,   setSaved]   = useState(null);
+  const [noServer,setNoServer]= useState(false);
+
+  const COD_DOC = { '01':'Factura', '04':'Nota de crédito', '05':'Nota de débito', '06':'Guía remisión', '07':'Retención' };
+
+  async function cargar() {
+    try {
+      const [c, s] = await Promise.all([
+        window._apiUtil.sriConfig(),
+        window._apiUtil.sriSecuenciales(),
+      ]);
+      if (c) { setCfg(c); setNoServer(false); }
+      else   { setNoServer(true); }
+      if (s) setSecs(s);
+    } catch(e) { setNoServer(true); }
+  }
+
+  useEffect(() => { cargar(); }, []);
+
+  async function guardarSecuencial(cod_doc) {
+    const valor = parseInt(editSec[cod_doc]);
+    if (isNaN(valor) || valor < 0) { alert('Valor inválido'); return; }
+    setSaving(true);
+    try {
+      // Establecimiento y punto leen del emisor configurado (Solplast = 002/001).
+      const estab = (window.EMISOR && window.EMISOR.establecimiento_default) || '002';
+      const pto   = (window.EMISOR && window.EMISOR.punto_emision_default) || '001';
+      const r = await window._apiUtil.setSriSecuencial({ cod_doc, establecimiento: estab, punto_emision: pto, valor });
+      if (r?.ok) { await cargar(); setSaved(cod_doc); setTimeout(() => setSaved(null), 2500); }
+      else alert('Error: ' + (r?.error||'desconocido'));
+    } catch(e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  if (noServer) {
+    return (
+      <div className="alert warn" style={{ marginTop:8 }}>
+        <div className="icon"><Icon name="alert" size={16}/></div>
+        <div className="body">
+          <div className="title">Servidor no conectado</div>
+          <div className="msg">La configuración SRI solo está disponible cuando el backend está corriendo. Aquí se gestionan ambiente (PRUEBAS / PRODUCCIÓN), estado del certificado .p12 y los secuenciales.</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!cfg) return <div style={{ textAlign:'center', padding:40, color:'var(--text-mute)' }}><Icon name="clock" size={24}/></div>;
+
+  const secsActuales = cfg.secuenciales_actuales || {};
+
+  return (
+    <div style={{ maxWidth:780 }}>
+      {/* Estado del ambiente */}
+      <div className="panel" style={{ marginBottom:16 }}>
+        <PanelHead title="Estado del sistema SRI" />
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginTop:8 }}>
+          <div>
+            <div className="xs mute" style={{ marginBottom:4 }}>Ambiente</div>
+            <Chip tone={cfg.ambiente_nombre==='PRODUCCION'?'good':'warn'} style={{ fontSize:13, padding:'5px 12px' }}>
+              {cfg.ambiente_nombre}
+            </Chip>
+          </div>
+          <div>
+            <div className="xs mute" style={{ marginBottom:4 }}>Certificado .p12</div>
+            <Chip tone={cfg.cert_configurado?'good':'bad'} style={{ fontSize:13 }}>
+              {cfg.cert_configurado ? '✓ Configurado' : '✗ Sin configurar'}
+            </Chip>
+          </div>
+          <div>
+            <div className="xs mute" style={{ marginBottom:4 }}>Modo emisión</div>
+            <Chip tone={cfg.simulado?'warn':'good'} style={{ fontSize:13 }}>
+              {cfg.simulado ? 'Simulado (SRI_SIMULADO=true)' : 'Producción real'}
+            </Chip>
+          </div>
+        </div>
+        {!cfg.cert_configurado && (
+          <div className="alert warn" style={{ marginTop:14 }}>
+            <div className="icon"><Icon name="alert" size={16}/></div>
+            <div className="body">
+              <div className="title">Sin certificado digital</div>
+              <div className="msg">Configura SRI_CERT_PATH y SRI_CERT_PASSWORD en las variables de entorno de Render para firmar XMLs. Sin esto solo funciona en modo simulado.</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Secuenciales */}
+      <div className="panel">
+        <PanelHead title="Secuenciales por tipo de comprobante"
+          sub="El contador puede ajustar el último número emitido para heredar numeración de sistemas anteriores." />
+        <div style={{ display:'flex', flexDirection:'column', gap:10, marginTop:12 }}>
+          {Object.entries(COD_DOC).map(([cod, nombre]) => {
+            const actual = secsActuales[nombre.toLowerCase().replace(/ /g,'_')] ||
+                           secsActuales[cod] || 0;
+            const proximo = actual + 1;
+            const editVal = editSec[cod];
+            return (
+              <div key={cod} style={{ display:'grid', gridTemplateColumns:'1fr auto auto auto', alignItems:'center', gap:12, padding:'10px 14px', background:'var(--bg-raised)', borderRadius:'var(--radius-sm)', border:'1px solid var(--line)' }}>
+                <div>
+                  <div style={{ fontWeight:600 }}>{nombre}</div>
+                  <div className="xs mute mono">cod_doc: {cod}</div>
+                </div>
+                <div style={{ textAlign:'right' }}>
+                  <div className="xs mute">Último emitido</div>
+                  <div className="mono" style={{ fontWeight:600 }}>{String(actual).padStart(9,'0')}</div>
+                </div>
+                <div style={{ textAlign:'right' }}>
+                  <div className="xs mute">Próximo</div>
+                  <div className="mono" style={{ color:'var(--accent-hi)' }}>{String(proximo).padStart(9,'0')}</div>
+                </div>
+                {editVal !== undefined ? (
+                  <div className="row" style={{ gap:4 }}>
+                    <input className="input mono" type="number" value={editVal}
+                      onChange={e => setEditSec(s=>({...s,[cod]:e.target.value}))}
+                      style={{ width:100, padding:'4px 8px' }}
+                      onKeyDown={e => { if(e.key==='Enter') guardarSecuencial(cod); if(e.key==='Escape') setEditSec(s=>{const n={...s};delete n[cod];return n;}); }}/>
+                    <Btn size="sm" variant="primary" onClick={() => guardarSecuencial(cod)} disabled={saving}>
+                      {saved===cod ? <Icon name="check" size={12}/> : <Icon name="check" size={12}/>}
+                    </Btn>
+                    <Btn size="sm" variant="ghost" onClick={() => setEditSec(s=>{const n={...s};delete n[cod];return n;})}><Icon name="x" size={12}/></Btn>
+                  </div>
+                ) : (
+                  <Btn size="sm" variant="ghost" onClick={() => setEditSec(s=>({...s,[cod]:String(actual)}))}>
+                    <Icon name="edit" size={12}/> Ajustar
+                  </Btn>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="xs mute" style={{ marginTop:12 }}>
+          <Icon name="alert" size={11}/> Cambiar el secuencial solo si heredas numeración de otro sistema. Un valor incorrecto puede generar errores en el SRI.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 Object.assign(window, { Configuracion });
 
 </script>
@@ -9796,6 +10070,626 @@ function Auditoria() {
 Object.assign(window, { Auditoria });
 
 </script>
+<script type="text/babel" data-file="contabilidad.jsx">
+
+// Contabilidad — NC/ND · Retenciones · Cuenta Corriente · Reportes
+
+// ─── CSV download helper ──────────────────────────────────────────────────────
+function downloadCSV(filename, headers, rows) {
+  const csvRows = [headers, ...rows].map(r =>
+    r.map(c => `"${String(c == null ? '' : c).replace(/"/g, '""')}"`).join(',')
+  );
+  const blob = new Blob(['\ufeff' + csvRows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Contabilidad shell ───────────────────────────────────────────────────────
+function Contabilidad({ setPage }) {
+  const [tab, setTab] = useState('nc');
+  const tabs = [
+    { k:'nc',  l:'Notas crédito / débito' },
+    { k:'ret', l:'Retenciones recibidas'  },
+    { k:'cc',  l:'Cuenta corriente'       },
+    { k:'rep', l:'Reportes para contador' },
+  ];
+  return (
+    <div className="fadein">
+      <div className="page-head">
+        <div>
+          <Eyebrow>Comercial · Finanzas</Eyebrow>
+          <h1 className="page-title"><em>Contabilidad</em></h1>
+          <div className="page-sub">Notas de crédito/débito, retenciones, pagos parciales y reportes mensuales para el contador.</div>
+        </div>
+      </div>
+      <div className="tabs" style={{ marginBottom:20 }}>
+        {tabs.map(t => <button key={t.k} className={`tab ${tab===t.k?'on':''}`} onClick={() => setTab(t.k)}>{t.l}</button>)}
+      </div>
+      {tab === 'nc'  && <TabNotasCredito setPage={setPage}/>}
+      {tab === 'ret' && <TabRetenciones/>}
+      {tab === 'cc'  && <TabCuentaCorriente/>}
+      {tab === 'rep' && <TabReportesContador/>}
+    </div>
+  );
+}
+
+// ─── Notas Crédito / Débito ───────────────────────────────────────────────────
+function TabNotasCredito({ setPage }) {
+  const [notas,   setNotas]   = useState(null);
+  const [showNew, setShowNew] = useState(false);
+  const [tipoNew, setTipoNew] = useState('credito');
+  const [form,    setForm]    = useState({ factura_id:'', motivo:'', tipo:'devolucion', items:[] });
+  const [saving,  setSaving]  = useState(false);
+  const [emitId,  setEmitId]  = useState(null);
+
+  async function cargar() {
+    const nc = await window._apiUtil.fetchNotas('credito');
+    const nd = await window._apiUtil.fetchNotas('debito');
+    setNotas([...(nc||[]).map(n=>({...n,_kind:'credito'})), ...(nd||[]).map(n=>({...n,_kind:'debito'}))]);
+  }
+  useEffect(() => { cargar(); }, []);
+
+  const factura = form.factura_id ? FACTURAS_MOCK.find(f => f.id === form.factura_id) : null;
+
+  function iniciarNueva(tipo) {
+    setTipoNew(tipo);
+    setForm({ factura_id:'', motivo:'', tipo: tipo==='credito'?'devolucion':'adicional', items:[] });
+    setShowNew(true);
+  }
+
+  function facturaSeleccionada(fid) {
+    const f = FACTURAS_MOCK.find(x => x.id === fid);
+    setForm(prev => ({
+      ...prev,
+      factura_id: fid,
+      items: f ? f.items.map(it => ({ ...it, cantidad_nc: it.cant_cajas })) : [],
+    }));
+  }
+
+  async function emitirNC(nota) {
+    if (!confirm(`¿Emitir ${nota._kind === 'credito' ? 'nota de crédito' : 'nota de débito'} al SRI?`)) return;
+    setEmitId(nota.id);
+    try {
+      const r = await window._apiUtil.sriEmitirNC(nota.id);
+      if (r?.ok) {
+        await cargar();
+        alert(`✓ ${r.estado_sri}`);
+      } else {
+        alert(`Error SRI: ${r?.error || 'desconocido'}`);
+      }
+    } catch(e) { alert(e.message); }
+    setEmitId(null);
+  }
+
+  async function guardar() {
+    if (!form.factura_id) { alert('Selecciona la factura origen'); return; }
+    if (!form.motivo.trim()) { alert('Ingresa el motivo'); return; }
+    setSaving(true);
+    try {
+      const factOrig = FACTURAS_MOCK.find(f => f.id === form.factura_id);
+      const cli = factOrig?.cliente;
+      const subtotal = form.items.reduce((s,it) => s + (it.cantidad_nc||0)*(it.precio_unit||0), 0);
+      const iva = subtotal * 0.12;
+      const nueva = {
+        id: `N${tipoNew==='credito'?'C':'D'}-${Date.now()}`,
+        _kind: tipoNew,
+        cliente: cli,
+        factura_origen: form.factura_id,
+        fecha_emision: new Date().toISOString().slice(0,10),
+        motivo: form.motivo,
+        tipo: form.tipo,
+        items: form.items,
+        subtotal, iva, total: subtotal + iva,
+        estado_sri: 'pendiente',
+      };
+      const existing = await window._apiUtil.fetchNotas(tipoNew);
+      await window._apiUtil.saveNotas(tipoNew, [...(existing||[]), nueva]);
+      await cargar();
+      setShowNew(false);
+    } catch(e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  const kindLabel = { credito:'Nota de crédito', debito:'Nota de débito' };
+
+  return (
+    <>
+      <div className="row" style={{ justifyContent:'flex-end', marginBottom:14, gap:8 }}>
+        <Btn size="sm" onClick={() => iniciarNueva('credito')}><Icon name="plus" size={12}/> Nueva NC</Btn>
+        <Btn size="sm" onClick={() => iniciarNueva('debito')}><Icon name="plus" size={12}/> Nueva ND</Btn>
+      </div>
+
+      {notas === null && <div style={{ textAlign:'center', padding:40, color:'var(--text-mute)' }}><Icon name="clock" size={24}/></div>}
+      {notas !== null && notas.length === 0 && (
+        <div className="panel" style={{ textAlign:'center', padding:40, color:'var(--text-mute)' }}>
+          Sin notas emitidas. Genera una NC desde una factura autorizada.
+        </div>
+      )}
+      {notas !== null && notas.length > 0 && (
+        <div className="panel panel-flush">
+          <table className="tbl tbl-hover">
+            <thead><tr><th>Número</th><th>Tipo</th><th>Factura origen</th><th>Cliente</th><th>Fecha</th><th className="num">Total</th><th>Estado SRI</th><th></th></tr></thead>
+            <tbody>
+              {notas.map(n => {
+                const cli = CLIENTES_MOCK.find(c => c.id === n.cliente);
+                return (
+                  <tr key={n.id}>
+                    <td className="mono xs">{n.id}</td>
+                    <td><Chip tone={n._kind==='credito'?'good':'warn'}>{kindLabel[n._kind]}</Chip></td>
+                    <td className="mono xs">{n.factura_origen}</td>
+                    <td>{cli?.nombre_comercial||n.cliente}</td>
+                    <td className="mono xs">{n.fecha_emision}</td>
+                    <td className="num mono">{fmtMoney(n.total)}</td>
+                    <td><EstadoSRI estado={n.estado_sri}/></td>
+                    <td>
+                      {n.estado_sri === 'pendiente' && (
+                        <Btn size="sm" variant="primary" onClick={() => emitirNC(n)} disabled={emitId===n.id}>
+                          {emitId===n.id?'…':'Emitir SRI'}
+                        </Btn>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Modal nueva NC/ND */}
+      {showNew && (
+        <div className="modal-back" onClick={() => setShowNew(false)}>
+          <div className="modal-card lg" onClick={e=>e.stopPropagation()} style={{ maxWidth:700 }}>
+            <div className="modal-head">
+              <div style={{ fontFamily:'var(--serif)', fontSize:22 }}>Nueva {tipoNew==='credito'?'nota de crédito':'nota de débito'}</div>
+              <Btn variant="ghost" size="sm" onClick={() => setShowNew(false)}><Icon name="x" size={16}/></Btn>
+            </div>
+            <div className="modal-body">
+              <div className="field" style={{ margin:'0 0 12px' }}>
+                <label>Factura de origen</label>
+                <select className="select" value={form.factura_id} onChange={e => facturaSeleccionada(e.target.value)}>
+                  <option value="">Seleccionar factura autorizada…</option>
+                  {FACTURAS_MOCK.filter(f => f.estado_sri==='autorizada').map(f => {
+                    const cli = CLIENTES_MOCK.find(c => c.id === f.cliente);
+                    return <option key={f.id} value={f.id}>{f.id} · {cli?.nombre_comercial} · {fmtMoney(f.total)}</option>;
+                  })}
+                </select>
+              </div>
+
+              {factura && (
+                <>
+                  <div style={{ marginBottom:12 }}>
+                    <div className="xs mute" style={{ marginBottom:8, fontWeight:600 }}>
+                      {tipoNew==='credito'?'Cantidades a devolver':'Cantidades adicionales'}
+                    </div>
+                    {form.items.map((it, i) => {
+                      const p = PRODUCTOS_MOCK.find(x => x.id === it.prod_id);
+                      return (
+                        <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr auto auto', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid var(--line)' }}>
+                          <div>
+                            <div style={{ fontWeight:500 }}>{p?.nombre||it.prod_id}</div>
+                            <div className="xs mute">{it.cant_cajas} cajas facturadas · {fmtMoney(it.precio_unit||0)}/caja</div>
+                          </div>
+                          <div className="num-stepper sm">
+                            <button onClick={() => setForm(f => ({ ...f, items: f.items.map((x,j) => j===i?{...x,cantidad_nc:Math.max(0,(x.cantidad_nc||0)-1)}:x) }))}><Icon name="minus" size={11}/></button>
+                            <input type="number" value={it.cantidad_nc||0} min={0} max={it.cant_cajas}
+                              onChange={e => setForm(f => ({ ...f, items: f.items.map((x,j) => j===i?{...x,cantidad_nc:parseInt(e.target.value)||0}:x) }))}
+                              style={{ width:60 }}/>
+                            <button onClick={() => setForm(f => ({ ...f, items: f.items.map((x,j) => j===i?{...x,cantidad_nc:Math.min(it.cant_cajas,(x.cantidad_nc||0)+1)}:x) }))}><Icon name="plus" size={11}/></button>
+                          </div>
+                          <div className="mono xs" style={{ minWidth:80, textAlign:'right' }}>
+                            {fmtMoney((it.cantidad_nc||0)*(it.precio_unit||0))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div style={{ textAlign:'right', marginTop:10 }}>
+                      <span className="xs mute">Total NC/ND: </span>
+                      <strong className="mono">{fmtMoney(form.items.reduce((s,it)=>s+(it.cantidad_nc||0)*(it.precio_unit||0),0))}</strong>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="field" style={{ margin:'0 0 12px' }}>
+                <label>Tipo de motivo</label>
+                <Seg value={form.tipo} onChange={v => setForm(f=>({...f,tipo:v}))}
+                  options={tipoNew==='credito'
+                    ? [{value:'devolucion',label:'Devolución'},{value:'descuento',label:'Descuento'},{value:'error',label:'Error'}]
+                    : [{value:'adicional',label:'Adicional'},{value:'interes',label:'Interés'},{value:'otro',label:'Otro'}]} />
+              </div>
+              <div className="field" style={{ margin:0 }}>
+                <label>Motivo detallado</label>
+                <textarea className="input" rows={2} value={form.motivo}
+                  onChange={e=>setForm(f=>({...f,motivo:e.target.value}))}
+                  placeholder="Describe el motivo de la nota…" style={{ resize:'vertical' }}/>
+              </div>
+            </div>
+            <div className="modal-foot">
+              <Btn onClick={() => setShowNew(false)}>Cancelar</Btn>
+              <Btn variant="primary" onClick={guardar} disabled={saving||!form.factura_id||!form.motivo.trim()}>
+                {saving?'Guardando…':<><Icon name="check" size={13}/> Crear {tipoNew==='credito'?'NC':'ND'}</>}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function EstadoSRI({ estado }) {
+  const m = { autorizada:'good', pendiente:'default', rechazada:'bad', anulada:'bad', EN_PROCESO:'warn' };
+  return <Chip tone={m[estado]||'default'}>{estado||'—'}</Chip>;
+}
+
+// ─── Retenciones Recibidas ────────────────────────────────────────────────────
+function TabRetenciones() {
+  const [items,   setItems]   = useState(null);
+  const [showNew, setShowNew] = useState(false);
+  const [form,    setForm]    = useState({ numero:'', fecha: new Date().toISOString().slice(0,10), factura_id:'', base_ir:0, pct_ir:2, base_iva:0, pct_iva:30, ref:'' });
+  const [saving,  setSaving]  = useState(false);
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  async function cargar() { setItems(await window._apiUtil.fetchRetenciones()); }
+  useEffect(() => { cargar(); }, []);
+
+  const montoIR  = (form.base_ir  * form.pct_ir  / 100);
+  const montoIVA = (form.base_iva * form.pct_iva / 100);
+  const totalRet = montoIR + montoIVA;
+
+  async function guardar() {
+    if (!form.numero.trim()) { alert('Número de comprobante requerido'); return; }
+    setSaving(true);
+    try {
+      const nueva = { id: `RET-${Date.now()}`, ...form, monto_ir: montoIR, monto_iva: montoIVA, total_retenido: totalRet };
+      const all = await window._apiUtil.fetchRetenciones();
+      await window._apiUtil.saveRetenciones([...(all||[]), nueva]);
+      await cargar();
+      setShowNew(false);
+      setForm({ numero:'', fecha: new Date().toISOString().slice(0,10), factura_id:'', base_ir:0, pct_ir:2, base_iva:0, pct_iva:30, ref:'' });
+    } catch(e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  async function eliminar(id) {
+    const all = await window._apiUtil.fetchRetenciones();
+    await window._apiUtil.saveRetenciones((all||[]).filter(r => r.id !== id));
+    await cargar();
+  }
+
+  const total = (items||[]).reduce((s,r) => s+(r.total_retenido||0), 0);
+
+  return (
+    <>
+      <div className="row" style={{ justifyContent:'space-between', marginBottom:14 }}>
+        <div>
+          <div style={{ fontFamily:'var(--serif)', fontSize:26, letterSpacing:'-0.02em' }}>{fmtMoney(total)} <span className="xs mute" style={{ fontSize:14 }}>retenido total</span></div>
+          <div className="xs mute">{(items||[]).length} comprobante{(items||[]).length!==1?'s':''} registrado{(items||[]).length!==1?'s':''}</div>
+        </div>
+        <Btn variant="primary" size="sm" onClick={() => setShowNew(true)}><Icon name="plus" size={12}/> Registrar retención</Btn>
+      </div>
+
+      {items === null && <div style={{ textAlign:'center', padding:40, color:'var(--text-mute)' }}><Icon name="clock" size={24}/></div>}
+      {items !== null && items.length === 0 && (
+        <div className="panel" style={{ textAlign:'center', padding:40, color:'var(--text-mute)' }}>
+          Sin retenciones registradas.
+        </div>
+      )}
+      {items !== null && items.length > 0 && (
+        <div className="panel panel-flush">
+          <table className="tbl tbl-hover">
+            <thead><tr><th>Comp.</th><th>Factura</th><th>Fecha</th><th className="num">IR ret.</th><th className="num">IVA ret.</th><th className="num">Total</th><th></th></tr></thead>
+            <tbody>
+              {items.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(r => (
+                <tr key={r.id}>
+                  <td className="mono xs">{r.numero}</td>
+                  <td className="mono xs">{r.factura_id||'—'}</td>
+                  <td className="mono xs">{r.fecha}</td>
+                  <td className="num mono">{fmtMoney(r.monto_ir||0)} <span className="xs mute">{r.pct_ir}%</span></td>
+                  <td className="num mono">{fmtMoney(r.monto_iva||0)} <span className="xs mute">{r.pct_iva}%</span></td>
+                  <td className="num mono" style={{ fontWeight:600, color:'var(--bad)' }}>{fmtMoney(r.total_retenido||0)}</td>
+                  <td><Btn size="sm" variant="ghost" className="danger" onClick={() => eliminar(r.id)}><Icon name="trash" size={12}/></Btn></td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ borderTop:'2px solid var(--line)' }}>
+                <td colSpan={5} style={{ padding:'10px 14px', fontWeight:600 }}>Total retenido</td>
+                <td className="num mono" style={{ padding:'10px 14px', fontWeight:600, color:'var(--bad)' }}>{fmtMoney(total)}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      <Modal open={showNew} onClose={() => setShowNew(false)} title="Registrar retención recibida"
+        footer={<><Btn onClick={() => setShowNew(false)}>Cancelar</Btn><Btn variant="primary" onClick={guardar} disabled={saving}>{saving?'Guardando…':'Registrar'}</Btn></>}>
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <div className="field" style={{ margin:0 }}><label>N° comprobante</label><input className="input mono" value={form.numero} onChange={e=>set('numero',e.target.value)} placeholder="001-001-000000XXX"/></div>
+            <div className="field" style={{ margin:0 }}><label>Fecha</label><input className="input" type="date" value={form.fecha} onChange={e=>set('fecha',e.target.value)}/></div>
+          </div>
+          <div className="field" style={{ margin:0 }}>
+            <label>Factura asociada (opcional)</label>
+            <select className="select" value={form.factura_id} onChange={e=>set('factura_id',e.target.value)}>
+              <option value="">Sin factura específica</option>
+              {FACTURAS_MOCK.map(f => { const c = CLIENTES_MOCK.find(x=>x.id===f.cliente); return <option key={f.id} value={f.id}>{f.id} · {c?.nombre_comercial}</option>; })}
+            </select>
+          </div>
+          <div style={{ background:'var(--bg-raised)', borderRadius:'var(--radius-md)', padding:14, display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+            <div><label className="xs mute" style={{ display:'block', marginBottom:4 }}>Base IR ($)</label><input className="input mono" type="number" step="0.01" value={form.base_ir} onChange={e=>set('base_ir',parseFloat(e.target.value)||0)}/></div>
+            <div><label className="xs mute" style={{ display:'block', marginBottom:4 }}>% IR retención</label><input className="input mono" type="number" step="0.5" value={form.pct_ir} onChange={e=>set('pct_ir',parseFloat(e.target.value)||0)}/></div>
+            <div><label className="xs mute" style={{ display:'block', marginBottom:4 }}>Base IVA ($)</label><input className="input mono" type="number" step="0.01" value={form.base_iva} onChange={e=>set('base_iva',parseFloat(e.target.value)||0)}/></div>
+            <div><label className="xs mute" style={{ display:'block', marginBottom:4 }}>% IVA retención</label><input className="input mono" type="number" step="5" value={form.pct_iva} onChange={e=>set('pct_iva',parseFloat(e.target.value)||0)}/></div>
+          </div>
+          <div style={{ padding:'10px 14px', background:'var(--accent-soft)', borderRadius:'var(--radius-sm)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <span className="xs mute">Total retenido</span>
+            <span style={{ fontFamily:'var(--serif)', fontSize:22, color:'var(--accent-hi)' }}>{fmtMoney(totalRet)}</span>
+          </div>
+          <div className="field" style={{ margin:0 }}><label>Referencia / observación</label><input className="input" value={form.ref} onChange={e=>set('ref',e.target.value)} placeholder="Opcional"/></div>
+        </div>
+      </Modal>
+    </>
+  );
+}
+
+// ─── Cuenta Corriente ─────────────────────────────────────────────────────────
+function TabCuentaCorriente() {
+  const [pagos,   setPagos]   = useState(null);
+  const [rets,    setRets]    = useState(null);
+  const [showPago,setShowPago]= useState(null); // factura a pagar
+  const [pForm,   setPForm]   = useState({ fecha: new Date().toISOString().slice(0,10), monto:0, forma_pago:'transferencia', ref:'' });
+  const [saving,  setSaving]  = useState(false);
+  const hoy = new Date();
+
+  async function cargar() {
+    const [p, r] = await Promise.all([window._apiUtil.fetchPagos(), window._apiUtil.fetchRetenciones()]);
+    setPagos(p || []);
+    setRets(r || []);
+  }
+  useEffect(() => { cargar(); }, []);
+
+  async function registrarPago() {
+    if (!pForm.monto || pForm.monto <= 0) { alert('Monto requerido'); return; }
+    setSaving(true);
+    try {
+      const all = await window._apiUtil.fetchPagos();
+      const nuevo = { id: `PAG-${Date.now()}`, factura_id: showPago.id, cliente: showPago.cliente, ...pForm };
+      await window._apiUtil.savePagos([...(all||[]), nuevo]);
+      await cargar();
+      setShowPago(null);
+    } catch(e) { alert(e.message); }
+    setSaving(false);
+  }
+
+  if (!pagos || !rets) return <div style={{ textAlign:'center', padding:40, color:'var(--text-mute)' }}><Icon name="clock" size={24}/></div>;
+
+  // Agrupa por cliente
+  const factsPorCliente = {};
+  CLIENTES_MOCK.forEach(c => {
+    const facts = FACTURAS_MOCK.filter(f => f.cliente === c.id);
+    if (!facts.length) return;
+    const totalFact = facts.reduce((s,f)=>s+(f.total||0), 0);
+    const totalPagado = pagos.filter(p=>p.cliente===c.id).reduce((s,p)=>s+(p.monto||0), 0);
+    const totalRet = rets.filter(r=>{
+      const f = FACTURAS_MOCK.find(x=>x.id===r.factura_id);
+      return f?.cliente === c.id;
+    }).reduce((s,r)=>s+(r.total_retenido||0), 0);
+    const saldo = totalFact - totalPagado - totalRet;
+    factsPorCliente[c.id] = { cliente: c, facts, totalFact, totalPagado, totalRet, saldo };
+  });
+
+  const clientes = Object.values(factsPorCliente).filter(x => x.saldo > 0.01).sort((a,b)=>b.saldo-a.saldo);
+  const totalSaldo = clientes.reduce((s,c)=>s+c.saldo, 0);
+
+  const diasVencido = (f) => Math.ceil((hoy - new Date(f.fecha_vencimiento+'T00:00:00')) / 86400000);
+  const agingBucket = (d) => d <= 0 ? 'vigente' : d <= 30 ? '1-30' : d <= 60 ? '31-60' : d <= 90 ? '61-90' : '+90';
+  const agingColor = { vigente:'var(--good)', '1-30':'var(--warn)', '31-60':'var(--warn)', '61-90':'var(--bad)', '+90':'var(--bad)' };
+
+  return (
+    <>
+      <div className="kpi-grid" style={{ marginBottom:18 }}>
+        <Kpi label="Saldo total CxC" icon="dollar" value={fmtMoneyShort(totalSaldo)} accent="var(--bad)" />
+        <Kpi label="Clientes con deuda" icon="users" value={String(clientes.length)} />
+        <Kpi label="Total retenido" icon="receipt" value={fmtMoneyShort(rets.reduce((s,r)=>s+(r.total_retenido||0),0))} accent="var(--warn)" />
+        <Kpi label="Total cobrado" icon="check" value={fmtMoneyShort(pagos.reduce((s,p)=>s+(p.monto||0),0))} accent="var(--good)" />
+      </div>
+
+      {clientes.length === 0 && <div className="panel" style={{ textAlign:'center', padding:40, color:'var(--text-mute)' }}>Todo cobrado. Sin saldos pendientes.</div>}
+
+      {clientes.map(({ cliente: cli, facts, totalFact, totalPagado, totalRet, saldo }) => (
+        <div key={cli.id} className="panel panel-flush" style={{ marginBottom:14 }}>
+          <div style={{ padding:'14px 18px', borderBottom:'1px solid var(--line)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div>
+              <div style={{ fontFamily:'var(--serif)', fontSize:18 }}>{cli.razon_social}</div>
+              <div className="xs mute">Crédito {cli.credito_dias} días</div>
+            </div>
+            <div className="row" style={{ gap:18 }}>
+              <div style={{ textAlign:'right' }}><div className="xs mute">Facturado</div><div className="mono">{fmtMoney(totalFact)}</div></div>
+              <div style={{ textAlign:'right' }}><div className="xs mute">Cobrado</div><div className="mono" style={{ color:'var(--good)' }}>−{fmtMoney(totalPagado)}</div></div>
+              <div style={{ textAlign:'right' }}><div className="xs mute">Retenido</div><div className="mono" style={{ color:'var(--warn)' }}>−{fmtMoney(totalRet)}</div></div>
+              <div style={{ textAlign:'right' }}><div className="xs mute">Saldo</div><div style={{ fontFamily:'var(--serif)', fontSize:22, color:'var(--bad)' }}>{fmtMoney(saldo)}</div></div>
+            </div>
+          </div>
+          <table className="tbl tbl-hover">
+            <thead><tr><th>Factura</th><th>Vencimiento</th><th className="num">Total</th><th className="num">Pagado</th><th className="num">Saldo</th><th>Aging</th><th></th></tr></thead>
+            <tbody>
+              {facts.filter(f => f.estado_sri==='autorizada' && !f.pagada).map(f => {
+                const fPagado = pagos.filter(p=>p.factura_id===f.id).reduce((s,p)=>s+(p.monto||0), 0);
+                const fRet = rets.filter(r=>r.factura_id===f.id).reduce((s,r)=>s+(r.total_retenido||0), 0);
+                const fSaldo = (f.total||0) - fPagado - fRet;
+                const dias = diasVencido(f);
+                const bucket = agingBucket(dias);
+                return (
+                  <tr key={f.id}>
+                    <td className="mono xs">{f.id}</td>
+                    <td className="mono xs">{f.fecha_vencimiento}</td>
+                    <td className="num mono">{fmtMoney(f.total)}</td>
+                    <td className="num mono" style={{ color:'var(--good)' }}>{fmtMoney(fPagado+fRet)}</td>
+                    <td className="num mono" style={{ fontWeight:600, color: fSaldo>0.01?'var(--bad)':'var(--good)' }}>{fmtMoney(Math.max(0, fSaldo))}</td>
+                    <td><Chip style={{ color: agingColor[bucket], background:'var(--bg-hover)' }}>{bucket==='vigente'?'Vigente':`${bucket}d`}</Chip></td>
+                    <td>
+                      {fSaldo > 0.01 && (
+                        <Btn size="sm" variant="primary" onClick={() => { setShowPago(f); setPForm({ fecha:new Date().toISOString().slice(0,10), monto:parseFloat(fSaldo.toFixed(2)), forma_pago:'transferencia', ref:'' }); }}>
+                          <Icon name="check" size={11}/> Pago
+                        </Btn>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ))}
+
+      <Modal open={!!showPago} onClose={() => setShowPago(null)} title="Registrar pago"
+        footer={<><Btn onClick={()=>setShowPago(null)}>Cancelar</Btn><Btn variant="primary" onClick={registrarPago} disabled={saving}>{saving?'Guardando…':'Registrar pago'}</Btn></>}>
+        {showPago && (
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <div className="alert info">
+              <div className="icon"><Icon name="receipt" size={14}/></div>
+              <div className="body"><div className="title">{showPago.id}</div><div className="msg">{CLIENTES_MOCK.find(c=>c.id===showPago.cliente)?.razon_social} · {fmtMoney(showPago.total)}</div></div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              <div className="field" style={{ margin:0 }}><label>Fecha de pago</label><input className="input" type="date" value={pForm.fecha} onChange={e=>setPForm(f=>({...f,fecha:e.target.value}))}/></div>
+              <div className="field" style={{ margin:0 }}><label>Monto ($)</label><input className="input mono" type="number" step="0.01" value={pForm.monto} onChange={e=>setPForm(f=>({...f,monto:parseFloat(e.target.value)||0}))}/></div>
+            </div>
+            <div className="field" style={{ margin:0 }}>
+              <label>Forma de pago</label>
+              <Seg value={pForm.forma_pago} onChange={v=>setPForm(f=>({...f,forma_pago:v}))}
+                options={[{value:'transferencia',label:'Transferencia'},{value:'cheque',label:'Cheque'},{value:'efectivo',label:'Efectivo'}]} />
+            </div>
+            <div className="field" style={{ margin:0 }}><label>Referencia / N° transacción</label><input className="input" value={pForm.ref} onChange={e=>setPForm(f=>({...f,ref:e.target.value}))} placeholder="Opcional"/></div>
+          </div>
+        )}
+      </Modal>
+    </>
+  );
+}
+
+// ─── Reportes para Contador ───────────────────────────────────────────────────
+function TabReportesContador() {
+  const [mes, setMes] = useState(() => new Date().toISOString().slice(0,7));
+
+  function ventasMes() {
+    const ff = FACTURAS_MOCK.filter(f => f.fecha_emision?.startsWith(mes) && f.estado_sri === 'autorizada');
+    downloadCSV(`ventas_${mes}.csv`,
+      ['Numero', 'Cliente', 'RUC', 'Fecha', 'Subtotal 12%', 'Subtotal 0%', 'IVA 12%', 'Total', 'Estado'],
+      ff.map(f => {
+        const c = CLIENTES_MOCK.find(x=>x.id===f.cliente);
+        return [f.id, c?.razon_social||f.cliente, c?.ruc||'', f.fecha_emision, f.subtotal_12||0, f.subtotal_0||0, f.iva||0, f.total||0, f.pagada?'PAGADA':'PENDIENTE'];
+      })
+    );
+  }
+
+  function ivaCausado() {
+    const ff = FACTURAS_MOCK.filter(f => f.fecha_emision?.startsWith(mes) && f.estado_sri === 'autorizada');
+    downloadCSV(`iva_${mes}.csv`,
+      ['Numero', 'Fecha', 'Cliente', 'Base 12%', 'IVA 12%', 'Base 0%', 'Total'],
+      ff.map(f => [f.id, f.fecha_emision, CLIENTES_MOCK.find(x=>x.id===f.cliente)?.razon_social||f.cliente, f.subtotal_12||0, f.iva||0, f.subtotal_0||0, f.total||0])
+    );
+  }
+
+  function aging() {
+    const hoy = new Date();
+    const ff = FACTURAS_MOCK.filter(f => !f.pagada && f.estado_sri === 'autorizada');
+    downloadCSV(`aging_${mes}.csv`,
+      ['Numero', 'Cliente', 'Vencimiento', 'Dias vencido', 'Total', 'Bucket'],
+      ff.map(f => {
+        const dias = Math.ceil((hoy - new Date(f.fecha_vencimiento+'T00:00:00')) / 86400000);
+        const bucket = dias <= 0 ? '0-vigente' : dias <= 30 ? '1-30d' : dias <= 60 ? '31-60d' : dias <= 90 ? '61-90d' : '+90d';
+        return [f.id, CLIENTES_MOCK.find(x=>x.id===f.cliente)?.razon_social||f.cliente, f.fecha_vencimiento, dias, f.total||0, bucket];
+      })
+    );
+  }
+
+  function porCliente() {
+    const totales = {};
+    FACTURAS_MOCK.filter(f => f.fecha_emision?.startsWith(mes) && f.estado_sri==='autorizada').forEach(f => {
+      const c = CLIENTES_MOCK.find(x=>x.id===f.cliente);
+      const k = f.cliente;
+      if (!totales[k]) totales[k] = { cliente: c?.razon_social||k, ruc: c?.ruc||'', total:0, n:0 };
+      totales[k].total += f.total||0;
+      totales[k].n++;
+    });
+    downloadCSV(`ventas_cliente_${mes}.csv`,
+      ['Cliente', 'RUC', 'N° Facturas', 'Total Facturado'],
+      Object.values(totales).sort((a,b)=>b.total-a.total).map(x => [x.cliente, x.ruc, x.n, x.total])
+    );
+  }
+
+  function porProducto() {
+    const totales = {};
+    FACTURAS_MOCK.filter(f => f.fecha_emision?.startsWith(mes) && f.estado_sri==='autorizada').forEach(f => {
+      (f.items||[]).forEach(it => {
+        const p = PRODUCTOS_MOCK.find(x=>x.id===it.prod_id);
+        if (!totales[it.prod_id]) totales[it.prod_id] = { prod: p?.nombre||it.prod_id, cajas:0, subtotal:0 };
+        totales[it.prod_id].cajas += it.cant_cajas||0;
+        totales[it.prod_id].subtotal += it.subtotal||0;
+      });
+    });
+    downloadCSV(`ventas_producto_${mes}.csv`,
+      ['Producto', 'Cajas Vendidas', 'Subtotal'],
+      Object.values(totales).sort((a,b)=>b.subtotal-a.subtotal).map(x => [x.prod, x.cajas, x.subtotal])
+    );
+  }
+
+  const factsMes = FACTURAS_MOCK.filter(f => f.fecha_emision?.startsWith(mes) && f.estado_sri==='autorizada');
+  const totMes   = factsMes.reduce((s,f)=>s+(f.total||0), 0);
+  const ivaMes   = factsMes.reduce((s,f)=>s+(f.iva||0), 0);
+
+  return (
+    <div>
+      <div className="panel" style={{ marginBottom:18 }}>
+        <div className="row" style={{ justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+          <div>
+            <Eyebrow>Selecciona el mes</Eyebrow>
+            <input type="month" className="input" value={mes} onChange={e=>setMes(e.target.value)} style={{ marginTop:6, fontFamily:'var(--mono)' }}/>
+          </div>
+          <div className="row" style={{ gap:18 }}>
+            <div style={{ textAlign:'center' }}><div style={{ fontFamily:'var(--serif)', fontSize:26 }}>{factsMes.length}</div><div className="xs mute">facturas autorizadas</div></div>
+            <div style={{ textAlign:'center' }}><div style={{ fontFamily:'var(--serif)', fontSize:26 }}>{fmtMoneyShort(totMes)}</div><div className="xs mute">ventas netas</div></div>
+            <div style={{ textAlign:'center' }}><div style={{ fontFamily:'var(--serif)', fontSize:26, color:'var(--warn)' }}>{fmtMoneyShort(ivaMes)}</div><div className="xs mute">IVA causado</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:12 }}>
+        {[
+          { icon:'receipt', label:'Ventas del mes', sub:'Todas las facturas autorizadas · CSV', action: ventasMes },
+          { icon:'dollar',  label:'IVA causado',    sub:'Base imponible + IVA por factura · CSV', action: ivaCausado },
+          { icon:'clock',   label:'Aging CxC',      sub:'0-30 / 31-60 / 61-90 / +90 días · CSV', action: aging },
+          { icon:'users',   label:'Ventas por cliente', sub:'Total facturado agrupado · CSV', action: porCliente },
+          { icon:'box',     label:'Ventas por producto', sub:'Cajas y subtotales por SKU · CSV', action: porProducto },
+          { icon:'download',label:'XMLs autorizados', sub:'ZIP del mes (requiere servidor)', action: null },
+        ].map((r, i) => (
+          <div key={i} className="panel" style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <div className="row" style={{ gap:10 }}>
+              <div style={{ width:36, height:36, borderRadius:8, background:'var(--accent-soft)', color:'var(--accent-hi)', display:'inline-flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <Icon name={r.icon} size={16}/>
+              </div>
+              <div>
+                <div style={{ fontWeight:600 }}>{r.label}</div>
+                <div className="xs mute">{r.sub}</div>
+              </div>
+            </div>
+            <Btn block onClick={r.action || undefined} disabled={!r.action} style={{ marginTop:'auto' }}>
+              {r.action ? <><Icon name="download" size={13}/> Descargar CSV</> : <span className="xs mute">Conectar servidor</span>}
+            </Btn>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { Contabilidad });
+
+</script>
 <script type="text/babel" data-file="app.jsx">
 
 // App shell + Tweaks integration
@@ -9883,8 +10777,9 @@ function App() {
             {page === 'metricas'      && <Metricas />}
             {page === 'empleados'     && <Empleados />}
             {page === 'inventario'    && <Inventario />}
-            {page === 'pedidos'       && <Pedidos />}
+            {page === 'pedidos'       && <Pedidos setPage={setPage} />}
             {page === 'clientes'      && <Clientes setPage={setPage} />}
+            {page === 'contabilidad'  && <Contabilidad setPage={setPage} />}
             {page === 'configuracion' && <Configuracion />}
             {page === 'auditoria'     && <Auditoria />}}
           </div>
