@@ -30,6 +30,13 @@ def emp_to_js(key, emp, idx=0):
         "descuento_iess": bool(emp.get("descuento_iess", True)),
         "fecha_ingreso": emp.get("fecha_ingreso", ""),  # YYYY-MM-DD
         "ocultar": bool(emp.get("ocultar", False)),
+        # Roles operativos (flags opcionales) — usados por flujos como
+        # pre-despacho (autorizado), responsable de calidad (certificados),
+        # etc. Cada uno se chequea en su modulo correspondiente.
+        "responsable_calidad": bool(emp.get("responsable_calidad", False)),
+        "revisor_calidad": bool(emp.get("revisor_calidad", False)),
+        "puede_aprobar_despacho": bool(emp.get("puede_aprobar_despacho", False)),
+        "puede_emitir_factura": bool(emp.get("puede_emitir_factura", False)),
     }
 
 

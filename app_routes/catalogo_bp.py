@@ -83,6 +83,11 @@ def update_empleado(emp_id):
     emp["prestamo_iess"] = float(data.get("prestamo_iess", emp.get("prestamo_iess", 0)))
     emp["descuento_iess"] = bool(data.get("descuento_iess", emp.get("descuento_iess", True)))
     emp["fecha_ingreso"] = data.get("fecha_ingreso", emp.get("fecha_ingreso", ""))
+    # Roles operativos: flags opcionales que determinan que acciones puede hacer.
+    for flag in ("responsable_calidad", "revisor_calidad",
+                 "puede_aprobar_despacho", "puede_emitir_factura"):
+        if flag in data:
+            emp[flag] = bool(data[flag])
     save_empleados(emp_db)
     audit.record("empleado", "update", emp_id, before=before, after=dict(emp))
     return jsonify({"ok": True})
@@ -207,6 +212,46 @@ def toggle_producto_desactivado(prod_id):
     prods[prod_id]["desactivado"] = nuevo
     save_productos(prods)
     audit.record("producto", "desactivar" if nuevo else "reactivar", prod_id)
+    return jsonify({"ok": True})
+
+
+@catalogo_bp.route("/api/productos/<prod_id>", methods=["DELETE"])
+@require_auth
+def delete_producto(prod_id):
+    """Elimina permanentemente un producto. Bloqueado si tiene lotes en stock,
+    movimientos historicos o aparece en facturas/OC. Para esos casos, desactivar."""
+    from storage import load_facturas, load_inv_lotes, load_movimientos_inventario, load_ordenes_compra
+    prods = load_productos()
+    if prod_id not in prods:
+        return jsonify({"error": "No encontrado"}), 404
+
+    # Validacion: lotes no despachados
+    lotes = load_inv_lotes() or []
+    lotes_activos = [l for l in lotes if isinstance(l, dict)
+                     and l.get("producto_id") == prod_id and not l.get("despachado")]
+    if lotes_activos:
+        return jsonify({"error": f"Tiene {len(lotes_activos)} lotes activos. Despachalos o desactiva el producto."}), 409
+
+    # Validacion: aparece en facturas
+    facs = load_facturas() or []
+    en_facturas = [f for f in facs if isinstance(f, dict)
+                   and any(it.get("prod_id") == prod_id for it in (f.get("items") or []))]
+    if en_facturas:
+        return jsonify({"error": f"Aparece en {len(en_facturas)} facturas. Solo puedes desactivarlo (no eliminar) por integridad legal."}), 409
+
+    # Validacion: aparece en OC pendientes
+    ocs = load_ordenes_compra() or []
+    en_ocs = [o for o in ocs if isinstance(o, dict)
+              and o.get("estado") not in ("entregada", "cancelada")
+              and any(it.get("prod_id") == prod_id for it in (o.get("items") or []))]
+    if en_ocs:
+        return jsonify({"error": f"Aparece en {len(en_ocs)} OCs activas. Cancelalas o desactiva el producto."}), 409
+
+    before = dict(prods[prod_id])
+    del prods[prod_id]
+    save_productos(prods)
+    audit.record("producto", "delete", prod_id, before=before, after=None)
+    log.info(f"producto eliminado: {prod_id}")
     return jsonify({"ok": True})
 
 

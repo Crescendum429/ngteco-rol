@@ -766,3 +766,36 @@ def save_registro_v2():
 def get_registro_v2(fecha):
     reg = load_registro_diario(fecha) or {}
     return jsonify(reg)
+
+
+@inventario_bp.route("/api/registros/v2/<fecha>", methods=["PUT"])
+@require_auth
+def update_registro_v2(fecha):
+    """Edita un registro pasado. Reemplaza el payload completo.
+    NOTA: no revierte movimientos / lotes / piezas previamente creados —
+    el operador debe ajustar manualmente si cambia mucho. Audit log preserva el evento."""
+    from storage import load_registro_diario, save_registro_diario
+    data = request.get_json(force=True) or {}
+    existing = load_registro_diario(fecha)
+    if not existing:
+        return jsonify({"error": "Registro no existe"}), 404
+    save_registro_diario(fecha, data)
+    audit.record("registro_diario", "update", fecha, before=existing, after=data)
+    log.info(f"registro {fecha} editado")
+    return jsonify({"ok": True})
+
+
+@inventario_bp.route("/api/registros/v2/<fecha>", methods=["DELETE"])
+@require_auth
+def delete_registro_v2(fecha):
+    """Elimina un registro diario. Los movimientos / lotes / piezas creados
+    en su momento NO se revierten automaticamente (mantienen audit). El
+    operador debe corregir manualmente si necesita rollback."""
+    from storage import delete_registro_diario, load_registro_diario
+    existing = load_registro_diario(fecha)
+    if not existing:
+        return jsonify({"error": "Registro no existe"}), 404
+    delete_registro_diario(fecha)
+    audit.record("registro_diario", "delete", fecha, before=existing, after=None)
+    log.info(f"registro {fecha} eliminado")
+    return jsonify({"ok": True})
