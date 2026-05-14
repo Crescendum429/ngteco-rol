@@ -123,6 +123,7 @@ def update_material(mat_id):
         "merma_pct": float(data.get("merma", mats[mat_id].get("merma_pct", 3.0))),
     })
     save_materiales(mats)
+    audit.record("material", "update", mat_id, before=None, after=dict(mats[mat_id]))
     return jsonify({"ok": True})
 
 
@@ -133,8 +134,10 @@ def toggle_material_desactivado(mat_id):
     mats = load_materiales()
     if mat_id not in mats:
         return jsonify({"error": "No encontrado"}), 404
-    mats[mat_id]["desactivado"] = bool(data.get("desactivado", True))
+    nuevo = bool(data.get("desactivado", True))
+    mats[mat_id]["desactivado"] = nuevo
     save_materiales(mats)
+    audit.record("material", "desactivar" if nuevo else "reactivar", mat_id)
     return jsonify({"ok": True})
 
 
@@ -167,6 +170,7 @@ def update_producto(prod_id):
             return jsonify({"error": f"IVA invalido: {iva}. Permitidos: 0, 5, 15"}), 400
         p["iva_pct"] = iva
     save_productos(prods)
+    audit.record("producto", "update", prod_id, before=None, after=dict(p))
     return jsonify({"ok": True})
 
 
@@ -187,6 +191,7 @@ def create_producto():
         "factor_complejidad": float(data.get("factor", 1.0)),
     }
     save_productos(prods)
+    audit.record("producto", "create", key, before=None, after=dict(prods[key]))
     log.info(f"producto creado: {key}")
     return jsonify({"id": key})
 
@@ -198,8 +203,10 @@ def toggle_producto_desactivado(prod_id):
     prods = load_productos()
     if prod_id not in prods:
         return jsonify({"error": "No encontrado"}), 404
-    prods[prod_id]["desactivado"] = bool(data.get("desactivado", True))
+    nuevo = bool(data.get("desactivado", True))
+    prods[prod_id]["desactivado"] = nuevo
     save_productos(prods)
+    audit.record("producto", "desactivar" if nuevo else "reactivar", prod_id)
     return jsonify({"ok": True})
 
 
@@ -224,6 +231,7 @@ def update_empaque(emp_id):
         "unidad": data.get("unidad", empaques[emp_id].get("unidad", "unidad")),
     })
     save_empaques(empaques)
+    audit.record("empaque", "update", emp_id, before=None, after=dict(empaques[emp_id]))
     return jsonify({"ok": True})
 
 
@@ -234,8 +242,10 @@ def toggle_empaque_desactivado(emp_id):
     empaques = load_empaques()
     if emp_id not in empaques:
         return jsonify({"error": "No encontrado"}), 404
-    empaques[emp_id]["desactivado"] = bool(data.get("desactivado", True))
+    nuevo = bool(data.get("desactivado", True))
+    empaques[emp_id]["desactivado"] = nuevo
     save_empaques(empaques)
+    audit.record("empaque", "desactivar" if nuevo else "reactivar", emp_id)
     return jsonify({"ok": True})
 
 

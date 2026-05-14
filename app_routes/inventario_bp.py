@@ -4,6 +4,7 @@ from datetime import date, datetime
 
 from flask import Blueprint, jsonify, request
 
+import audit
 from app_routes._auth import require_auth
 from logger import get_logger
 from storage import (
@@ -247,9 +248,11 @@ def get_subcomponentes():
 @inventario_bp.route("/api/subcomponentes", methods=["PUT"])
 @require_auth
 def put_subcomponentes():
-    from storage import save_sub_componentes
+    from storage import load_sub_componentes, save_sub_componentes
+    before = load_sub_componentes()
     data = request.get_json(force=True) or {}
     save_sub_componentes(data)
+    audit.record("subcomponentes", "update", "global", before=before, after=data)
     return jsonify({"ok": True})
 
 
@@ -265,9 +268,11 @@ def get_emisor():
 @inventario_bp.route("/api/emisor", methods=["PUT"])
 @require_auth
 def put_emisor():
-    from storage import save_emisor
+    from storage import load_emisor, save_emisor
+    before = load_emisor()
     data = request.get_json(force=True) or {}
     save_emisor(data)
+    audit.record("emisor", "update", "solplast", before=before, after=data)
     return jsonify({"ok": True})
 
 
@@ -292,6 +297,7 @@ def update_pieza(pieza_id):
     if not found:
         return jsonify({"error": "No existe"}), 404
     save_inv_piezas(piezas)
+    audit.record("pieza", "update", pieza_id, before=None, after=data)
     return jsonify({"ok": True})
 
 
@@ -306,6 +312,7 @@ def delete_pieza(pieza_id):
         return jsonify({"error": "Tiene unidades en stock. Vaciar primero o desactivar."}), 400
     piezas = [p for p in piezas if p.get("id") != pieza_id]
     save_inv_piezas(piezas)
+    audit.record("pieza", "delete", pieza_id, before=target, after=None)
     return jsonify({"ok": True})
 
 
@@ -337,6 +344,7 @@ def create_pieza():
     }
     piezas.append(nueva)
     save_inv_piezas(piezas)
+    audit.record("pieza", "create", pid, before=None, after=nueva)
     return jsonify({"ok": True, "pieza": nueva})
 
 
@@ -382,10 +390,12 @@ def update_movimiento(mov_id):
     target = next((m for m in movs if isinstance(m, dict) and int(m.get("id", 0)) == mov_id), None)
     if not target:
         return jsonify({"error": "No existe"}), 404
+    before = dict(target)
     for k in ("ref", "nota", "fecha"):
         if k in data:
             target[k] = data[k]
     save_movimientos_inventario(movs)
+    audit.record("movimiento", "update", str(mov_id), before=before, after=dict(target))
     return jsonify({"ok": True})
 
 
@@ -400,6 +410,7 @@ def delete_movimiento(mov_id):
         return jsonify({"error": "No existe"}), 404
     movs = [m for m in movs if int(m.get("id", 0)) != mov_id]
     save_movimientos_inventario(movs)
+    audit.record("movimiento", "delete", str(mov_id), before=target, after=None)
     return jsonify({"ok": True})
 
 
@@ -415,11 +426,13 @@ def update_lote(lote_id):
         return jsonify({"error": "No existe"}), 404
     if target.get("despachado"):
         return jsonify({"error": "Lote despachado no editable"}), 400
+    before = dict(target)
     for k in ("producto_id", "cliente_id", "fecha_elaboracion", "fecha_caducidad",
               "cantidad_cajas", "unidades_caja", "peso_neto", "peso_total", "responsable"):
         if k in data:
             target[k] = data[k]
     save_inv_lotes(lotes)
+    audit.record("lote", "update", lote_id, before=before, after=dict(target))
     return jsonify({"ok": True})
 
 
@@ -434,6 +447,7 @@ def delete_lote(lote_id):
         return jsonify({"error": "Lote despachado, no eliminable"}), 400
     lotes = [l for l in lotes if l.get("id") != lote_id]
     save_inv_lotes(lotes)
+    audit.record("lote", "delete", lote_id, before=target, after=None)
     return jsonify({"ok": True})
 
 
@@ -442,11 +456,11 @@ def delete_lote(lote_id):
 @inventario_bp.route("/api/audit-log", methods=["GET"])
 @require_auth
 def get_audit_log():
-    from storage import load_audit_log
+    from audit import query as audit_query
     entidad = request.args.get("entidad")
     item_id = request.args.get("item_id")
     limit = int(request.args.get("limit", 200))
-    return jsonify(load_audit_log(entidad, item_id, limit))
+    return jsonify(audit_query(limit=limit, entity_type=entidad, entity_id=item_id))
 
 
 # ─── Movimientos manuales ───
@@ -521,6 +535,8 @@ def create_movimiento():
 
     mid = append_mov(clase, tipo, item_id, cant, unidad, ref=ref, nota=nota)
     log.info(f"movimiento manual #{mid}: {tipo} {cant} {unidad} de {item_id} ({clase})")
+    audit.record("movimiento", "create", str(mid),
+                 after={"clase": clase, "tipo": tipo, "item_id": item_id, "cantidad": cant, "unidad": unidad})
     return jsonify({"ok": True, "id": mid})
 
 
@@ -571,6 +587,7 @@ def create_lote():
     append_mov("pt", "produccion", nuevo["producto_id"], nuevo["cantidad_cajas"], "cajas",
                ref=nuevo["id"], nota=f"Lote {nuevo['id']} creado")
     log.info(f"lote creado: {lote_id}")
+    audit.record("lote", "create", lote_id, after=nuevo)
     return jsonify({"ok": True, "lote": nuevo})
 
 
@@ -587,6 +604,7 @@ def despachar_lote(lote_id):
             append_mov("pt", "salida", l.get("producto_id"), l.get("cantidad_cajas", 0), "cajas",
                        ref=lote_id, nota="Despacho")
             log.info(f"lote despachado: {lote_id}")
+            audit.record("lote", "despachar", lote_id, before=None, after=dict(l))
             break
     if cambiado:
         save_inv_lotes(lotes)

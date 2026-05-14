@@ -61,11 +61,17 @@ def get_collection(kind):
 @comercial_bp.route("/api/collection/<kind>", methods=["PUT"])
 @require_auth
 def put_collection(kind):
+    import audit
     if kind not in COLLECTION_MAP:
         return jsonify({"error": "Coleccion desconocida"}), 404
+    loader, saver = COLLECTION_MAP[kind]
+    before = loader()
     data = request.get_json(force=True)
-    COLLECTION_MAP[kind][1](data)
+    saver(data)
     log.info(f"collection {kind}: actualizada ({len(data) if isinstance(data, list) else 'dict'} items)")
+    n_before = len(before) if isinstance(before, list) else (len(before) if isinstance(before, dict) else 0)
+    n_after = len(data) if isinstance(data, list) else (len(data) if isinstance(data, dict) else 0)
+    audit.record(kind, "bulk_update", "all", before=None, after={"count_before": n_before, "count_after": n_after})
     return jsonify({"ok": True})
 
 
@@ -73,17 +79,20 @@ def put_collection(kind):
 @require_auth
 def delete_collection_item(kind, item_id):
     """Elimina un item de una coleccion list-based. La coleccion debe tener objetos con 'id'."""
+    import audit
     if kind not in COLLECTION_MAP:
         return jsonify({"error": "Coleccion desconocida"}), 404
     loader, saver = COLLECTION_MAP[kind]
     data = loader() or []
     if not isinstance(data, list):
         return jsonify({"error": "Coleccion no es lista"}), 400
+    target = next((x for x in data if isinstance(x, dict) and x.get("id") == item_id), None)
     nuevo = [x for x in data if isinstance(x, dict) and x.get("id") != item_id]
     if len(nuevo) == len(data):
         return jsonify({"error": "Item no encontrado"}), 404
     saver(nuevo)
     log.info(f"collection {kind}: eliminado {item_id} ({len(nuevo)} restantes)")
+    audit.record(kind, "delete", item_id, before=target, after=None)
     return jsonify({"ok": True})
 
 
