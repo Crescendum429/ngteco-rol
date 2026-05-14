@@ -56,7 +56,10 @@ def prod_to_js(key, prod):
         "factor": float(prod.get("factor_complejidad", 1.0) or 1.0),
         "costo_unit": float(prod.get("costo_unit", 0) or 0),
         "costo_caja": float(prod.get("costo_caja", 0) or 0),
-        "iva_pct": float(prod.get("iva_pct", 15) or 15),
+        # IVA default 0% — la mayoria de productos plasticos de Solplast son
+        # exentos. Vasos Life para Lamosan son la excepcion (15%). Se setea
+        # explicitamente por producto en el editor.
+        "iva_pct": float(prod.get("iva_pct") if prod.get("iva_pct") is not None else 0),
         "desactivado": bool(prod.get("desactivado", False)),
         "datos_incompletos": di if isinstance(di, list) else ([] if not di else ["(sin detalle)"]),
     }

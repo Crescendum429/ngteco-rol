@@ -216,7 +216,9 @@ def oc_facturar(oc_id):
     # Construir factura draft (sin secuencial — se reserva al emitir SRI)
     data = request.get_json(silent=True) or {}
     fecha = data.get("fecha_emision") or _date.today().isoformat()
-    iva_pct_default = float(data.get("iva_pct_default", 15))
+    # Default IVA 0% — Solplast vende mayormente productos exentos. Cada
+    # producto tiene su iva_pct configurado en el catalogo.
+    iva_pct_default = float(data.get("iva_pct_default", 0))
     items_factura = []
     subtotal_12 = Decimal("0")
     subtotal_0 = Decimal("0")

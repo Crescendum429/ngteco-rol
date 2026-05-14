@@ -264,7 +264,7 @@ def build_factura_xml(factura: dict, emisor: dict, cliente: dict, ambiente: str 
         total_item = (cant * precio).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         descuento = _to_dec(it.get("descuento", 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         base_imponible = (total_item - descuento).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        tarifa_iva = _to_dec(it.get("iva_pct", 15))
+        tarifa_iva = _to_dec(it.get("iva_pct", 0))
         iva_item = (base_imponible * tarifa_iva / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         if tarifa_iva == 0:
             suma_base_0 += base_imponible
@@ -421,7 +421,7 @@ def build_nota_credito_xml(nota: dict, emisor: dict, cliente: dict, ambiente: st
         total_item = (cant * precio).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         descuento = _to_dec(it.get("descuento", 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         base = (total_item - descuento).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        tarifa = _to_dec(it.get("iva_pct", 15))
+        tarifa = _to_dec(it.get("iva_pct", 0))
         iva_item = (base * tarifa / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         if tarifa == 0:
             suma_base_0 += base

@@ -2446,7 +2446,7 @@ function Sidebar({ page, setPage, role, open, onClose, theme, setTheme, onLogout
             <div className="avatar">{role === 'operario' ? 'OP' : 'AD'}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12.5, fontWeight: 600 }}>{role === 'operario' ? 'Operario' : 'Admin Solplast'}</div>
-              <div className="xs mute">v4.0 · Demo</div>
+              <div className="xs mute">v{window.APP_VERSION || '5.8.0'}</div>
             </div>
             <Btn variant="ghost" size="sm" title="Cerrar sesión" onClick={onLogout}><Icon name="logout" size={14} /></Btn>
           </div>
@@ -2546,7 +2546,7 @@ function Login({ onLogin }) {
         </Btn>
 
         <div style={{ marginTop: 20, textAlign: 'center', fontSize: 11, color: 'var(--text-mute)' }}>
-          Soluciones Plásticas del Ecuador · v4.0
+          Soluciones Plásticas del Ecuador · v{window.APP_VERSION || '5.8.0'}
         </div>
       </form>
     </div>
@@ -2740,11 +2740,11 @@ function AlertasPanel({ setPage }) {
   const lista = alertas || localAlertas();
 
   return (
-    <div className="panel panel-flush">
-      <div style={{ padding:'14px 18px', borderBottom:'1px solid var(--line)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+    <div className="panel panel-flush" style={{ display:'flex', flexDirection:'column', maxHeight: 460 }}>
+      <div style={{ padding:'14px 18px', borderBottom:'1px solid var(--line)', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
         <div>
           <h3 className="panel-title">Alertas</h3>
-          <div className="panel-sub">Requieren tu atención esta semana</div>
+          <div className="panel-sub">{lista.length === 0 ? 'Todo al día' : 'Requieren tu atención'}</div>
         </div>
         <div className="row" style={{ gap:8 }}>
           <Chip tone="accent">{lista.length}</Chip>
@@ -2754,6 +2754,7 @@ function AlertasPanel({ setPage }) {
         </div>
       </div>
 
+      <div style={{ overflowY:'auto', flex:1, minHeight:0 }}>
       {lista.length === 0 && (
         <div style={{ padding:'28px 18px', textAlign:'center', color:'var(--text-mute)', fontSize:13 }}>
           <Icon name="check" size={22}/><div style={{ marginTop:6 }}>Todo al día</div>
@@ -2794,6 +2795,7 @@ function AlertasPanel({ setPage }) {
           </div>
         );
       })}
+      </div>
 
       <Modal open={showForm} onClose={() => { setShowForm(false); setEditItem(null); }}
         title={editItem ? 'Editar alerta' : 'Nueva alerta manual'}
