@@ -51,23 +51,20 @@ def _datos_incompletos_de(item):
 
 def _generar_alertas():
     alertas = []
+    # Acumuladores para agrupar items con datos_incompletos por categoria
+    inc_productos = []  # [{id, nombre, faltantes}]
+    inc_clientes = []
+    inc_piezas = []
+    inc_aux = []
 
-    # 1) Productos con datos incompletos
+    # 1) Productos con datos incompletos -> recolectar (luego agrupar)
     try:
         productos = load_productos() or {}
         if isinstance(productos, dict):
             for pid, p in productos.items():
                 faltantes = _datos_incompletos_de(p)
                 if faltantes:
-                    alertas.append({
-                        "id": f"prod-incomplete-{pid}",
-                        "tipo": "datos_incompletos",
-                        "severidad": "info",
-                        "titulo": f"Faltan datos en {p.get('nombre', pid)}",
-                        "descripcion": f"Campos sin verificar: {', '.join(faltantes)}",
-                        "destino": {"page": "catalogo", "sub": "productos", "id": pid},
-                        "ref": pid,
-                    })
+                    inc_productos.append({"id": pid, "nombre": p.get("nombre", pid), "faltantes": faltantes})
     except Exception:
         log.exception("alertas: productos")
 
@@ -77,15 +74,7 @@ def _generar_alertas():
         for c in clientes:
             faltantes = _datos_incompletos_de(c)
             if faltantes:
-                alertas.append({
-                    "id": f"cli-incomplete-{c.get('id')}",
-                    "tipo": "datos_incompletos",
-                    "severidad": "info",
-                    "titulo": f"Cliente {c.get('nombre_comercial', '?')} con datos pendientes",
-                    "descripcion": f"Falta: {', '.join(faltantes)}",
-                    "destino": {"page": "clientes", "id": c.get("id")},
-                    "ref": c.get("id"),
-                })
+                inc_clientes.append({"id": c.get("id"), "nombre": c.get("nombre_comercial", "?"), "faltantes": faltantes})
     except Exception:
         log.exception("alertas: clientes")
 
@@ -95,17 +84,48 @@ def _generar_alertas():
         for p in piezas:
             faltantes = _datos_incompletos_de(p)
             if faltantes:
-                alertas.append({
-                    "id": f"pieza-incomplete-{p.get('id')}",
-                    "tipo": "datos_incompletos",
-                    "severidad": "info",
-                    "titulo": f"Pieza {p.get('pieza', '?')} sin clasificar",
-                    "descripcion": f"Falta: {', '.join(faltantes)}",
-                    "destino": {"page": "inventario", "sub": "piezas", "id": p.get("id")},
-                    "ref": p.get("id"),
-                })
+                inc_piezas.append({"id": p.get("id"), "nombre": p.get("pieza", "?"), "faltantes": faltantes})
     except Exception:
         log.exception("alertas: piezas")
+
+    # 3b) Auxiliares con datos incompletos (costo_unit, stock_inicial)
+    try:
+        aux = load_inv_auxiliar() or []
+        if isinstance(aux, list):
+            for a in aux:
+                faltantes = _datos_incompletos_de(a)
+                if faltantes:
+                    inc_aux.append({"id": a.get("id"), "nombre": a.get("nombre", "?"), "faltantes": faltantes})
+    except Exception:
+        log.exception("alertas: aux incompletos")
+
+    # Emitir UNA alerta agrupada por categoria con resumen
+    def _emitir_grupo(items, tipo_key, label_singular, label_plural, destino):
+        if not items:
+            return
+        n = len(items)
+        nombres_preview = ", ".join(i["nombre"] for i in items[:3])
+        if n > 3:
+            nombres_preview += f", +{n-3} más"
+        alertas.append({
+            "id": f"grupo-incomplete-{tipo_key}",
+            "tipo": "datos_incompletos",
+            "severidad": "info",
+            "titulo": f"{n} {label_singular if n == 1 else label_plural} sin verificar",
+            "descripcion": nombres_preview,
+            "destino": destino,
+            "ref": tipo_key,
+            "items": items,  # incluido para que la UI pueda expandir
+        })
+
+    _emitir_grupo(inc_productos, "productos", "producto", "productos",
+                  {"page": "catalogo", "sub": "productos"})
+    _emitir_grupo(inc_clientes, "clientes", "cliente", "clientes",
+                  {"page": "clientes"})
+    _emitir_grupo(inc_piezas, "piezas", "pieza", "piezas",
+                  {"page": "inventario", "sub": "piezas"})
+    _emitir_grupo(inc_aux, "auxiliares", "auxiliar", "auxiliares",
+                  {"page": "inventario", "sub": "aux"})
 
     # 4) Stock bajo MP / PT / Aux
     try:
