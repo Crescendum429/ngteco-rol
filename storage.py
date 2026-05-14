@@ -692,7 +692,9 @@ def setear_secuencial_inicial(cod_doc: str, establecimiento: str, punto_emision:
 
 def compute_stock_mp():
     """Stock de materia prima por material, calculado desde movimientos.
-    Retorna lista [{id, stock_kg, minimo_kg, costo_prom_kg, ultima_entrada}]."""
+    Retorna lista [{id, stock_kg, stock_fundas, minimo_kg, costo_prom_kg, ultima_entrada}].
+    stock_fundas se computa cuando los movimientos llevan cantidad_fundas
+    (operario registra en fundas, sistema guarda ambos)."""
     movs = load_movimientos_inventario() or []
     materiales = load_materiales() or {}
     if not isinstance(materiales, dict):
@@ -702,6 +704,7 @@ def compute_stock_mp():
         by_id[mat_id] = {
             "id": mat_id,
             "stock_kg": 0.0,
+            "stock_fundas": 0,
             "minimo_kg": float(mat.get("minimo_kg") or 0),
             "costo_prom_kg": float(mat.get("costo_kg") or 0),
             "ultima_entrada": "",
@@ -713,22 +716,27 @@ def compute_stock_mp():
         if not item:
             continue
         if item not in by_id:
-            by_id[item] = {"id": item, "stock_kg": 0.0, "minimo_kg": 0, "costo_prom_kg": 0, "ultima_entrada": ""}
+            by_id[item] = {"id": item, "stock_kg": 0.0, "stock_fundas": 0,
+                           "minimo_kg": 0, "costo_prom_kg": 0, "ultima_entrada": ""}
         cant = float(m.get("cantidad") or 0)
+        cant_fundas = int(m.get("cantidad_fundas") or 0)
         tipo = m.get("tipo")
         if tipo in ("entrada", "produccion"):
             by_id[item]["stock_kg"] += cant
+            by_id[item]["stock_fundas"] += cant_fundas
             fecha = m.get("fecha") or ""
             if fecha > by_id[item]["ultima_entrada"]:
                 by_id[item]["ultima_entrada"] = fecha
         elif tipo in ("consumo", "salida"):
             by_id[item]["stock_kg"] -= cant
+            by_id[item]["stock_fundas"] -= cant_fundas
         elif tipo == "ajuste":
-            by_id[item]["stock_kg"] += cant  # ajuste positivo por default
-    # Redondear y filtrar inactivos (sin stock ni minimo)
+            by_id[item]["stock_kg"] += cant
+            by_id[item]["stock_fundas"] += cant_fundas
     for v in by_id.values():
         v["stock_kg"] = round(v["stock_kg"], 2)
-    return [v for v in by_id.values() if v["stock_kg"] != 0 or v["minimo_kg"] > 0]
+        v["stock_fundas"] = max(0, int(v["stock_fundas"]))
+    return [v for v in by_id.values() if v["stock_kg"] != 0 or v["minimo_kg"] > 0 or v["stock_fundas"] > 0]
 
 
 def compute_stock_pt():

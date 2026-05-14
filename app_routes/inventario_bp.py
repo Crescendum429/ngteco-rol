@@ -500,6 +500,11 @@ def create_movimiento():
     ref = data.get("ref", "")
     nota = data.get("nota", "")
     ajusta = data.get("ajusta_stock", True)
+    # MP puede llevar conteo paralelo en fundas (operario lo registra asi).
+    try:
+        cant_fundas = int(data.get("cantidad_fundas") or 0)
+    except (TypeError, ValueError):
+        cant_fundas = 0
 
     if not clase or not tipo or not item_id or cant <= 0:
         return jsonify({"error": "clase, tipo, item_id y cantidad>0 son obligatorios"}), 400
@@ -528,9 +533,17 @@ def create_movimiento():
         # (no hay tabla simple de stock para esos)
 
     mid = append_mov(clase, tipo, item_id, cant, unidad, ref=ref, nota=nota)
-    log.info(f"movimiento manual #{mid}: {tipo} {cant} {unidad} de {item_id} ({clase})")
+    # Si vino cantidad_fundas, persistirlo en el movimiento ya creado
+    if cant_fundas > 0:
+        movs = load_movimientos_inventario() or []
+        for m in movs:
+            if isinstance(m, dict) and int(m.get("id", 0)) == mid:
+                m["cantidad_fundas"] = cant_fundas
+                break
+        save_movimientos_inventario(movs)
+    log.info(f"movimiento manual #{mid}: {tipo} {cant} {unidad} de {item_id} ({clase}) fundas={cant_fundas}")
     audit.record("movimiento", "create", str(mid),
-                 after={"clase": clase, "tipo": tipo, "item_id": item_id, "cantidad": cant, "unidad": unidad})
+                 after={"clase": clase, "tipo": tipo, "item_id": item_id, "cantidad": cant, "unidad": unidad, "cantidad_fundas": cant_fundas})
     return jsonify({"ok": True, "id": mid})
 
 
