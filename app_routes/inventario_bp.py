@@ -235,6 +235,220 @@ def get_qc_all():
     return jsonify(load_qc_templates() or {})
 
 
+# ─── Sub-componentes (por kind de producto) ───
+
+@inventario_bp.route("/api/subcomponentes", methods=["GET"])
+@require_auth
+def get_subcomponentes():
+    from storage import load_sub_componentes
+    return jsonify(load_sub_componentes() or {})
+
+
+@inventario_bp.route("/api/subcomponentes", methods=["PUT"])
+@require_auth
+def put_subcomponentes():
+    from storage import save_sub_componentes
+    data = request.get_json(force=True) or {}
+    save_sub_componentes(data)
+    return jsonify({"ok": True})
+
+
+# ─── Emisor (datos fiscales Solplast) ───
+
+@inventario_bp.route("/api/emisor", methods=["GET"])
+@require_auth
+def get_emisor():
+    from storage import load_emisor
+    return jsonify(load_emisor() or {})
+
+
+@inventario_bp.route("/api/emisor", methods=["PUT"])
+@require_auth
+def put_emisor():
+    from storage import save_emisor
+    data = request.get_json(force=True) or {}
+    save_emisor(data)
+    return jsonify({"ok": True})
+
+
+# ─── Piezas CRUD por item ───
+
+@inventario_bp.route("/api/inventario/piezas/<pieza_id>", methods=["PUT"])
+@require_auth
+def update_pieza(pieza_id):
+    """Actualiza un bin de piezas concreto (nombre, producto, cantidad, datos_incompletos)."""
+    data = request.get_json(force=True) or {}
+    piezas = load_inv_piezas() or []
+    if not isinstance(piezas, list):
+        return jsonify({"error": "Storage no es lista"}), 500
+    found = False
+    for p in piezas:
+        if isinstance(p, dict) and p.get("id") == pieza_id:
+            for k in ("pieza", "producto", "estado", "cliente_id", "cantidad", "unidad", "datos_incompletos"):
+                if k in data:
+                    p[k] = data[k]
+            found = True
+            break
+    if not found:
+        return jsonify({"error": "No existe"}), 404
+    save_inv_piezas(piezas)
+    return jsonify({"ok": True})
+
+
+@inventario_bp.route("/api/inventario/piezas/<pieza_id>", methods=["DELETE"])
+@require_auth
+def delete_pieza(pieza_id):
+    piezas = load_inv_piezas() or []
+    target = next((p for p in piezas if isinstance(p, dict) and p.get("id") == pieza_id), None)
+    if not target:
+        return jsonify({"error": "No existe"}), 404
+    if float(target.get("cantidad") or 0) > 0:
+        return jsonify({"error": "Tiene unidades en stock. Vaciar primero o desactivar."}), 400
+    piezas = [p for p in piezas if p.get("id") != pieza_id]
+    save_inv_piezas(piezas)
+    return jsonify({"ok": True})
+
+
+@inventario_bp.route("/api/inventario/piezas", methods=["POST"])
+@require_auth
+def create_pieza():
+    """Crea un nuevo bin de pieza."""
+    data = request.get_json(force=True) or {}
+    if not data.get("pieza"):
+        return jsonify({"error": "campo pieza obligatorio"}), 400
+    piezas = load_inv_piezas() or []
+    if not isinstance(piezas, list):
+        piezas = []
+    pid = data.get("id") or f"ps-{(data['pieza'] or '').lower()}-{data.get('estado', 'cruda')}"
+    if data.get("cliente_id"):
+        pid += f"-{data['cliente_id']}"
+    if any(p.get("id") == pid for p in piezas if isinstance(p, dict)):
+        return jsonify({"error": "Ya existe pieza con ese id"}), 409
+    nueva = {
+        "id": pid,
+        "pieza": data.get("pieza"),
+        "producto": data.get("producto"),
+        "estado": data.get("estado", "cruda"),
+        "cliente_id": data.get("cliente_id"),
+        "cantidad": float(data.get("cantidad") or 0),
+        "unidad": data.get("unidad", "unidades"),
+        "ultima_actualizacion": _now_iso(),
+        "datos_incompletos": data.get("datos_incompletos") or [],
+    }
+    piezas.append(nueva)
+    save_inv_piezas(piezas)
+    return jsonify({"ok": True, "pieza": nueva})
+
+
+# ─── Molido CRUD ───
+
+@inventario_bp.route("/api/inventario/molido/<bin_id>", methods=["PUT"])
+@require_auth
+def update_molido_bin(bin_id):
+    """Actualiza un bin de molido en sitio (kg, origen, producto, color)."""
+    data = request.get_json(force=True) or {}
+    mol = load_inv_molido() or {}
+    if not isinstance(mol, dict):
+        return jsonify({"error": "Storage no es dict"}), 500
+    if bin_id not in mol:
+        return jsonify({"error": "No existe bin"}), 404
+    if "kg" in data:
+        mol[bin_id] = float(data["kg"])
+    save_inv_molido(mol)
+    return jsonify({"ok": True})
+
+
+@inventario_bp.route("/api/inventario/molido/<bin_id>", methods=["DELETE"])
+@require_auth
+def delete_molido_bin(bin_id):
+    mol = load_inv_molido() or {}
+    if bin_id not in mol:
+        return jsonify({"error": "No existe bin"}), 404
+    if float(mol.get(bin_id, 0)) > 0:
+        return jsonify({"error": "Bin con stock > 0. Vaciar primero."}), 400
+    del mol[bin_id]
+    save_inv_molido(mol)
+    return jsonify({"ok": True})
+
+
+# ─── Movimientos: editar y eliminar ───
+
+@inventario_bp.route("/api/inventario/movimientos/<int:mov_id>", methods=["PUT"])
+@require_auth
+def update_movimiento(mov_id):
+    """Editar nota/ref/fecha de un movimiento pasado (no cambia la cantidad)."""
+    data = request.get_json(force=True) or {}
+    movs = load_movimientos_inventario() or []
+    target = next((m for m in movs if isinstance(m, dict) and int(m.get("id", 0)) == mov_id), None)
+    if not target:
+        return jsonify({"error": "No existe"}), 404
+    for k in ("ref", "nota", "fecha"):
+        if k in data:
+            target[k] = data[k]
+    save_movimientos_inventario(movs)
+    return jsonify({"ok": True})
+
+
+@inventario_bp.route("/api/inventario/movimientos/<int:mov_id>", methods=["DELETE"])
+@require_auth
+def delete_movimiento(mov_id):
+    """Elimina un movimiento. Si tiene side-effects ya aplicados al stock, NO los revierte
+    automaticamente; el usuario debe revisar el impacto. Audit log preserva el evento."""
+    movs = load_movimientos_inventario() or []
+    target = next((m for m in movs if isinstance(m, dict) and int(m.get("id", 0)) == mov_id), None)
+    if not target:
+        return jsonify({"error": "No existe"}), 404
+    movs = [m for m in movs if int(m.get("id", 0)) != mov_id]
+    save_movimientos_inventario(movs)
+    return jsonify({"ok": True})
+
+
+# ─── Lotes: editar y eliminar ───
+
+@inventario_bp.route("/api/inventario/lotes/<lote_id>", methods=["PUT"])
+@require_auth
+def update_lote(lote_id):
+    data = request.get_json(force=True) or {}
+    lotes = load_inv_lotes() or []
+    target = next((l for l in lotes if isinstance(l, dict) and l.get("id") == lote_id), None)
+    if not target:
+        return jsonify({"error": "No existe"}), 404
+    if target.get("despachado"):
+        return jsonify({"error": "Lote despachado no editable"}), 400
+    for k in ("producto_id", "cliente_id", "fecha_elaboracion", "fecha_caducidad",
+              "cantidad_cajas", "unidades_caja", "peso_neto", "peso_total", "responsable"):
+        if k in data:
+            target[k] = data[k]
+    save_inv_lotes(lotes)
+    return jsonify({"ok": True})
+
+
+@inventario_bp.route("/api/inventario/lotes/<lote_id>", methods=["DELETE"])
+@require_auth
+def delete_lote(lote_id):
+    lotes = load_inv_lotes() or []
+    target = next((l for l in lotes if isinstance(l, dict) and l.get("id") == lote_id), None)
+    if not target:
+        return jsonify({"error": "No existe"}), 404
+    if target.get("despachado"):
+        return jsonify({"error": "Lote despachado, no eliminable"}), 400
+    lotes = [l for l in lotes if l.get("id") != lote_id]
+    save_inv_lotes(lotes)
+    return jsonify({"ok": True})
+
+
+# ─── Audit log ───
+
+@inventario_bp.route("/api/audit-log", methods=["GET"])
+@require_auth
+def get_audit_log():
+    from storage import load_audit_log
+    entidad = request.args.get("entidad")
+    item_id = request.args.get("item_id")
+    limit = int(request.args.get("limit", 200))
+    return jsonify(load_audit_log(entidad, item_id, limit))
+
+
 # ─── Movimientos manuales ───
 
 @inventario_bp.route("/api/inventario/movimientos", methods=["GET"])

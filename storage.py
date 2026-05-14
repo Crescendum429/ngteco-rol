@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime, timezone
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
@@ -553,6 +554,68 @@ def load_qc_templates():
 
 def save_qc_templates(data):
     _cfg_set("qc:templates", data)
+
+
+def load_sub_componentes():
+    """Mapeo kind de producto -> [{id, nombre, unidad}].
+    Por defecto: jeringa = canula/piston/tapon/acordeon, gotero = base/capuchon."""
+    data = _load_or_none("catalogo:subcomponentes")
+    if data:
+        return data
+    return {
+        "jeringa": [
+            {"id": "canula", "nombre": "Canula", "unidad": "unidades"},
+            {"id": "piston", "nombre": "Piston", "unidad": "unidades"},
+            {"id": "tapon", "nombre": "Tapon", "unidad": "unidades"},
+            {"id": "acordeon", "nombre": "Acordeon", "unidad": "unidades"},
+        ],
+        "gotero": [
+            {"id": "gotero_b", "nombre": "Gotero (base)", "unidad": "unidades"},
+            {"id": "capuchon", "nombre": "Capuchon", "unidad": "unidades"},
+        ],
+    }
+
+
+def save_sub_componentes(data):
+    _cfg_set("catalogo:subcomponentes", data)
+
+
+# ─── Audit log universal ───
+
+def append_audit_evento(entidad, accion, item_id, actor, ip, before=None, after=None):
+    """Append-only log de cambios. Estructura por entidad."""
+    key = "audit:log"
+    log_data = _load_or_none(key) or []
+    if not isinstance(log_data, list):
+        log_data = []
+    nid = (max([int(e.get("id") or 0) for e in log_data if isinstance(e, dict)], default=0)) + 1
+    log_data.insert(0, {
+        "id": nid,
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "entidad": entidad,
+        "accion": accion,
+        "item_id": item_id,
+        "actor": actor or "system",
+        "ip": ip or "",
+        "before": before,
+        "after": after,
+    })
+    # Cap a 5000 eventos para no explotar el JSON
+    if len(log_data) > 5000:
+        log_data = log_data[:5000]
+    _cfg_set(key, log_data)
+    return nid
+
+
+def load_audit_log(entidad=None, item_id=None, limit=200):
+    log_data = _load_or_none("audit:log") or []
+    if not isinstance(log_data, list):
+        return []
+    if entidad:
+        log_data = [e for e in log_data if isinstance(e, dict) and e.get("entidad") == entidad]
+    if item_id:
+        log_data = [e for e in log_data if isinstance(e, dict) and e.get("item_id") == item_id]
+    return log_data[:limit]
 
 
 def load_alertas_persistentes():

@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "5.3.3"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "5.3.4"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -968,6 +968,115 @@ def _build_login_patch():
         body: JSON.stringify(data), credentials: 'same-origin',
       });
       return r.ok ? r.json() : { error: 'Error' };
+    },
+    actualizarAlertaPersistente: async (id, data) => {
+      const r = await fetch('/api/alertas/persistente/' + encodeURIComponent(id), {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data), credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    eliminarAlertaPersistente: async (id) => {
+      const r = await fetch('/api/alertas/persistente/' + encodeURIComponent(id), {
+        method: 'DELETE', credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    fetchAlertasPersistentes: async () => {
+      const r = await fetch('/api/alertas/persistentes', { credentials: 'same-origin' });
+      return r.ok ? r.json() : [];
+    },
+    fetchEmisor: async () => {
+      const r = await fetch('/api/emisor', { credentials: 'same-origin' });
+      return r.ok ? r.json() : {};
+    },
+    saveEmisor: async (data) => {
+      const r = await fetch('/api/emisor', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data), credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    fetchSubcomponentes: async () => {
+      const r = await fetch('/api/subcomponentes', { credentials: 'same-origin' });
+      return r.ok ? r.json() : {};
+    },
+    saveSubcomponentes: async (data) => {
+      const r = await fetch('/api/subcomponentes', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data), credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    crearPieza: async (data) => {
+      const r = await fetch('/api/inventario/piezas', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data), credentials: 'same-origin',
+      });
+      return r.ok ? r.json() : { error: 'Error' };
+    },
+    actualizarPieza: async (id, data) => {
+      const r = await fetch('/api/inventario/piezas/' + encodeURIComponent(id), {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data), credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    eliminarPieza: async (id) => {
+      const r = await fetch('/api/inventario/piezas/' + encodeURIComponent(id), {
+        method: 'DELETE', credentials: 'same-origin',
+      });
+      try { return r.ok ? { ok: true } : await r.json(); } catch { return { error: `HTTP ${r.status}` }; }
+    },
+    actualizarMolido: async (id, kg) => {
+      const r = await fetch('/api/inventario/molido/' + encodeURIComponent(id), {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kg }), credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    eliminarMolido: async (id) => {
+      const r = await fetch('/api/inventario/molido/' + encodeURIComponent(id), {
+        method: 'DELETE', credentials: 'same-origin',
+      });
+      try { return r.ok ? { ok: true } : await r.json(); } catch { return { error: `HTTP ${r.status}` }; }
+    },
+    actualizarMovimiento: async (id, data) => {
+      const r = await fetch('/api/inventario/movimientos/' + id, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data), credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    eliminarMovimiento: async (id) => {
+      const r = await fetch('/api/inventario/movimientos/' + id, {
+        method: 'DELETE', credentials: 'same-origin',
+      });
+      return r.ok;
+    },
+    actualizarLote: async (id, data) => {
+      const r = await fetch('/api/inventario/lotes/' + encodeURIComponent(id), {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data), credentials: 'same-origin',
+      });
+      try { return r.ok ? { ok: true } : await r.json(); } catch { return { error: `HTTP ${r.status}` }; }
+    },
+    eliminarLote: async (id) => {
+      const r = await fetch('/api/inventario/lotes/' + encodeURIComponent(id), {
+        method: 'DELETE', credentials: 'same-origin',
+      });
+      try { return r.ok ? { ok: true } : await r.json(); } catch { return { error: `HTTP ${r.status}` }; }
+    },
+    fetchAuditLog: async (params) => {
+      const q = params ? '?' + new URLSearchParams(params).toString() : '';
+      const r = await fetch('/api/audit-log' + q, { credentials: 'same-origin' });
+      return r.ok ? r.json() : [];
+    },
+    eliminarItemColeccion: async (kind, item_id) => {
+      const r = await fetch('/api/collection/' + encodeURIComponent(kind) + '/' + encodeURIComponent(item_id), {
+        method: 'DELETE', credentials: 'same-origin',
+      });
+      return r.ok;
     },
   };
 })();

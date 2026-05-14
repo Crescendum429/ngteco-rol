@@ -69,6 +69,24 @@ def put_collection(kind):
     return jsonify({"ok": True})
 
 
+@comercial_bp.route("/api/collection/<kind>/<item_id>", methods=["DELETE"])
+@require_auth
+def delete_collection_item(kind, item_id):
+    """Elimina un item de una coleccion list-based. La coleccion debe tener objetos con 'id'."""
+    if kind not in COLLECTION_MAP:
+        return jsonify({"error": "Coleccion desconocida"}), 404
+    loader, saver = COLLECTION_MAP[kind]
+    data = loader() or []
+    if not isinstance(data, list):
+        return jsonify({"error": "Coleccion no es lista"}), 400
+    nuevo = [x for x in data if isinstance(x, dict) and x.get("id") != item_id]
+    if len(nuevo) == len(data):
+        return jsonify({"error": "Item no encontrado"}), 404
+    saver(nuevo)
+    log.info(f"collection {kind}: eliminado {item_id} ({len(nuevo)} restantes)")
+    return jsonify({"ok": True})
+
+
 @comercial_bp.route("/api/nomina/recurrentes/<emp_id>", methods=["PUT"])
 @require_auth
 def put_recurrentes(emp_id):

@@ -261,3 +261,33 @@ def crear_persistente():
     alertas.append(nueva)
     save_alertas_persistentes(alertas)
     return jsonify({"ok": True, "id": nid})
+
+
+@alertas_bp.route("/api/alertas/persistente/<alert_id>", methods=["PUT"])
+@require_auth
+def actualizar_persistente(alert_id):
+    data = request.get_json(force=True) or {}
+    alertas = load_alertas_persistentes() or []
+    target = next((a for a in alertas if isinstance(a, dict) and a.get("id") == alert_id), None)
+    if not target:
+        return jsonify({"error": "No existe"}), 404
+    for k in ("tipo", "severidad", "titulo", "descripcion", "destino", "ref"):
+        if k in data:
+            target[k] = data[k]
+    save_alertas_persistentes(alertas)
+    return jsonify({"ok": True})
+
+
+@alertas_bp.route("/api/alertas/persistente/<alert_id>", methods=["DELETE"])
+@require_auth
+def eliminar_persistente(alert_id):
+    alertas = load_alertas_persistentes() or []
+    alertas = [a for a in alertas if isinstance(a, dict) and a.get("id") != alert_id]
+    save_alertas_persistentes(alertas)
+    return jsonify({"ok": True})
+
+
+@alertas_bp.route("/api/alertas/persistentes", methods=["GET"])
+@require_auth
+def listar_persistentes():
+    return jsonify(load_alertas_persistentes() or [])
