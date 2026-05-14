@@ -199,6 +199,78 @@ def test_clave_acceso_documenta_ambiente():
     assert clave_prod[23] == "2"
 
 
+def test_decimal_centavos_exactos():
+    """Calculos en Decimal evitan errores tipo 0.1+0.2=0.30000000000000004 de float."""
+    from decimal import Decimal
+    # Caso real: 33 cajas a 0.0249 c/u = 0.8217. Float da 0.8216999...
+    factura = {
+        "fecha_emision": "2026-04-22", "clave_acceso": "1" * 49,
+        "items": [
+            {"prod_id": "j_life", "descripcion": "Jeringa Life",
+             "cant_cajas": 33, "precio_caja": 29.88, "iva_pct": 15},
+        ],
+        "subtotal_12": 986.04, "subtotal_0": 0,
+        "iva": 147.91, "total": 1133.95,
+    }
+    xml = sri.build_factura_xml(factura, {"ruc": "0" * 13}, {})
+    # 33 * 29.88 = 986.04 exacto
+    assert "<precioTotalSinImpuesto>986.04</precioTotalSinImpuesto>" in xml
+    # IVA 15% sobre 986.04 = 147.906, redondea HALF_UP a 147.91
+    assert "<valor>147.91</valor>" in xml
+    assert "<importeTotal>1133.95</importeTotal>" in xml
+
+
+def test_reconciliacion_estricta_diferencia_mayor_a_0_01_rechaza():
+    """Si el header dice subtotal_12=100 pero lineas suman 99.50, debe FALLAR.
+    Tolerancia maxima: 0.01 por redondeo. Mas que eso, error fatal."""
+    import pytest
+    factura = {
+        "fecha_emision": "2026-04-22", "clave_acceso": "1" * 49,
+        "items": [
+            {"prod_id": "x", "descripcion": "X", "cant_cajas": 10, "precio_caja": 9.95, "iva_pct": 15},
+        ],
+        "subtotal_12": 100.00,  # MAL: las lineas suman 99.50
+        "subtotal_0": 0, "iva": 14.93, "total": 114.93,
+    }
+    with pytest.raises(ValueError, match="Reconciliacion"):
+        sri.build_factura_xml(factura, {"ruc": "0" * 13}, {})
+
+
+def test_reconciliacion_tolera_redondeo_001():
+    """Diferencia <= 0.01 por redondeo de varias lineas debe pasar."""
+    # 3 lineas que suman 100.00 en lineas pero header dice 99.99 (off by 0.01)
+    factura = {
+        "fecha_emision": "2026-04-22", "clave_acceso": "1" * 49,
+        "items": [
+            {"prod_id": "a", "cant_cajas": 1, "precio_caja": 33.33, "iva_pct": 15},
+            {"prod_id": "b", "cant_cajas": 1, "precio_caja": 33.33, "iva_pct": 15},
+            {"prod_id": "c", "cant_cajas": 1, "precio_caja": 33.34, "iva_pct": 15},
+        ],
+        "subtotal_12": 100.00, "subtotal_0": 0,
+        "iva": 15.00, "total": 115.00,
+    }
+    # debe pasar (diferencia exacta 0)
+    sri.build_factura_xml(factura, {"ruc": "0" * 13}, {})
+
+
+def test_iva_tarifa_correctamente_aplicada_por_linea():
+    """Si una linea es 0% y otra 15%, el XML debe reflejar tarifas distintas."""
+    factura = {
+        "fecha_emision": "2026-04-22", "clave_acceso": "1" * 49,
+        "items": [
+            {"prod_id": "p15", "cant_cajas": 10, "precio_caja": 10.00, "iva_pct": 15},
+            {"prod_id": "p0",  "cant_cajas": 5,  "precio_caja": 20.00, "iva_pct": 0},
+        ],
+        "subtotal_12": 100.00, "subtotal_0": 100.00,
+        "iva": 15.00, "total": 215.00,
+    }
+    xml = sri.build_factura_xml(factura, {"ruc": "0" * 13}, {})
+    # Linea 15%: tarifa 15.00, iva 15.00
+    assert "<tarifa>15.00</tarifa>" in xml
+    # Linea 0%: tarifa 0.00, iva 0.00
+    assert "<tarifa>0.00</tarifa>" in xml
+
+
 def test_clave_acceso_diferente_codigo_numerico_distinto():
     """Dos llamadas seguidas SIN especificar codigo_numerico deben generar claves
     distintas (anti-colision en lote masivo)."""

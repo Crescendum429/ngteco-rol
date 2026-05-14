@@ -602,6 +602,43 @@ def save_alertas_descartadas(data):
     _cfg_set("alertas:descartadas", list(data))
 
 
+# ─── Secuenciales SRI (atomico) ───
+# Estructura: {cod_doc: {establecimiento: {punto_emision: ultimo_secuencial}}}
+# cod_doc: "01" factura, "04" nota credito, "05" nota debito, "06" guia, "07" retencion
+
+def reservar_secuencial_sri(cod_doc: str, establecimiento: str = "001",
+                            punto_emision: str = "001") -> int:
+    """Reserva atomicamente el siguiente secuencial para un tipo de comprobante.
+    Retorna el numero a usar. Guardar inmediatamente para evitar gaps.
+
+    Asume single-process (Render/gunicorn con 1 worker o lock externo).
+    Para multi-worker se necesitaria UPDATE...RETURNING en SQL.
+    """
+    sec = _load_or_none("sri:secuenciales") or {}
+    cd = sec.setdefault(cod_doc, {})
+    est = cd.setdefault(establecimiento, {})
+    actual = int(est.get(punto_emision, 0))
+    nuevo = actual + 1
+    est[punto_emision] = nuevo
+    _cfg_set("sri:secuenciales", sec)
+    return nuevo
+
+
+def consultar_secuencial_actual(cod_doc: str, establecimiento: str = "001",
+                                punto_emision: str = "001") -> int:
+    sec = _load_or_none("sri:secuenciales") or {}
+    return int(sec.get(cod_doc, {}).get(establecimiento, {}).get(punto_emision, 0))
+
+
+def setear_secuencial_inicial(cod_doc: str, establecimiento: str, punto_emision: str, valor: int):
+    """Usado por el contador para inicializar secuenciales heredados del sistema viejo."""
+    sec = _load_or_none("sri:secuenciales") or {}
+    cd = sec.setdefault(cod_doc, {})
+    est = cd.setdefault(establecimiento, {})
+    est[punto_emision] = int(valor)
+    _cfg_set("sri:secuenciales", sec)
+
+
 # ─── Stock dinamico calculado desde movimientos ───
 # El stock real NUNCA se persiste como tal: se deriva del log de movimientos
 # (entradas - consumos) y de los lotes (PT). Asi nunca hay desincronizacion.

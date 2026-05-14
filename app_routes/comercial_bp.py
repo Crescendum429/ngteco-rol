@@ -67,6 +67,16 @@ def put_collection(kind):
     loader, saver = COLLECTION_MAP[kind]
     before = loader()
     data = request.get_json(force=True)
+    # Lock: facturas y guias autorizadas no se pueden modificar (es ley SRI).
+    # Verificamos que ninguna entrada autorizada haya cambiado.
+    if kind in ("facturas", "guias") and isinstance(before, list) and isinstance(data, list):
+        autorizadas_before = {x["id"]: x for x in before if isinstance(x, dict) and x.get("estado_sri") == "autorizada"}
+        for nuevo in data:
+            if not isinstance(nuevo, dict):
+                continue
+            aut = autorizadas_before.get(nuevo.get("id"))
+            if aut and nuevo != aut:
+                return jsonify({"error": f"{kind[:-1].capitalize()} {nuevo.get('id')} esta autorizada por el SRI y no puede modificarse. Use nota de credito."}), 409
     saver(data)
     log.info(f"collection {kind}: actualizada ({len(data) if isinstance(data, list) else 'dict'} items)")
     n_before = len(before) if isinstance(before, list) else (len(before) if isinstance(before, dict) else 0)

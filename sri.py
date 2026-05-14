@@ -21,6 +21,7 @@ import random
 import re
 import unicodedata
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 AMBIENTE_PRUEBAS = "1"
 AMBIENTE_PRODUCCION = "2"
@@ -48,6 +49,78 @@ IVA_CODIGO = {
     14: "3",   # 14% (historico transitorio)
     15: "4",   # 15% actual (Decreto 198/2024)
 }
+
+# Tabla 4 SRI Ecuador — formas de pago (no codigos arbitrarios, son normativos)
+FORMAS_PAGO_SRI = {
+    "01": "Sin utilizacion del sistema financiero",  # efectivo
+    "15": "Compensacion de deudas",
+    "16": "Tarjetas de debito",
+    "17": "Dinero electronico",
+    "18": "Tarjeta prepago",
+    "19": "Tarjeta de credito",
+    "20": "Otros con utilizacion del sistema financiero",  # transferencia, deposito
+    "21": "Endoso de titulos",
+}
+
+# Tabla 6 SRI — tipos de identificacion del comprador
+TIPOS_ID_COMPRADOR = {
+    "04": "RUC",
+    "05": "Cedula",
+    "06": "Pasaporte",
+    "07": "Consumidor final",
+    "08": "Identificacion del exterior",
+}
+
+
+def validar_ruc_ecuador(ruc: str) -> bool:
+    """Valida RUC ecuatoriano: 13 digitos, ultimos 3 = 001, modulo 11 sobre los
+    primeros 10 (cedula) o algoritmo de juridicas/extranjeros."""
+    if not ruc or not re.fullmatch(r"\d{13}", ruc):
+        return False
+    if not ruc.endswith("001"):
+        return False
+    # Primeros 2 digitos = codigo provincia (01-24, o 30 para extranjeros)
+    prov = int(ruc[:2])
+    if not (1 <= prov <= 24 or prov == 30):
+        return False
+    tercer = int(ruc[2])
+    # tercer digito: 0-5 = persona natural, 6 = publicas, 9 = juridicas/extranjeros
+    if tercer < 6:
+        # RUC de persona natural: validar como cedula (primeros 10)
+        return validar_cedula_ecuador(ruc[:10])
+    if tercer == 6:
+        # Entidad publica: mod 11 con pesos 3,2,7,6,5,4,3,2 sobre los primeros 8
+        pesos = [3, 2, 7, 6, 5, 4, 3, 2]
+        suma = sum(int(ruc[i]) * pesos[i] for i in range(8))
+        resto = suma % 11
+        dv = 11 - resto if resto != 0 else 0
+        return dv == int(ruc[8])
+    if tercer == 9:
+        # Juridica/extranjera: mod 11 con pesos 4,3,2,7,6,5,4,3,2 sobre primeros 9
+        pesos = [4, 3, 2, 7, 6, 5, 4, 3, 2]
+        suma = sum(int(ruc[i]) * pesos[i] for i in range(9))
+        resto = suma % 11
+        dv = 11 - resto if resto != 0 else 0
+        return dv == int(ruc[9])
+    return False
+
+
+def validar_cedula_ecuador(cedula: str) -> bool:
+    """Cedula ecuatoriana: 10 digitos, modulo 10 con coeficientes 2,1,2,1,2,1,2,1,2."""
+    if not cedula or not re.fullmatch(r"\d{10}", cedula):
+        return False
+    prov = int(cedula[:2])
+    if not (1 <= prov <= 24 or prov == 30):
+        return False
+    if int(cedula[2]) >= 6:
+        return False  # cedula natural: tercer digito 0-5
+    coef = [2, 1, 2, 1, 2, 1, 2, 1, 2]
+    suma = 0
+    for i, c in enumerate(coef):
+        x = int(cedula[i]) * c
+        suma += x - 9 if x > 9 else x
+    dv = (10 - suma % 10) % 10
+    return dv == int(cedula[9])
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -132,8 +205,29 @@ def _normalizar(s: str) -> str:
     return s.strip()
 
 
+def _to_dec(v, default="0") -> Decimal:
+    """Convierte a Decimal sin perder precision. None -> 0."""
+    if v is None or v == "":
+        return Decimal(default)
+    if isinstance(v, Decimal):
+        return v
+    # Pasar por str para evitar artefactos de float
+    return Decimal(str(v))
+
+
 def _fmt_dec(v, decimales=2) -> str:
-    return f"{float(v or 0):.{decimales}f}"
+    """Formatea con ROUND_HALF_UP (no banker's), como exige el SRI."""
+    q = Decimal(10) ** -decimales  # ej. 0.01 para 2 decimales
+    d = _to_dec(v).quantize(q, rounding=ROUND_HALF_UP)
+    return f"{d:.{decimales}f}"
+
+
+def _suma_dec(items, key, decimales=6) -> Decimal:
+    """Suma exacta de un campo en una lista de dicts."""
+    total = Decimal("0")
+    for it in items:
+        total += _to_dec(it.get(key, 0))
+    return total.quantize(Decimal(10) ** -decimales, rounding=ROUND_HALF_UP)
 
 
 def _xml_escape(s: str) -> str:
@@ -158,34 +252,62 @@ def build_factura_xml(factura: dict, emisor: dict, cliente: dict, ambiente: str 
     """
     fecha_dt = datetime.strptime(factura["fecha_emision"], "%Y-%m-%d")
 
+    # Calculo en Decimal: cantidades a 6 decimales, monetarios a 2.
+    # Reconciliacion: sumamos las lineas y comparamos con totales del header.
     items_xml = []
+    suma_base_12 = Decimal("0")
+    suma_base_0 = Decimal("0")
+    suma_iva = Decimal("0")
     for it in factura.get("items", []):
-        total_item = float(it.get("cant_cajas", it.get("cantidad", 0))) * float(it.get("precio_unit", it.get("precio_caja", 0)))
-        descuento = float(it.get("descuento", 0))
-        base_imponible = total_item - descuento
-        iva_item = base_imponible * (float(it.get("iva_pct", 15)) / 100)
-        impuesto_codigo = IVA_CODIGO.get(int(it.get("iva_pct", 15)), "4")
+        cant = _to_dec(it.get("cant_cajas", it.get("cantidad", 0)))
+        precio = _to_dec(it.get("precio_unit", it.get("precio_caja", 0)))
+        total_item = (cant * precio).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        descuento = _to_dec(it.get("descuento", 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        base_imponible = (total_item - descuento).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        tarifa_iva = _to_dec(it.get("iva_pct", 15))
+        iva_item = (base_imponible * tarifa_iva / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if tarifa_iva == 0:
+            suma_base_0 += base_imponible
+        else:
+            suma_base_12 += base_imponible
+        suma_iva += iva_item
+        impuesto_codigo = IVA_CODIGO.get(int(tarifa_iva), "4")
         items_xml.append(f"""    <detalle>
       <codigoPrincipal>{_xml_escape(it.get("prod_id", ""))}</codigoPrincipal>
       <descripcion>{_xml_escape(it.get("descripcion", it.get("prod_id", "")))}</descripcion>
-      <cantidad>{_fmt_dec(it.get("cant_cajas", it.get("cantidad", 0)), 6)}</cantidad>
-      <precioUnitario>{_fmt_dec(it.get("precio_unit", it.get("precio_caja", 0)), 6)}</precioUnitario>
+      <cantidad>{_fmt_dec(cant, 6)}</cantidad>
+      <precioUnitario>{_fmt_dec(precio, 6)}</precioUnitario>
       <descuento>{_fmt_dec(descuento)}</descuento>
       <precioTotalSinImpuesto>{_fmt_dec(base_imponible)}</precioTotalSinImpuesto>
       <impuestos>
         <impuesto>
           <codigo>2</codigo>
           <codigoPorcentaje>{impuesto_codigo}</codigoPorcentaje>
-          <tarifa>{_fmt_dec(it.get("iva_pct", 15))}</tarifa>
+          <tarifa>{_fmt_dec(tarifa_iva)}</tarifa>
           <baseImponible>{_fmt_dec(base_imponible)}</baseImponible>
           <valor>{_fmt_dec(iva_item)}</valor>
         </impuesto>
       </impuestos>
     </detalle>""")
 
-    subtotal_sin_imp = float(factura.get("subtotal_12", 0)) + float(factura.get("subtotal_0", 0))
-    iva_total = float(factura.get("iva", 0))
-    total = float(factura.get("total", subtotal_sin_imp + iva_total))
+    # Si el header trae totales explicitos, los usamos; si no, derivamos de lineas.
+    # SIEMPRE validamos reconciliacion (diferencia maxima 0.01 por redondeos).
+    hdr_subtotal_12 = _to_dec(factura.get("subtotal_12", suma_base_12)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    hdr_subtotal_0 = _to_dec(factura.get("subtotal_0", suma_base_0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    hdr_iva = _to_dec(factura.get("iva", suma_iva)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if abs(hdr_subtotal_12 - suma_base_12) > Decimal("0.01"):
+        raise ValueError(f"Reconciliacion: subtotal_12 header={hdr_subtotal_12} vs lineas={suma_base_12}")
+    if abs(hdr_subtotal_0 - suma_base_0) > Decimal("0.01"):
+        raise ValueError(f"Reconciliacion: subtotal_0 header={hdr_subtotal_0} vs lineas={suma_base_0}")
+    if abs(hdr_iva - suma_iva) > Decimal("0.01"):
+        raise ValueError(f"Reconciliacion: iva header={hdr_iva} vs suma_iva_lineas={suma_iva}")
+
+    subtotal_sin_imp = hdr_subtotal_12 + hdr_subtotal_0
+    iva_total = hdr_iva
+    total = _to_dec(factura.get("total", subtotal_sin_imp + iva_total)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    total_calc = (subtotal_sin_imp + iva_total).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if abs(total - total_calc) > Decimal("0.01"):
+        raise ValueError(f"Reconciliacion: total header={total} vs subtotal+iva={total_calc}")
 
     total_impuestos = f"""    <totalImpuesto>
       <codigo>2</codigo>
