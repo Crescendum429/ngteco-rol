@@ -3928,7 +3928,16 @@ function RegistroWizard({ role, onOpenDetalle }) {
   ];
 
   // Derivados
-  const activeProds = Object.entries(prod).filter(([, v]) => v > 0).map(([id]) => id);
+  // Producto se considera "activo" si tiene cajas, tachos o piezas sueltas
+  // declaradas. Asi el operario puede registrar solo piezas sin obligacion
+  // de cerrar caja.
+  const activeProds = Array.from(new Set([
+    ...Object.entries(prod).filter(([, v]) => v > 0).map(([id]) => id),
+    ...Object.entries(tachos).filter(([, v]) => v > 0).map(([id]) => id),
+    ...Object.entries(subcomp).filter(([, scObj]) =>
+      Object.values(scObj || {}).some(n => (Number(n) || 0) > 0)
+    ).map(([id]) => id),
+  ]));
   const totalCajas = Object.values(prod).reduce((a, b) => a + b, 0);
 
   const totalVirgen = activeProds.reduce((sum, pid) => {
@@ -4103,11 +4112,14 @@ function RegStepProd({ prod, setProd, subcomp, setSubcomp, tachos, setTachos }) 
       <div className="prod-grid">
         {PRODUCTOS_MOCK.map(p => {
           const v = prod[p.id] || 0;
-          const active = v > 0;
           const piezas = SUBCOMPONENTES_MOCK[p.kind] || null;
-          const unidadesEsperadas = v * p.unidades_caja;
           const sc = subcomp[p.id] || {};
           const tach = tachos[p.id] || 0;
+          // Card activa si hay CUALQUIER aporte: cajas, tachos o piezas sueltas.
+          // Esto permite registrar piezas sin haber ensamblado cajas.
+          const sumaPiezas = Object.values(sc).reduce((a, b) => a + (Number(b) || 0), 0);
+          const active = v > 0 || tach > 0 || sumaPiezas > 0;
+          const unidadesEsperadas = v * p.unidades_caja;
           const isPiezas = hasPiezas(p.kind);
           return (
             <div key={p.id} className={`prod-card ${active ? 'on' : ''}`}>
@@ -4134,8 +4146,8 @@ function RegStepProd({ prod, setProd, subcomp, setSubcomp, tachos, setTachos }) 
                 </div>
               </div>
 
-              {/* Tachos armados (solo jeringas/goteros) */}
-              {isPiezas && active && (
+              {/* Tachos armados (solo jeringas/goteros, siempre visibles) */}
+              {isPiezas && (
                 <div style={{ marginBottom: 10 }}>
                   <div className="xs mute" style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--info)', display: 'inline-block' }}/>
@@ -4149,32 +4161,37 @@ function RegStepProd({ prod, setProd, subcomp, setSubcomp, tachos, setTachos }) 
                 </div>
               )}
 
-              {/* Piezas sueltas (solo jeringas/goteros activos) */}
-              {active && piezas && (
+              {/* Piezas sueltas: SIEMPRE visibles para jeringa/gotero
+                  (independientes de cajas — el operario puede registrar
+                  piezas sin haber ensamblado nada). Unidad: fundas. */}
+              {piezas && (
                 <div className="subcomp-block">
                   <div className="subcomp-head">
                     <div className="subcomp-title">
                       <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-mute)', display: 'inline-block' }}/>
-                      Piezas sueltas
+                      Piezas sueltas (fundas)
                     </div>
-                    <div className="xs mute">Esperado: {fmtNum(unidadesEsperadas)}</div>
+                    {active && <div className="xs mute">Esperado: {fmtNum(unidadesEsperadas)} u</div>}
                   </div>
                   <div className="subcomp-list">
                     {piezas.map(pc => {
                       const val = sc[pc.id] || 0;
-                      const diff = val > 0 ? val - unidadesEsperadas : 0;
+                      // Si el bin tiene unidades_por_funda, mostramos el calculo.
+                      // INVENTARIO_PIEZAS_MOCK puede traer este ratio configurado.
+                      const binInfo = (INVENTARIO_PIEZAS_MOCK || []).find(b => (b.pieza || '').toLowerCase() === pc.id);
+                      const upf = binInfo?.unidades_por_funda || 0;
+                      const unidadesCalc = upf > 0 ? val * upf : 0;
                       return (
                         <div key={pc.id} className="subcomp-row">
                           <div className="subcomp-name">{pc.nombre}</div>
                           <input className="input mono xs" type="number" value={val}
                             onChange={e => setSC(p.id, pc.id, parseInt(e.target.value) || 0)}
+                            placeholder="fundas"
                             style={{ padding: '3px 6px', width: 80, textAlign: 'right' }} />
-                          {val > 0 && diff !== 0 && (
-                            <span className="xs" style={{ color: Math.abs(diff) > unidadesEsperadas * 0.02 ? 'var(--warn)' : 'var(--text-mute)', minWidth: 44, textAlign: 'right' }}>
-                              {diff > 0 ? '+' : ''}{diff}
-                            </span>
-                          )}
-                          {val === 0 && <span className="xs mute" style={{ minWidth: 44, textAlign: 'right' }}>—</span>}
+                          <span className="xs mute" style={{ minWidth: 60, textAlign: 'right' }}>
+                            {val > 0 ? `${val} fund` : '—'}
+                            {unidadesCalc > 0 && <span> · {fmtNum(unidadesCalc)} u</span>}
+                          </span>
                         </div>
                       );
                     })}

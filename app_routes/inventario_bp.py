@@ -289,7 +289,8 @@ def update_pieza(pieza_id):
     found = False
     for p in piezas:
         if isinstance(p, dict) and p.get("id") == pieza_id:
-            for k in ("pieza", "producto", "estado", "cliente_id", "cantidad", "unidad", "datos_incompletos"):
+            for k in ("pieza", "producto", "estado", "cliente_id", "cantidad",
+                      "cantidad_fundas", "unidades_por_funda", "unidad", "datos_incompletos"):
                 if k in data:
                     p[k] = data[k]
             found = True
@@ -338,6 +339,8 @@ def create_pieza():
         "estado": data.get("estado", "cruda"),
         "cliente_id": data.get("cliente_id"),
         "cantidad": float(data.get("cantidad") or 0),
+        "cantidad_fundas": int(data.get("cantidad_fundas") or 0),
+        "unidades_por_funda": int(data.get("unidades_por_funda") or 0),
         "unidad": data.get("unidad", "unidades"),
         "ultima_actualizacion": _now_iso(),
         "datos_incompletos": data.get("datos_incompletos") or [],
