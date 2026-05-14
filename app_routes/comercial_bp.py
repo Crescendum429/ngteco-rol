@@ -412,6 +412,118 @@ def registrar_pago():
                     "saldo_pendiente": fac["saldo_pendiente"], "pagada": fac["pagada"]}})
 
 
+@comercial_bp.route("/api/pedidos/oc/<oc_id>/aprobar-predespacho", methods=["POST"])
+@require_auth
+def aprobar_predespacho(oc_id):
+    """Aprueba el pre-despacho de una OC. Solo usuarios en la lista
+    predespacho:autorizados pueden hacerlo (default: Fernando, Carlos).
+    Body: { responsable: 'Fernando Pinargote', lotes_despacho: [...] }
+    """
+    import audit
+    from storage import load_predespacho_autorizados
+    from datetime import date as _date
+    data = request.get_json(force=True) or {}
+    responsable = (data.get("responsable") or "").strip()
+    if not responsable:
+        return jsonify({"error": "Indica el responsable del pre-despacho"}), 400
+    autorizados = load_predespacho_autorizados()
+    if responsable not in autorizados:
+        return jsonify({"error": f"'{responsable}' no esta autorizado. Autorizados: {autorizados}"}), 403
+
+    ocs = load_ordenes_compra() or []
+    oc = next((o for o in ocs if isinstance(o, dict) and o.get("id") == oc_id), None)
+    if not oc:
+        return jsonify({"error": "OC no encontrada"}), 404
+    if oc.get("estado") not in ("lista", "en_produccion"):
+        return jsonify({"error": f"OC debe estar 'lista' o 'en_produccion' (estado: {oc.get('estado')})"}), 400
+
+    oc["estado"] = "predespacho"
+    oc["responsable_predespacho"] = responsable
+    oc["fecha_predespacho"] = _date.today().isoformat()
+    if data.get("lotes_despacho"):
+        oc["lotes_despacho"] = data["lotes_despacho"]
+    save_ordenes_compra(ocs)
+    audit.record("ordenes_compra", "aprobar_predespacho", oc_id,
+                 after={"responsable": responsable, "lotes": oc.get("lotes_despacho", [])})
+    log.info(f"OC {oc_id} pre-despacho aprobado por {responsable}")
+    return jsonify({"ok": True, "oc": oc})
+
+
+@comercial_bp.route("/api/predespacho/autorizados", methods=["GET", "PUT"])
+@require_auth
+def predespacho_autorizados():
+    from storage import load_predespacho_autorizados, save_predespacho_autorizados
+    if request.method == "GET":
+        return jsonify(load_predespacho_autorizados())
+    data = request.get_json(force=True)
+    if not isinstance(data, list):
+        return jsonify({"error": "Se espera lista de strings"}), 400
+    save_predespacho_autorizados([str(x).strip() for x in data if str(x).strip()])
+    return jsonify({"ok": True})
+
+
+@comercial_bp.route("/api/certificados/generar", methods=["POST"])
+@require_auth
+def generar_certificado_calidad():
+    """Genera certificado de calidad para una OC/factura tomando lotes
+    despachados + plantilla QC del producto.
+
+    Body: { oc_id?, factura_id?, lote_ids: [], responsable, observaciones?,
+            parametros_chequeados: {prod_id: {param_id: {valor, ok}}} }
+    """
+    import audit
+    from storage import load_inv_lotes, load_qc_templates
+    from datetime import date as _date
+    data = request.get_json(force=True) or {}
+    lote_ids = data.get("lote_ids") or []
+    if not lote_ids:
+        return jsonify({"error": "Se requiere al menos un lote_id"}), 400
+    responsable = (data.get("responsable") or "").strip()
+    if not responsable:
+        return jsonify({"error": "Indica el responsable de calidad"}), 400
+
+    lotes = load_inv_lotes() or []
+    lotes_cert = [l for l in lotes if isinstance(l, dict) and l.get("id") in lote_ids]
+    if len(lotes_cert) != len(lote_ids):
+        encontrados = [l.get("id") for l in lotes_cert]
+        faltantes = [x for x in lote_ids if x not in encontrados]
+        return jsonify({"error": f"Lotes no encontrados: {faltantes}"}), 404
+
+    qc_tpl = load_qc_templates() or {}
+    productos_ids = list({l.get("producto_id") for l in lotes_cert if l.get("producto_id")})
+
+    certs = load_certificados() or []
+    cert_id = data.get("id") or f"CC-{_date.today().isoformat().replace('-', '')}-{len(certs)+1:04d}"
+    nuevo = {
+        "id": cert_id,
+        "fecha": _date.today().isoformat(),
+        "oc_id": data.get("oc_id"),
+        "factura_id": data.get("factura_id"),
+        "lote_ids": lote_ids,
+        "productos": productos_ids,
+        "responsable": responsable,
+        "revisor": data.get("revisor", ""),
+        "observaciones": data.get("observaciones", ""),
+        "parametros_chequeados": data.get("parametros_chequeados") or {},
+        "qc_templates_snapshot": {pid: qc_tpl.get(pid, {}) for pid in productos_ids},
+    }
+    certs.append(nuevo)
+    save_certificados(certs)
+
+    # Si esta asociado a factura, marcarla
+    if nuevo["factura_id"]:
+        facturas = load_facturas() or []
+        for f in facturas:
+            if isinstance(f, dict) and f.get("id") == nuevo["factura_id"]:
+                f["cert_calidad"] = cert_id
+                break
+        save_facturas(facturas)
+
+    audit.record("certificado", "create", cert_id, after={"lotes": lote_ids, "responsable": responsable})
+    log.info(f"certificado {cert_id} generado para lotes {lote_ids}")
+    return jsonify({"ok": True, "certificado": nuevo})
+
+
 @comercial_bp.route("/api/clientes/<cli_id>/cuenta-corriente", methods=["GET"])
 @require_auth
 def cuenta_corriente_cliente(cli_id):

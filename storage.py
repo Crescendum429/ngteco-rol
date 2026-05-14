@@ -418,6 +418,19 @@ def save_notas_debito(data):
     _cfg_set("crm:notas_debito", data)
 
 
+def load_predespacho_autorizados():
+    """Usuarios autorizados a aprobar pre-despacho. Default por chat WhatsApp:
+    Fernando Pinargote y Carlos Zambrano."""
+    data = _load_or_none("predespacho:autorizados")
+    if data is None:
+        return ["Fernando Pinargote", "Carlos Zambrano"]
+    return data
+
+
+def save_predespacho_autorizados(data):
+    _cfg_set("predespacho:autorizados", data)
+
+
 def load_retenciones_recibidas():
     """Comprobantes de retencion que clientes nos emiten al pagar."""
     return _load_or_none("crm:retenciones_recibidas") or []

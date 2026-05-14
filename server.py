@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "5.7.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "5.8.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -1225,6 +1225,7 @@ from app_routes.comercial_bp import comercial_bp
 from app_routes.inventario_bp import inventario_bp
 from app_routes.nomina_bp import nomina_bp
 from app_routes.observability_bp import obs_bp
+from app_routes.reportes_bp import reportes_bp
 from app_routes.sri_bp import sri_bp
 
 app.register_blueprint(alertas_bp)
@@ -1234,6 +1235,7 @@ app.register_blueprint(comercial_bp)
 app.register_blueprint(inventario_bp)
 app.register_blueprint(nomina_bp)
 app.register_blueprint(obs_bp)
+app.register_blueprint(reportes_bp)
 app.register_blueprint(sri_bp)
 
 
