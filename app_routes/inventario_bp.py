@@ -453,14 +453,8 @@ def delete_lote(lote_id):
 
 # ─── Audit log ───
 
-@inventario_bp.route("/api/audit-log", methods=["GET"])
-@require_auth
-def get_audit_log():
-    from audit import query as audit_query
-    entidad = request.args.get("entidad")
-    item_id = request.args.get("item_id")
-    limit = int(request.args.get("limit", 200))
-    return jsonify(audit_query(limit=limit, entity_type=entidad, entity_id=item_id))
+# audit endpoint canonico vive en observability_bp como /api/audit
+# (acepta entity, entity_id, limit). El v3 lo consume desde alli.
 
 
 # ─── Movimientos manuales ───

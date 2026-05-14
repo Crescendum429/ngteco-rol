@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "5.3.5"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "5.4.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -1069,7 +1069,7 @@ def _build_login_patch():
     },
     fetchAuditLog: async (params) => {
       const q = params ? '?' + new URLSearchParams(params).toString() : '';
-      const r = await fetch('/api/audit-log' + q, { credentials: 'same-origin' });
+      const r = await fetch('/api/audit' + q, { credentials: 'same-origin' });
       return r.ok ? r.json() : [];
     },
     eliminarItemColeccion: async (kind, item_id) => {
