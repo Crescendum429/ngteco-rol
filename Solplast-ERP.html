@@ -4842,6 +4842,23 @@ function TabProductos({ nuevoTick }) {
     setSel(null); setForm(null);
   }
 
+  async function handleEliminar() {
+    if (!sel || sel.isNew) return;
+    if (!await window.solpConfirm(`¿Eliminar definitivamente "${sel.nombre}"?\n\nSolo se permite si no tiene lotes activos, facturas ni OC pendientes. Si los tiene, usa Desactivar.`)) return;
+    let res = null;
+    try {
+      res = await (window._apiUtil?.del?.(`/api/productos/${sel.id}`)
+        || fetch(`/api/productos/${encodeURIComponent(sel.id)}`, { method: 'DELETE', credentials: 'same-origin' })
+            .then(r => r.ok ? { ok: true } : r.json()));
+    } catch (e) { res = { error: e.message }; }
+    if (res?.error) { window.solpToast ? window.solpToast(res.error, 'bad') : alert(res.error); return; }
+    setItems(list => list.filter(p => p.id !== sel.id));
+    const idx = PRODUCTOS_MOCK.findIndex(p => p.id === sel.id);
+    if (idx >= 0) PRODUCTOS_MOCK.splice(idx, 1);
+    window.solpToast && window.solpToast('Producto eliminado', 'ok');
+    setSel(null); setForm(null);
+  }
+
   return (
     <>
       {Object.entries(groups).map(([kind, items]) => (
@@ -4867,7 +4884,12 @@ function TabProductos({ nuevoTick }) {
       ))}
       <Drawer open={!!sel} onClose={() => { setSel(null); setForm(null); }} title={sel?.nombre}
         footer={<div className="row" style={{ justifyContent: 'space-between', width: '100%' }}>
-          {!sel?.isNew && <Btn variant="ghost" className="danger" onClick={handleToggleDesactivado}>{sel?.desactivado ? 'Reactivar' : 'Desactivar'}</Btn>}
+          {!sel?.isNew && (
+            <div className="row" style={{ gap: 6 }}>
+              <Btn variant="ghost" className="danger" onClick={handleToggleDesactivado}>{sel?.desactivado ? 'Reactivar' : 'Desactivar'}</Btn>
+              <Btn variant="ghost" className="danger" onClick={handleEliminar}><Icon name="trash" size={13}/> Eliminar</Btn>
+            </div>
+          )}
           <div className="row" style={{ marginLeft: 'auto', gap: 8 }}>
             <Btn onClick={() => { setSel(null); setForm(null); }}>Cancelar</Btn>
             <Btn variant="primary" onClick={handleSave} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</Btn>
