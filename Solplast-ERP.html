@@ -4074,9 +4074,10 @@ function RegStepDia({ date, setDate }) {
 
 function RegStepProd({ prod, setProd, subcomp, setSubcomp, tachos, setTachos }) {
   const setSC = (pid, scid, value) => {
+    // Permite decimales (media funda = 0.5). No truncar a entero.
     setSubcomp({
       ...subcomp,
-      [pid]: { ...(subcomp[pid] || {}), [scid]: Math.max(0, value | 0) }
+      [pid]: { ...(subcomp[pid] || {}), [scid]: Math.max(0, Number(value) || 0) }
     });
   };
 
@@ -4172,7 +4173,8 @@ function RegStepProd({ prod, setProd, subcomp, setSubcomp, tachos, setTachos }) 
                         <div key={pc.id} className="subcomp-row">
                           <div className="subcomp-name">{pc.nombre}</div>
                           <input className="input mono xs" type="number" value={val}
-                            onChange={e => setSC(p.id, pc.id, parseInt(e.target.value) || 0)}
+                            step="0.5" min="0"
+                            onChange={e => setSC(p.id, pc.id, parseFloat(e.target.value) || 0)}
                             placeholder="fundas"
                             style={{ padding: '3px 6px', width: 80, textAlign: 'right' }} />
                           <span className="xs mute" style={{ minWidth: 60, textAlign: 'right' }}>
