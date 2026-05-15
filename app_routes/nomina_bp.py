@@ -146,6 +146,7 @@ def save_registro():
         "loteNum": data.get("loteNum", ""),
         "desecho_total_kg": float(data.get("totalDesecho", 0) or 0),
         "molido_gen_kg": float(data.get("totalMolidoGen", 0) or 0),
+        "mazarota_kg": float(data.get("mazarota", 0) or 0),
         "productos": productos,
         "raw": data,
     }

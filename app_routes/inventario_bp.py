@@ -803,7 +803,12 @@ def update_registro_v2(fecha):
         data["total_material_kg"] = round(sum(
             float(p.get("virgen", 0) or 0) + float(p.get("molido_usado", 0) or 0)
             for p in productos), 2)
-        data["desecho_total_kg"] = round(sum(float(p.get("desecho", 0) or 0) for p in productos), 2)
+        # La mazarota es desperdicio del dia (no esta en productos[]): se
+        # conserva del registro y se suma al desecho total y a la merma.
+        mazarota_kg = float(data.get("mazarota_kg", 0) or 0)
+        data["mazarota_kg"] = mazarota_kg
+        data["desecho_total_kg"] = round(
+            sum(float(p.get("desecho", 0) or 0) for p in productos) + mazarota_kg, 2)
         data["molido_gen_kg"] = round(sum(float(p.get("molido_gen", 0) or 0) for p in productos), 2)
         mat = data["total_material_kg"]
         data["merma_pct"] = round((data["desecho_total_kg"] / mat * 100), 2) if mat > 0 else 0
