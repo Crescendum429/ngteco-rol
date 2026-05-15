@@ -3877,6 +3877,40 @@ function piezasDeProducto(p) {
   return SUBCOMPONENTES_MOCK[p.kind] || null;
 }
 
+// Construye los ITEMS de produccion del dia: un producto si tuvo cajas o
+// tachos, y CADA pieza suelta producida como item independiente (key
+// prod::pieza). Compartido por los pasos Material, Desechos y Revisar para
+// que el desglose sea identico (ej. capuchon, no gotero, si no se armo el
+// gotero). Resiliente a datos faltantes: si un producto activo no tiene
+// nada, igual aparece para no perder lo que se ingrese.
+function itemsDeProduccion(activeProds, prod, tachos, subcomp) {
+  const items = [];
+  (activeProds || []).forEach(pid => {
+    const p = PRODUCTOS_MOCK.find(x => x.id === pid) || { id: pid, nombre: pid, kind: 'vaso', material: '—' };
+    const cajas = (prod && prod[pid]) || 0;
+    const tach = (tachos && tachos[pid]) || 0;
+    if (cajas > 0 || tach > 0) {
+      items.push({ key: pid, prodId: pid, label: p.nombre, sub: p.material, kind: p.kind, esPieza: false });
+    }
+    const sc = (subcomp && subcomp[pid]) || {};
+    const piezasDef = piezasDeProducto(p) || [];
+    Object.entries(sc).forEach(([piezaId, n]) => {
+      if ((Number(n) || 0) > 0) {
+        const pdef = piezasDef.find(x => x.id === piezaId);
+        items.push({
+          key: `${pid}::${piezaId}`, prodId: pid, piezaId, fundas: Number(n) || 0,
+          label: `${pdef?.nombre || piezaId} · ${n} fund`,
+          sub: `pieza de ${p.nombre}`, kind: p.kind, esPieza: true,
+        });
+      }
+    });
+    if (cajas === 0 && tach === 0 && Object.keys(sc).length === 0) {
+      items.push({ key: pid, prodId: pid, label: p.nombre, sub: p.material, kind: p.kind, esPieza: false });
+    }
+  });
+  return items;
+}
+
 function RegistroDiario({ role }) {
   const [view, setView] = useState('wizard'); // wizard | detalle
   const [detalleId, setDetalleId] = useState(null);
@@ -3955,8 +3989,10 @@ function RegistroWizard({ role, onOpenDetalle }) {
   }, 0);
   const totalMat = totalVirgen + totalMolidoUsado;
 
-  const totalDesecho = activeProds.reduce((s, pid) => s + (residuos[pid]?.desecho || 0), 0);
-  const totalMolidoGen = activeProds.reduce((s, pid) => s + (residuos[pid]?.molido || 0), 0);
+  // Suma sobre TODAS las entradas de residuos (productos Y piezas: las
+  // keys de pieza tienen formato "prod::pieza"), igual que el consumo.
+  const totalDesecho = Object.values(residuos).reduce((s, r) => s + (Number(r?.desecho) || 0), 0);
+  const totalMolidoGen = Object.values(residuos).reduce((s, r) => s + (Number(r?.molido) || 0), 0);
   const mermaPct = totalMat > 0 ? (totalDesecho / totalMat) * 100 : 0;
 
   const next = () => setStep(s => Math.min(s + 1, 4));
@@ -3995,7 +4031,7 @@ function RegistroWizard({ role, onOpenDetalle }) {
         {step === 0 && <RegStepDia date={date} setDate={setDate} />}
         {step === 1 && <RegStepProd prod={prod} setProd={setProd} subcomp={subcomp} setSubcomp={setSubcomp} tachos={tachos} setTachos={setTachos} />}
         {step === 2 && <RegStepMaterial activeProds={activeProds} prod={prod} tachos={tachos} subcomp={subcomp} consumo={consumo} setConsumo={setConsumo} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} />}
-        {step === 3 && <RegStepResiduos activeProds={activeProds} residuos={residuos} setResiduos={setResiduos} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} />}
+        {step === 3 && <RegStepResiduos activeProds={activeProds} prod={prod} tachos={tachos} subcomp={subcomp} residuos={residuos} setResiduos={setResiduos} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} />}
         {step === 4 && <RegStepRevisar date={date} activeProds={activeProds} prod={prod} consumo={consumo} residuos={residuos} obs={obs} setObs={setObs} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} totalCajas={totalCajas} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} subcomp={subcomp} tachos={tachos} loteNum={loteNum} />}
 
         <div className="row" style={{ justifyContent: 'space-between', marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--line)' }}>
@@ -4220,36 +4256,7 @@ function RegStepProd({ prod, setProd, subcomp, setSubcomp, tachos, setTachos }) 
 }
 
 function RegStepMaterial({ activeProds, prod, tachos, subcomp, consumo, setConsumo, totalMat, totalVirgen, totalMolidoUsado }) {
-  // Construye ITEMS de produccion: un producto si tuvo cajas/tachos, y
-  // CADA pieza suelta producida como item independiente (key prod::pieza).
-  // Asi el material se asigna a lo que realmente se inyecto (ej. capuchon,
-  // no gotero, si no se armo el gotero).
-  const items = [];
-  (activeProds || []).forEach(pid => {
-    const p = PRODUCTOS_MOCK.find(x => x.id === pid) || { id: pid, nombre: pid, kind: 'vaso', material: '—' };
-    const cajas = (prod && prod[pid]) || 0;
-    const tach = (tachos && tachos[pid]) || 0;
-    if (cajas > 0 || tach > 0) {
-      items.push({ key: pid, prodId: pid, label: p.nombre, sub: p.material, kind: p.kind, esPieza: false });
-    }
-    const sc = (subcomp && subcomp[pid]) || {};
-    const piezasDef = piezasDeProducto(p) || [];
-    Object.entries(sc).forEach(([piezaId, n]) => {
-      if ((Number(n) || 0) > 0) {
-        const pdef = piezasDef.find(x => x.id === piezaId);
-        items.push({
-          key: `${pid}::${piezaId}`, prodId: pid, piezaId,
-          label: `${pdef?.nombre || piezaId} · ${n} fund`,
-          sub: `pieza de ${p.nombre}`, kind: p.kind, esPieza: true,
-        });
-      }
-    });
-    // Si el producto esta activo pero no tiene cajas/tachos NI piezas
-    // (caso raro), igual mostrarlo para no perder el material.
-    if (cajas === 0 && tach === 0 && Object.keys(sc).length === 0) {
-      items.push({ key: pid, prodId: pid, label: p.nombre, sub: p.material, kind: p.kind, esPieza: false });
-    }
-  });
+  const items = itemsDeProduccion(activeProds, prod, tachos, subcomp);
 
   if (items.length === 0) {
     return <EmptyProducts msg="Primero registra producción (paso anterior): cajas, tachos o piezas sueltas." />;
@@ -4371,12 +4378,13 @@ function RegStepMaterial({ activeProds, prod, tachos, subcomp, consumo, setConsu
   );
 }
 
-function RegStepResiduos({ activeProds, residuos, setResiduos, totalDesecho, totalMolidoGen, mermaPct }) {
-  if (activeProds.length === 0) {
-    return <EmptyProducts msg="Primero selecciona los productos que se hicieron hoy (paso 2)." />;
+function RegStepResiduos({ activeProds, prod, tachos, subcomp, residuos, setResiduos, totalDesecho, totalMolidoGen, mermaPct }) {
+  const items = itemsDeProduccion(activeProds, prod, tachos, subcomp);
+  if (items.length === 0) {
+    return <EmptyProducts msg="Primero registra producción (paso anterior): cajas, tachos o piezas sueltas." />;
   }
   const tone = mermaPct > 5 ? 'warn' : mermaPct > 3 ? 'info' : 'good';
-  const totalEmpUnidades = activeProds.reduce((s, pid) => s + (residuos[pid]?.desecho_emp || 0), 0);
+  const totalEmpUnidades = Object.values(residuos).reduce((s, r) => s + (Number(r?.desecho_emp) || 0), 0);
 
   return (
     <div>
@@ -4393,18 +4401,17 @@ function RegStepResiduos({ activeProds, residuos, setResiduos, totalDesecho, tot
       </div>
 
       <div className="residuo-list">
-        {activeProds.map(pid => {
-          const p = PRODUCTOS_MOCK.find(x => x.id === pid);
-          const r = residuos[pid] || { desecho: 0, molido: 0, desecho_emp: 0 };
-          const setR = (nr) => setResiduos({ ...residuos, [pid]: nr });
-          const isPiezas = ['jeringa','gotero'].includes(p.kind);
+        {items.map(item => {
+          const key = item.key;
+          const r = residuos[key] || { desecho: 0, molido: 0, desecho_emp: 0 };
+          const setR = (nr) => setResiduos({ ...residuos, [key]: nr });
           return (
-            <div key={pid} className="residuo-card">
+            <div key={key} className="residuo-card">
               <div className="rc-head">
-                <ProductIllus kind={p.kind} size={28} color="var(--accent-hi)" />
+                <ProductIllus kind={item.kind} size={28} color={item.esPieza ? 'var(--text-mute)' : 'var(--accent-hi)'} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600 }}>{p.nombre}</div>
-                  <div className="xs mute">{isPiezas ? 'Piezas + descarte empacadora' : 'Desecho + descarte empacadora'}</div>
+                  <div style={{ fontWeight: 600 }}>{item.label}</div>
+                  <div className="xs mute">{item.sub}</div>
                 </div>
               </div>
               <div className="rc-fields">
@@ -4519,7 +4526,7 @@ function RegStepRevisar({ date, activeProds, prod, consumo, residuos, obs, setOb
           <div className="sb-list">
             <div><span>Molido generado</span><span className="mono" style={{ color: 'var(--good)' }}>+{totalMolidoGen.toFixed(1)} kg</span></div>
             <div><span>Merma</span><span className="mono" style={{ color: mermaPct > 5 ? 'var(--warn)' : 'var(--good)' }}>{mermaPct.toFixed(1)}%</span></div>
-            <div><span>Descarte empacadora</span><span className="mono" style={{ color: 'var(--warn)' }}>{fmtNum(activeProds.reduce((s,pid) => s+(residuos[pid]?.desecho_emp||0),0))} u</span></div>
+            <div><span>Descarte empacadora</span><span className="mono" style={{ color: 'var(--warn)' }}>{fmtNum(Object.values(residuos).reduce((s,r) => s+(Number(r?.desecho_emp)||0),0))} u</span></div>
           </div>
         </div>
         <div className="summary-box">
@@ -4530,31 +4537,28 @@ function RegStepRevisar({ date, activeProds, prod, consumo, residuos, obs, setOb
       </div>
 
       <div className="rev-prod-list">
-        {activeProds.map(pid => {
-          const p = PRODUCTOS_MOCK.find(x => x.id === pid);
-          const c = consumo[pid] || { virgen: {}, molido: [] };
-          const r = residuos[pid] || { desecho: 0, molido: 0, desecho_emp: 0 };
-          const sc = subcomp[pid] || {};
-          const piezas = piezasDeProducto(p);
-          const tach = tachos[pid] || 0;
+        {itemsDeProduccion(activeProds, prod, tachos, subcomp).map(item => {
+          const key = item.key;
+          const c = consumo[key] || { virgen: {}, molido: [] };
+          const r = residuos[key] || { desecho: 0, molido: 0, desecho_emp: 0 };
+          const tach = !item.esPieza ? (tachos[item.prodId] || 0) : 0;
           const vTotal = Object.values(c.virgen || {}).reduce((a, b) => a + (b || 0), 0);
           const mTotal = (c.molido || []).reduce((a, m) => a + (m.kg || 0), 0);
           return (
-            <div key={pid} className="rev-prod-row" style={{ flexWrap: 'wrap', gap: 12 }}>
-              <ProductIllus kind={p.kind} size={26} color="var(--accent-hi)" />
+            <div key={key} className="rev-prod-row" style={{ flexWrap: 'wrap', gap: 12 }}>
+              <ProductIllus kind={item.kind} size={26} color={item.esPieza ? 'var(--text-mute)' : 'var(--accent-hi)'} />
               <div style={{ flex: 1, minWidth: 120 }}>
-                <div style={{ fontWeight: 600 }}>{p.nombre}</div>
-                {piezas && <div className="xs mute">{Object.entries(sc).map(([k,v]) => {
-                  const pc = piezas.find(x => x.id === k);
-                  return pc ? `${pc.nombre}: ${fmtNum(v)}` : null;
-                }).filter(Boolean).join(' · ')}</div>}
+                <div style={{ fontWeight: 600 }}>{item.label}</div>
+                <div className="xs mute">{item.sub}</div>
                 {tach > 0 && <div className="xs" style={{ color: 'var(--info)' }}>{tach} tacho{tach !== 1 ? 's' : ''} armado{tach !== 1 ? 's' : ''}</div>}
               </div>
               <div className="rev-metrics">
-                <div><div className="xs mute">Cajas</div><strong>{prod[pid]}</strong></div>
+                {item.esPieza
+                  ? <div><div className="xs mute">Fundas</div><strong>{fmtNum(item.fundas)}</strong></div>
+                  : <div><div className="xs mute">Cajas</div><strong>{prod[item.prodId] || 0}</strong></div>}
                 <div><div className="xs mute">Material</div><strong className="mono">{(vTotal+mTotal).toFixed(1)} kg</strong></div>
-                <div><div className="xs mute">Desecho</div><strong className="mono" style={{ color: 'var(--bad)' }}>{r.desecho.toFixed(1)} kg</strong></div>
-                {r.desecho_emp > 0 && <div><div className="xs mute">Empac.</div><strong className="mono" style={{ color: 'var(--warn)' }}>{r.desecho_emp} u</strong></div>}
+                <div><div className="xs mute">Desecho</div><strong className="mono" style={{ color: 'var(--bad)' }}>{(Number(r.desecho)||0).toFixed(1)} kg</strong></div>
+                {(Number(r.desecho_emp)||0) > 0 && <div><div className="xs mute">Empac.</div><strong className="mono" style={{ color: 'var(--warn)' }}>{r.desecho_emp} u</strong></div>}
               </div>
             </div>
           );

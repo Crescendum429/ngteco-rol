@@ -67,6 +67,10 @@ def _normalizar_productos(data):
     activos |= {k for k, v in tachos.items() if (v or 0) > 0}
     activos |= {k for k, sc in subcomp.items()
                 if isinstance(sc, dict) and any((n or 0) > 0 for n in sc.values())}
+    # Un producto que solo tuvo desecho (sin cajas/tachos/piezas) igual cuenta.
+    activos |= {k for k, rv in residuos.items()
+                if "::" not in k and isinstance(rv, dict)
+                and any((n or 0) > 0 for n in rv.values())}
 
     def _consumo_de(key):
         c = consumo.get(key) or {}
@@ -90,16 +94,18 @@ def _normalizar_productos(data):
             "subcomp": subcomp.get(pid) or {},
         })
 
-    # Piezas producidas con material propio (key "prod::pieza" en consumo).
-    # Aparecen como entradas separadas en el desglose para que el material
-    # quede asociado a la pieza, no al producto padre que no se armo.
-    for key in consumo:
-        if "::" not in key:
-            continue
+    # Piezas producidas (key "prod::pieza"). Aparecen como entradas separadas
+    # para que material y desecho queden asociados a la pieza, no al producto
+    # padre que no se armo. Las keys salen de consumo Y de residuos: el
+    # operario puede registrar desecho de una pieza sin material, o viceversa.
+    pieza_keys = sorted({k for k in consumo if "::" in k}
+                        | {k for k in residuos if "::" in k})
+    for key in pieza_keys:
         prod_padre, pieza_id = key.split("::", 1)
         virgen, molido_usado = _consumo_de(key)
         sc = subcomp.get(prod_padre) or {}
         fundas = float(sc.get(pieza_id, 0) or 0)
+        r = residuos.get(key) or {}
         productos.append({
             "prod_id": key,
             "es_pieza": True,
@@ -110,9 +116,9 @@ def _normalizar_productos(data):
             "fundas": fundas,
             "virgen": virgen,
             "molido_usado": molido_usado,
-            "desecho": 0,
-            "molido_gen": 0,
-            "desecho_emp": 0,
+            "desecho": float(r.get("desecho", 0) or 0),
+            "molido_gen": float(r.get("molido", 0) or 0),
+            "desecho_emp": float(r.get("desecho_emp", 0) or 0),
             "subcomp": {},
         })
     return productos
