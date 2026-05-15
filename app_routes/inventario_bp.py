@@ -795,9 +795,21 @@ def update_registro_v2(fecha):
     existing = load_registro_diario(fecha)
     if not existing:
         return jsonify({"error": "Registro no existe"}), 404
+    # Recalcular totales desde productos[] editados, para que el detalle
+    # y la panoramica queden consistentes.
+    productos = data.get("productos") or []
+    if productos:
+        data["total_cajas"] = sum(int(p.get("cajas", 0) or 0) for p in productos)
+        data["total_material_kg"] = round(sum(
+            float(p.get("virgen", 0) or 0) + float(p.get("molido_usado", 0) or 0)
+            for p in productos), 2)
+        data["desecho_total_kg"] = round(sum(float(p.get("desecho", 0) or 0) for p in productos), 2)
+        data["molido_gen_kg"] = round(sum(float(p.get("molido_gen", 0) or 0) for p in productos), 2)
+        mat = data["total_material_kg"]
+        data["merma_pct"] = round((data["desecho_total_kg"] / mat * 100), 2) if mat > 0 else 0
     save_registro_diario(fecha, data)
     audit.record("registro_diario", "update", fecha, before=existing, after=data)
-    log.info(f"registro {fecha} editado")
+    log.info(f"registro {fecha} editado: {data.get('total_cajas')} cajas, {data.get('total_material_kg')}kg")
     return jsonify({"ok": True})
 
 

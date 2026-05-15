@@ -4542,17 +4542,79 @@ function RegistroDetalle({ id, onBack }) {
     );
   }
 
-  const productos = reg.productos || [];
-  const totalVirgen = productos.reduce((a, p) => a + (p.virgen || 0), 0);
-  const totalMolidoUsado = productos.reduce((a, p) => a + (p.molido_usado || 0), 0);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState(() => (reg.productos || []).map(p => ({ ...p })));
+
+  const productos = editing ? draft : (reg.productos || []);
+  const totalVirgen = productos.reduce((a, p) => a + (Number(p.virgen) || 0), 0);
+  const totalMolidoUsado = productos.reduce((a, p) => a + (Number(p.molido_usado) || 0), 0);
   const totalMat = totalVirgen + totalMolidoUsado;
-  const totalDesecho = productos.reduce((a, p) => a + (p.desecho || 0), 0);
-  const totalDesempEmp = productos.reduce((a, p) => a + (p.desecho_emp || 0), 0);
-  const totalMolidoGen = productos.reduce((a, p) => a + (p.molido_gen || 0), 0);
-  const totalCajas = productos.reduce((a, p) => a + (p.cajas || 0), 0);
+  const totalDesecho = productos.reduce((a, p) => a + (Number(p.desecho) || 0), 0);
+  const totalDesempEmp = productos.reduce((a, p) => a + (Number(p.desecho_emp) || 0), 0);
+  const totalMolidoGen = productos.reduce((a, p) => a + (Number(p.molido_gen) || 0), 0);
+  const totalCajas = productos.reduce((a, p) => a + (Number(p.cajas) || 0), 0);
   const mermaPct = totalMat > 0 ? (totalDesecho / totalMat) * 100 : 0;
-  // Infer lote from fecha
-  const lote = reg.lote || `L-${reg.fecha.slice(2).replace(/-/g,'-')}-${String(118 + productos.length).padStart(3,'0')}`;
+  const lote = reg.loteNum || reg.lote || `L-${reg.fecha.slice(2).replace(/-/g,'-')}-${String(118 + productos.length).padStart(3,'0')}`;
+
+  const setDraftField = (i, k, v) => {
+    setDraft(d => d.map((p, j) => j === i ? { ...p, [k]: v } : p));
+  };
+
+  async function guardarEdicion() {
+    setSaving(true);
+    const payload = { ...reg, productos: draft };
+    let res = null;
+    try {
+      res = await (window._apiUtil?.put?.(`/api/registros/v2/${reg.fecha}`, payload)
+        || fetch(`/api/registros/v2/${reg.fecha}`, {
+            method: 'PUT', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(payload), credentials: 'same-origin'
+          }).then(r => r.ok ? r.json() : { error: 'HTTP '+r.status }));
+    } catch(e) { res = { error: e.message }; }
+    setSaving(false);
+    if (res?.error) { window.solpToast && window.solpToast(res.error, 'bad'); return; }
+    // Reflejar en el array inyectado para que el detalle quede consistente
+    const idx = REGISTROS_RECIENTES.findIndex(r => r.id === reg.id);
+    if (idx >= 0) REGISTROS_RECIENTES[idx] = { ...reg, productos: draft };
+    window.solpToast && window.solpToast('Registro actualizado', 'ok');
+    setEditing(false);
+  }
+
+  async function eliminarRegistro() {
+    if (!await window.solpConfirm(`¿Eliminar el registro del ${reg.fecha}? Esta acción no se puede deshacer.`)) return;
+    let res = null;
+    try {
+      res = await (window._apiUtil?.del?.(`/api/registros/v2/${reg.fecha}`)
+        || fetch(`/api/registros/v2/${reg.fecha}`, { method:'DELETE', credentials:'same-origin' })
+            .then(r => r.ok ? { ok:true } : { error:'HTTP '+r.status }));
+    } catch(e) { res = { error: e.message }; }
+    if (res?.error) { window.solpToast && window.solpToast(res.error, 'bad'); return; }
+    const idx = REGISTROS_RECIENTES.findIndex(r => r.id === reg.id);
+    if (idx >= 0) REGISTROS_RECIENTES.splice(idx, 1);
+    window.solpToast && window.solpToast('Registro eliminado', 'ok');
+    onBack();
+  }
+
+  function exportarRegistro() {
+    const filas = productos.map(p => {
+      const prod = PRODUCTOS_MOCK.find(x => x.id === p.prod_id) || {};
+      return {
+        fecha: reg.fecha, producto: prod.nombre || p.prod_id,
+        cajas: p.cajas || 0, tachos: p.tachos || 0,
+        virgen_kg: p.virgen || 0, molido_usado_kg: p.molido_usado || 0,
+        desecho_kg: p.desecho || 0, molido_gen_kg: p.molido_gen || 0,
+        desecho_emp_u: p.desecho_emp || 0,
+      };
+    });
+    if (window.solpExportCSV) {
+      window.solpExportCSV(`registro_${reg.fecha}.csv`,
+        ['fecha','producto','cajas','tachos','virgen_kg','molido_usado_kg','desecho_kg','molido_gen_kg','desecho_emp_u'],
+        filas);
+    } else {
+      window.solpToast && window.solpToast('Export no disponible', 'warn');
+    }
+  }
 
   const fmtFecha = (ds) => {
     const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -4575,8 +4637,11 @@ function RegistroDetalle({ id, onBack }) {
         </div>
         <div className="row">
           <Chip tone="accent" className="mono">{lote}</Chip>
-          <Btn variant="ghost"><Icon name="edit" size={14}/> Editar</Btn>
-          <Btn><Icon name="download" size={14}/> Exportar</Btn>
+          {!editing && <Btn variant="ghost" onClick={() => { setDraft((reg.productos||[]).map(p=>({...p}))); setEditing(true); }}><Icon name="edit" size={14}/> Editar</Btn>}
+          {editing && <Btn variant="ghost" onClick={() => { setEditing(false); }}>Cancelar</Btn>}
+          {editing && <Btn variant="primary" onClick={guardarEdicion} disabled={saving}>{saving ? 'Guardando…' : <><Icon name="check" size={14}/> Guardar</>}</Btn>}
+          {!editing && <Btn onClick={exportarRegistro}><Icon name="download" size={14}/> Exportar</Btn>}
+          {!editing && <Btn variant="ghost" className="danger" onClick={eliminarRegistro}><Icon name="trash" size={14}/> Eliminar</Btn>}
         </div>
       </div>
 
@@ -4607,28 +4672,51 @@ function RegistroDetalle({ id, onBack }) {
                   <div className="xs mute">{p.material} · {fmtNum(unitEsperadas)} unidades esperadas</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{pp.cajas} <span className="xs mute">cajas</span></div>
-                  {(pp.tachos || 0) > 0 && <div className="xs" style={{ color: 'var(--info)' }}>{pp.tachos} tacho{pp.tachos > 1 ? 's' : ''}</div>}
+                  {editing ? (
+                    <input className="input mono" type="number" value={pp.cajas || 0}
+                      onChange={e => setDraftField(i, 'cajas', parseInt(e.target.value) || 0)}
+                      style={{ width: 80, textAlign: 'right' }} />
+                  ) : (
+                    <div style={{ fontFamily: 'var(--serif)', fontSize: 22 }}>{pp.cajas} <span className="xs mute">cajas</span></div>
+                  )}
+                  {(pp.tachos || 0) > 0 && !editing && <div className="xs" style={{ color: 'var(--info)' }}>{pp.tachos} tacho{pp.tachos > 1 ? 's' : ''}</div>}
+                  {editing && (
+                    <div style={{ marginTop: 4 }}>
+                      <span className="xs mute">tachos </span>
+                      <input className="input mono" type="number" value={pp.tachos || 0}
+                        onChange={e => setDraftField(i, 'tachos', parseInt(e.target.value) || 0)}
+                        style={{ width: 64, textAlign: 'right' }} />
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="reg-det-grid">
-                <div className="reg-det-stat">
-                  <div className="xs mute">Virgen</div>
-                  <div className="mono" style={{ fontSize: 15 }}>{(pp.virgen || 0).toFixed(1)} kg</div>
-                </div>
-                <div className="reg-det-stat">
-                  <div className="xs mute">Molido usado</div>
-                  <div className="mono" style={{ fontSize: 15, color: 'var(--good)' }}>{(pp.molido_usado || 0).toFixed(1)} kg</div>
-                </div>
-                <div className="reg-det-stat">
-                  <div className="xs mute">Desecho pieza</div>
-                  <div className="mono" style={{ fontSize: 15, color: 'var(--bad)' }}>{(pp.desecho || 0).toFixed(1)} kg</div>
-                </div>
-                <div className="reg-det-stat">
-                  <div className="xs mute">Molido generado</div>
-                  <div className="mono" style={{ fontSize: 15, color: 'var(--good)' }}>+{(pp.molido_gen || 0).toFixed(1)} kg</div>
-                </div>
-                {(pp.desecho_emp || 0) > 0 && (
+                {[
+                  { k: 'virgen', label: 'Virgen', color: undefined },
+                  { k: 'molido_usado', label: 'Molido usado', color: 'var(--good)' },
+                  { k: 'desecho', label: 'Desecho pieza', color: 'var(--bad)' },
+                  { k: 'molido_gen', label: 'Molido generado', color: 'var(--good)', prefix: '+' },
+                ].map(f => (
+                  <div key={f.k} className="reg-det-stat">
+                    <div className="xs mute">{f.label}</div>
+                    {editing ? (
+                      <input className="input mono" type="number" step="0.1" value={pp[f.k] || 0}
+                        onChange={e => setDraftField(i, f.k, parseFloat(e.target.value) || 0)}
+                        style={{ width: '100%', fontSize: 14 }} />
+                    ) : (
+                      <div className="mono" style={{ fontSize: 15, color: f.color }}>{f.prefix || ''}{(Number(pp[f.k]) || 0).toFixed(1)} kg</div>
+                    )}
+                  </div>
+                ))}
+                {editing && (
+                  <div className="reg-det-stat">
+                    <div className="xs mute">Descarte empac. (u)</div>
+                    <input className="input mono" type="number" value={pp.desecho_emp || 0}
+                      onChange={e => setDraftField(i, 'desecho_emp', parseInt(e.target.value) || 0)}
+                      style={{ width: '100%', fontSize: 14 }} />
+                  </div>
+                )}
+                {!editing && (pp.desecho_emp || 0) > 0 && (
                   <div className="reg-det-stat" style={{ borderColor: 'var(--warn)', background: 'var(--warn-soft)' }}>
                     <div className="xs" style={{ color: 'var(--warn)' }}>Descarte empacadora</div>
                     <div className="mono" style={{ fontSize: 15, color: 'var(--warn)' }}>{fmtNum(pp.desecho_emp)} u</div>
