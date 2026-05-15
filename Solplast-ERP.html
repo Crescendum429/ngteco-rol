@@ -3862,6 +3862,21 @@ Object.assign(window, { Nomina });
 
 // Registro Diario — wizard con trazabilidad por producto
 
+// Piezas de un producto = su RECETA real (window.BOM[prod_id]) si existe.
+// Fallback al mapeo fijo por kind (SUBCOMPONENTES_MOCK) si no hay receta.
+function piezasDeProducto(p) {
+  if (!p) return null;
+  const bom = (window.BOM && window.BOM[p.id]) || null;
+  if (bom && typeof bom === 'object' && Object.keys(bom).length) {
+    const fijas = SUBCOMPONENTES_MOCK[p.kind] || [];
+    return Object.keys(bom).map(pid => {
+      const def = fijas.find(x => x.id === pid);
+      return { id: pid, nombre: def?.nombre || (pid.charAt(0).toUpperCase() + pid.slice(1)), unidad: 'unidades' };
+    });
+  }
+  return SUBCOMPONENTES_MOCK[p.kind] || null;
+}
+
 function RegistroDiario({ role }) {
   const [view, setView] = useState('wizard'); // wizard | detalle
   const [detalleId, setDetalleId] = useState(null);
@@ -4103,7 +4118,7 @@ function RegStepProd({ prod, setProd, subcomp, setSubcomp, tachos, setTachos }) 
       <div className="prod-grid">
         {PRODUCTOS_MOCK.map(p => {
           const v = prod[p.id] || 0;
-          const piezas = SUBCOMPONENTES_MOCK[p.kind] || null;
+          const piezas = piezasDeProducto(p);
           const sc = subcomp[p.id] || {};
           const tach = tachos[p.id] || 0;
           // Card activa si hay CUALQUIER aporte: cajas, tachos o piezas sueltas.
@@ -4218,7 +4233,7 @@ function RegStepMaterial({ activeProds, prod, tachos, subcomp, consumo, setConsu
       items.push({ key: pid, prodId: pid, label: p.nombre, sub: p.material, kind: p.kind, esPieza: false });
     }
     const sc = (subcomp && subcomp[pid]) || {};
-    const piezasDef = SUBCOMPONENTES_MOCK[p.kind] || [];
+    const piezasDef = piezasDeProducto(p) || [];
     Object.entries(sc).forEach(([piezaId, n]) => {
       if ((Number(n) || 0) > 0) {
         const pdef = piezasDef.find(x => x.id === piezaId);
@@ -4520,7 +4535,7 @@ function RegStepRevisar({ date, activeProds, prod, consumo, residuos, obs, setOb
           const c = consumo[pid] || { virgen: {}, molido: [] };
           const r = residuos[pid] || { desecho: 0, molido: 0, desecho_emp: 0 };
           const sc = subcomp[pid] || {};
-          const piezas = SUBCOMPONENTES_MOCK[p.kind] || null;
+          const piezas = piezasDeProducto(p);
           const tach = tachos[pid] || 0;
           const vTotal = Object.values(c.virgen || {}).reduce((a, b) => a + (b || 0), 0);
           const mTotal = (c.molido || []).reduce((a, m) => a + (m.kg || 0), 0);
@@ -6536,12 +6551,34 @@ function InvMaterialAux() {
   const [form, setForm] = useState(null);
   const [detalle, setDetalle] = useState(null);  // item detail view
   const [showRegistrar, setShowRegistrar] = useState(false);
-  const [usoHoy, setUsoHoy] = useState(() => {
-    const m = {};
-    INVENTARIO_AUX_MOCK.forEach(a => { m[a.id] = 0; });
-    return m;
-  });
+  const [usoHoy, setUsoHoy] = useState({});
   const [registroGuardado, setRegistroGuardado] = useState(false);
+
+  // Cargar desde backend al montar (la lista inyectada puede estar stale).
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/api/inventario/auxiliar', { credentials:'same-origin' }).then(x => x.ok ? x.json() : null);
+        if (Array.isArray(r)) {
+          setItems(r.map(a => ({ ...a, costo_unit: a.costo_unit || 0 })));
+          INVENTARIO_AUX_MOCK.length = 0; INVENTARIO_AUX_MOCK.push(...r);
+        }
+      } catch (e) {}
+    })();
+  }, []);
+
+  // Persiste la lista completa al backend (PUT /api/inventario/auxiliar).
+  const persist = async (lista) => {
+    INVENTARIO_AUX_MOCK.length = 0; INVENTARIO_AUX_MOCK.push(...lista);
+    try {
+      const ok = await (window._apiUtil?.put?.('/api/inventario/auxiliar', lista)
+        || fetch('/api/inventario/auxiliar', {
+            method:'PUT', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify(lista), credentials:'same-origin'
+          }).then(r => r.ok));
+      if (ok === false || ok?.error) window.solpToast && window.solpToast('No se pudo guardar en servidor', 'bad');
+    } catch (e) { window.solpToast && window.solpToast('Error guardando: ' + e.message, 'bad'); }
+  };
 
   const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const categorias = [...new Set(items.map(a => a.categoria))];
@@ -6553,33 +6590,60 @@ function InvMaterialAux() {
 
   const abrirEditar = (a) => { setSel(a); setForm({ ...a }); };
 
-  const guardarItem = () => {
+  const guardarItem = async () => {
     if (!form.nombre.trim()) return;
-    if (sel.isNew) {
-      setItems(prev => [...prev, { ...form, isNew:false }]);
-    } else {
-      setItems(prev => prev.map(a => a.id === sel.id ? { ...form } : a));
-    }
+    const clean = { ...form }; delete clean.isNew;
+    const nueva = sel.isNew
+      ? [...items, clean]
+      : items.map(a => a.id === sel.id ? clean : a);
+    setItems(nueva);
+    await persist(nueva);
+    window.solpToast && window.solpToast('Ítem guardado', 'ok');
     setSel(null); setForm(null);
   };
 
-  const toggleDesact = (id) => setItems(prev => prev.map(a => a.id === id ? { ...a, desactivado: !a.desactivado } : a));
+  const toggleDesact = async (id) => {
+    const nueva = items.map(a => a.id === id ? { ...a, desactivado: !a.desactivado } : a);
+    setItems(nueva);
+    await persist(nueva);
+  };
 
-  const eliminar = (id) => {
+  const eliminar = async (id) => {
     const a = items.find(x => x.id === id);
-    if (a && a.stock > 0) { alert(`No se puede eliminar: tiene ${a.stock} ${a.unidad} en stock. Desactívalo en su lugar.`); return; }
-    if (!window.confirm('¿Eliminar este ítem?')) return;
-    setItems(prev => prev.filter(a => a.id !== id));
+    if (a && a.stock > 0) { window.solpToast ? window.solpToast(`No se puede eliminar: tiene ${a.stock} ${a.unidad} en stock. Desactívalo.`, 'warn') : alert('Tiene stock'); return; }
+    if (!await window.solpConfirm('¿Eliminar este ítem?')) return;
+    const nueva = items.filter(a => a.id !== id);
+    setItems(nueva);
+    await persist(nueva);
+    window.solpToast && window.solpToast('Ítem eliminado', 'ok');
     setSel(null); setForm(null);
   };
 
-  const guardarRegistroDia = () => {
-    setItems(prev => prev.map(a => {
-      const usado = usoHoy[a.id] || 0;
-      return usado > 0 ? { ...a, stock: Math.max(0, a.stock - usado), ultima_entrada: new Date().toISOString().slice(0,10) } : a;
-    }));
+  const guardarRegistroDia = async () => {
+    const fecha = new Date().toISOString().slice(0, 10);
+    const payload = items
+      .filter(a => (usoHoy[a.id] || 0) > 0)
+      .map(a => ({ aux_id: a.id, usado: Number(usoHoy[a.id]) || 0 }));
+    if (payload.length) {
+      const res = await (window._apiUtil?.registrarDiaAux?.({ fecha, items: payload })
+        || fetch('/api/inventario/auxiliar/registrar-dia', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ fecha, items: payload }), credentials:'same-origin'
+          }).then(r => r.ok ? r.json() : { error:'HTTP '+r.status }));
+      if (res?.error) { window.solpToast && window.solpToast(res.error, 'bad'); return; }
+      if (res?.auxiliar) {
+        setItems(res.auxiliar);
+        INVENTARIO_AUX_MOCK.length = 0; INVENTARIO_AUX_MOCK.push(...res.auxiliar);
+      } else {
+        const nueva = items.map(a => {
+          const u = usoHoy[a.id] || 0;
+          return u > 0 ? { ...a, stock: Math.max(0, a.stock - u) } : a;
+        });
+        setItems(nueva);
+      }
+    }
     setRegistroGuardado(true);
-    setTimeout(() => { setShowRegistrar(false); setRegistroGuardado(false); setUsoHoy(m => { const n={...m}; Object.keys(n).forEach(k=>n[k]=0); return n; }); }, 1200);
+    setTimeout(() => { setShowRegistrar(false); setRegistroGuardado(false); setUsoHoy({}); }, 1200);
   };
 
   if (detalle) return <AuxDetalle aux={detalle} onBack={() => setDetalle(null)} />;
@@ -7161,7 +7225,20 @@ function NuevoMovimientoModal({ onClose, onSaved }) {
     if (clase === 'mp') return (MATERIALES_MOCK || []).map(m => ({ id: m.id, label: m.nombre }));
     if (clase === 'pt') return (PRODUCTOS_MOCK || []).map(p => ({ id: p.id, label: p.nombre }));
     if (clase === 'aux') return (INVENTARIO_AUX_MOCK || []).map(a => ({ id: a.id, label: a.nombre }));
-    if (clase === 'molido') return (INVENTARIO_MOLIDO_MOCK || []).map(m => ({ id: m.id, label: m.origen + (m.producto ? ` (${m.producto})` : '') }));
+    if (clase === 'molido') {
+      // Bins estandar del sistema (segregado por origen) + los que ya existan.
+      const estandar = [
+        { id:'mol-canula', label:'Cánula' }, { id:'mol-vaso', label:'Vaso' },
+        { id:'mol-piston', label:'Pistón' }, { id:'mol-tapon', label:'Tapón' },
+        { id:'mol-acordeon', label:'Acordeón' }, { id:'mol-capuchon', label:'Capuchón' },
+        { id:'mol-alta', label:'PE Alta' }, { id:'mol-baja', label:'PE Baja' },
+        { id:'mol-mazarota', label:'Mazarota' },
+      ];
+      const existentes = (INVENTARIO_MOLIDO_MOCK || []).map(m =>
+        ({ id: m.id, label: (m.origen || m.id) + (m.producto ? ` (${m.producto})` : '') }));
+      const ids = new Set(existentes.map(x => x.id));
+      return [...existentes, ...estandar.filter(e => !ids.has(e.id))];
+    }
     if (clase === 'pieza') return (INVENTARIO_PIEZAS_MOCK || []).map(p => ({
       id: `${(p.pieza || '').toLowerCase()}:${p.estado}${p.cliente_id ? ':' + p.cliente_id : ''}`,
       label: `${p.pieza} (${p.estado}${p.cliente_id ? ' · ' + p.cliente_id : ''})`,
