@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "6.1.6"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "6.2.0"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -436,7 +436,7 @@ def _build_data_jsx_uncached():
         overrides_js.append(f"window.CERTIFICADOS_MOCK = {json.dumps(certificados, ensure_ascii=False)};")
     if emisor is not None:
         overrides_js.append(f"window.EMISOR = {json.dumps(emisor, ensure_ascii=False)};")
-    overrides_js.append(f"window.INV_PIEZAS = {json.dumps(inv_piezas, ensure_ascii=False)};")
+    overrides_js.append(f"window.INVENTARIO_PIEZAS_MOCK = {json.dumps(inv_piezas, ensure_ascii=False)};")
     overrides_js.append(f"window.INV_MOLIDO = {json.dumps(inv_molido, ensure_ascii=False)};")
     overrides_js.append(f"window.INV_AUXILIAR = {json.dumps(inv_auxiliar, ensure_ascii=False)};")
     overrides_js.append(f"window.INV_LOTES = {json.dumps(inv_lotes, ensure_ascii=False)};")
@@ -630,7 +630,7 @@ def _build_login_patch():
         body: JSON.stringify(data),
         credentials: 'same-origin',
       });
-      return r.ok;
+      try { return await r.json(); } catch { return { ok: r.ok }; }
     },
     uploadNomina: async (file, force) => {
       const fd = new FormData();
@@ -1126,7 +1126,10 @@ def _inject_html(raw_html):
     old_reg_save = "          setLoteNum(`L-${yy}-${mm}-${dd}-${nn}`);\n          setSaved(true);"
     new_reg_save = """          setLoteNum(`L-${yy}-${mm}-${dd}-${nn}`);
           if (window._api) {
-            try { await window._api.saveRegistro({ date, activeProds, prod, subcomp, consumo, residuos, mazarota, obs, tachos, totalMat, totalCajas, totalDesecho, totalMolidoGen, mermaPct, loteNum: `L-${yy}-${mm}-${dd}-${nn}` }); } catch(e) { console.error('saveRegistro', e); }
+            try {
+              const _rs = await window._api.saveRegistro({ date, activeProds, prod, subcomp, consumo, residuos, mazarota, obs, tachos, totalMat, totalCajas, totalDesecho, totalMolidoGen, mermaPct, loteNum: `L-${yy}-${mm}-${dd}-${nn}` });
+              if (_rs && _rs.warnings && _rs.warnings.length && window.solpToast) window.solpToast(_rs.warnings.join(' · '), 'warn');
+            } catch(e) { console.error('saveRegistro', e); }
           }
           setSaved(true);"""
     if old_reg_save in raw_html:

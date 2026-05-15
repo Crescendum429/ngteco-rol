@@ -152,7 +152,20 @@ def save_registro():
     }
     save_registro_diario(fecha, payload)
     log.info(f"registro {fecha}: {len(productos)} productos, {total_cajas} cajas, {total_mat:.1f}kg")
-    return jsonify({"ok": True, "productos": len(productos)})
+
+    # Propagar a inventario: lotes PT, piezas sueltas, movimientos, MP/molido.
+    # Idempotente por fecha (wipe-and-replay). Si falla, el registro igual
+    # quedo guardado — se loggea y se avisa, no se rompe el guardado.
+    warnings = []
+    try:
+        from app_routes.inventario_bp import aplicar_inventario_de_registro
+        res = aplicar_inventario_de_registro(fecha, data, productos)
+        warnings = res.get("warnings") or []
+    except Exception:
+        log.exception(f"error propagando registro {fecha} a inventario")
+        warnings = ["No se pudo actualizar el inventario automaticamente. "
+                    "Revisar movimientos manualmente."]
+    return jsonify({"ok": True, "productos": len(productos), "warnings": warnings})
 
 
 @nomina_bp.route("/api/registros/<month>", methods=["GET"])

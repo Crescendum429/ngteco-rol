@@ -17,6 +17,7 @@ from storage import (
     load_inv_molido,
     load_inv_piezas,
     load_movimientos_inventario,
+    load_productos,
     load_qc_templates,
     load_registro_diario,
     save_bom,
@@ -39,11 +40,20 @@ def _now_iso():
     return datetime.now().isoformat(timespec="seconds")
 
 
-def append_mov(clase, tipo, item_id, cantidad, unidad, ref="", nota=""):
-    """Anade un movimiento atomico al log de movimientos."""
+# Direccion del delta de stock por tipo de movimiento. Fuente unica de
+# verdad: se usa tanto al aplicar como al revertir (wipe-and-replay).
+_DELTA_SIGNO = {"entrada": 1, "produccion": 1, "salida": -1,
+                "consumo": -1, "baja": -1, "ajuste": 1}
+
+
+def append_mov(clase, tipo, item_id, cantidad, unidad, ref="", nota="", meta=None):
+    """Anade un movimiento atomico al log de movimientos.
+
+    meta: dato estructurado opcional (ej. producto_padre de una pieza) para
+    poder revertir el efecto sin parsear la nota."""
     movs = load_movimientos_inventario() or []
     nid = (max([int(m.get("id", 0)) for m in movs], default=0)) + 1
-    movs.insert(0, {
+    mov = {
         "id": nid,
         "fecha": date.today().isoformat(),
         "tipo": tipo,
@@ -53,7 +63,10 @@ def append_mov(clase, tipo, item_id, cantidad, unidad, ref="", nota=""):
         "unidad": unidad,
         "ref": ref,
         "nota": nota,
-    })
+    }
+    if meta is not None:
+        mov["meta"] = meta
+    movs.insert(0, mov)
     save_movimientos_inventario(movs)
     return nid
 
@@ -95,6 +108,170 @@ def gen_lote_id(producto_id, cliente_codigo, secuencial):
     pid = (producto_id or "").upper().replace(" ", "")[:8]
     cli = (cliente_codigo or "").upper().replace(" ", "")[:8]
     return f"{pid}-{cli}-{int(secuencial):04d}" if cli else f"{pid}-{int(secuencial):04d}"
+
+
+def _piezas_inc_registro(pieza, producto_padre, estado, fundas):
+    """Incrementa el bin de piezas que LEE la pestana InvPiezasSueltas
+    (shape cantidad/cantidad_fundas, id ps-...), no el de piezas_inc que
+    usa otro esquema. El registro diario se mide en fundas. Acepta fundas
+    negativas para revertir (wipe-and-replay)."""
+    if not fundas or not pieza:
+        return
+    items = load_inv_piezas() or []
+    if not isinstance(items, list):
+        items = []
+    pid = f"ps-{str(pieza).lower()}-{str(producto_padre or 'na').lower()}-{estado}"
+    found = None
+    for it in items:
+        if isinstance(it, dict) and it.get("id") == pid:
+            found = it
+            break
+    if found:
+        found["cantidad_fundas"] = round(float(found.get("cantidad_fundas", 0) or 0) + float(fundas), 3)
+        found["cantidad"] = round(float(found.get("cantidad", 0) or 0) + float(fundas), 3)
+        found["ultima_actualizacion"] = _now_iso()
+    elif fundas > 0:
+        items.append({
+            "id": pid,
+            "pieza": pieza,
+            "producto": producto_padre or "",
+            "estado": estado,
+            "cliente_id": None,
+            "cantidad": round(float(fundas), 3),
+            "cantidad_fundas": round(float(fundas), 3),
+            "unidades_por_funda": 0,
+            "unidad": "fundas",
+            "ultima_actualizacion": _now_iso(),
+        })
+    save_inv_piezas(items)
+
+
+def aplicar_inventario_de_registro(fecha, data, productos):
+    """Propaga un registro diario al inventario (lotes PT, piezas sueltas,
+    movimientos, MP consumida, molido). Idempotente por fecha mediante
+    wipe-and-replay: borra los efectos del save anterior de esa fecha y
+    re-aplica desde cero, asi el inventario depende solo del ultimo save.
+
+    Devuelve {"warnings": [...]} (ej. lotes ya despachados, no regenerables)."""
+    ref = f"reg:{fecha}"
+    warnings = []
+
+    # ── 1. Revertir efectos del save anterior de esta fecha ──
+    movs = load_movimientos_inventario() or []
+    viejos = [m for m in movs if isinstance(m, dict) and m.get("ref") == ref]
+    for m in viejos:
+        signo = _DELTA_SIGNO.get(m.get("tipo"), 1)
+        cant = float(m.get("cantidad") or 0)
+        if m.get("clase") == "molido":
+            molido_inc(m.get("item_id"), -cant * signo)
+        elif m.get("clase") == "pieza":
+            _piezas_inc_registro(m.get("item_id"), m.get("meta") or "", "cruda", -cant * signo)
+        # mp/pt/descarte: el stock se deriva de movs/lotes — basta con borrar
+    if viejos:
+        movs = [m for m in movs if not (isinstance(m, dict) and m.get("ref") == ref)]
+        save_movimientos_inventario(movs)
+
+    lotes = load_inv_lotes() or []
+    conservados = []
+    for l in lotes:
+        if isinstance(l, dict) and l.get("origen") == ref:
+            if l.get("despachado"):
+                warnings.append(f"Lote {l.get('id')} ya despachado: no se actualizo")
+                conservados.append(l)
+            # no despachado y de este registro -> se descarta (se regenera)
+        else:
+            conservados.append(l)
+    lotes = conservados
+
+    # ── 2. Aplicar desde productos[] + consumo crudo ──
+    catalogo = load_productos() or {}
+    secs = [int((re.findall(r"\d+", l.get("id", "0")) or ["0"])[-1])
+            for l in lotes if isinstance(l, dict)]
+    secuencial = (max(secs, default=2000))
+
+    for p in productos:
+        if not isinstance(p, dict):
+            continue
+        es_pieza = p.get("es_pieza")
+        if es_pieza:
+            fundas = float(p.get("fundas", 0) or 0)
+            if fundas > 0:
+                pieza_id = p.get("pieza_id")
+                padre = p.get("producto_padre") or ""
+                _piezas_inc_registro(pieza_id, padre, "cruda", fundas)
+                append_mov("pieza", "produccion", pieza_id, fundas, "fundas",
+                           ref=ref, nota=f"pieza de {padre}", meta=padre)
+        else:
+            cajas = int(p.get("cajas", 0) or 0)
+            if cajas > 0:
+                prod_id = p.get("prod_id")
+                cat = catalogo.get(prod_id) or {}
+                secuencial += 1
+                lote_id = gen_lote_id(prod_id, "", secuencial)
+                lotes.append({
+                    "id": lote_id,
+                    "producto_id": prod_id,
+                    "cliente_id": None,
+                    "fecha_elaboracion": fecha,
+                    "fecha_caducidad": "",
+                    "cantidad_cajas": cajas,
+                    "unidades_caja": int(cat.get("unidades_caja", 0) or 0),
+                    "peso_neto": 0,
+                    "peso_total": 0,
+                    "responsable": "",
+                    "despachado": False,
+                    "despachado_en": "",
+                    "origen": ref,
+                })
+                append_mov("pt", "produccion", prod_id, cajas, "cajas",
+                           ref=ref, nota=lote_id)
+
+        # Desecho y molido generado vuelven al bin de molido (segregado por
+        # producto/pieza, mismo criterio que el origen del molido reusado).
+        bin_id = p.get("pieza_id") if es_pieza else p.get("prod_id")
+        a_molido = float(p.get("desecho", 0) or 0) + float(p.get("molido_gen", 0) or 0)
+        if bin_id and a_molido > 0:
+            molido_inc(bin_id, a_molido)
+            append_mov("molido", "entrada", bin_id, a_molido, "kg",
+                       ref=ref, nota="desecho + molido generado")
+        desecho_emp = float(p.get("desecho_emp", 0) or 0)
+        if desecho_emp > 0:
+            append_mov("descarte", "baja", "empacadora", desecho_emp, "unidades",
+                       ref=ref, nota=str(p.get("prod_id") or ""))
+
+    save_inv_lotes(lotes)
+
+    # Material consumido: detalle por material (virgen) y molido reusado por
+    # origen. Se toma del consumo crudo del wizard (productos[] lo colapsa).
+    consumo = (data.get("consumo") or {}) if isinstance(data, dict) else {}
+    for key, c in consumo.items():
+        if not isinstance(c, dict):
+            continue
+        for mat_id, kg in (c.get("virgen") or {}).items():
+            kg = float(kg or 0)
+            if kg > 0:
+                append_mov("mp", "consumo", mat_id, kg, "kg",
+                           ref=ref, nota="virgen")
+        for m in (c.get("molido") or []):
+            if not isinstance(m, dict):
+                continue
+            kg = float(m.get("kg", 0) or 0)
+            origen = m.get("origen")
+            if kg > 0 and origen:
+                molido_inc(origen, -kg)
+                append_mov("molido", "consumo", origen, kg, "kg",
+                           ref=ref, nota="reuso")
+
+    # Mazarota: purga de maquina, es desperdicio (merma) — solo audit, sin stock.
+    maz = float(data.get("mazarota", 0) or 0) if isinstance(data, dict) else 0
+    if maz > 0:
+        append_mov("descarte", "baja", "mazarota", maz, "kg",
+                   ref=ref, nota="purga de maquina (fin del dia)")
+
+    log.info(f"inventario aplicado de registro {fecha}: "
+             f"{len([p for p in productos if isinstance(p, dict)])} items, "
+             f"{len(warnings)} warnings")
+    return {"warnings": warnings}
 
 
 # ─── Piezas / Molido / Auxiliar ───

@@ -6315,10 +6315,21 @@ function InvProductoTerminado() {
 // ═══════════════════ Piezas Sueltas ═══════════════════
 function InvPiezasSueltas() {
   const [filtroEstado, setFiltroEstado] = useState('todas');
-  const [items,        setItems]        = useState(() => [...INVENTARIO_PIEZAS_MOCK]);
+  const [items,        setItems]        = useState(() => Array.isArray(INVENTARIO_PIEZAS_MOCK) ? [...INVENTARIO_PIEZAS_MOCK] : []);
   const [sel,          setSel]          = useState(null);
   const [form,         setForm]         = useState(null);
   const [saving,       setSaving]       = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const r = await window._apiUtil?.fetchPiezas?.();
+        if (vivo && Array.isArray(r)) setItems(r);
+      } catch (e) { /* sin conexion: queda lo inyectado en el primer paint */ }
+    })();
+    return () => { vivo = false; };
+  }, []);
 
   function openNew() {
     const empty = { id:'', pieza:'', producto:'', estado:'cruda', cantidad:0, unidad:'unidades', isNew:true };
