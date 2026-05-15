@@ -3883,37 +3883,24 @@ function RegistroWizard({ role, onOpenDetalle }) {
   });
 
   // Producción: { [prod_id]: cajas }
-  const [prod, setProd] = useState({ v_life: 12, v_solplast: 6, cuchara_5ml: 5, j_life: 3 });
+  // TODO el wizard arranca vacio: el operario ingresa solo lo que se
+  // produjo hoy. Sin valores demo precargados.
+  const [prod, setProd] = useState({});
 
-  // Sub-componentes por producto (solo para jeringa/gotero):
-  // { [prod_id]: { [subcomp_id]: unidades } }
-  const [subcomp, setSubcomp] = useState({
-    j_life: { canula: 3600, piston: 3600, tapon: 3600, acordeon: 3600 },
-  });
+  // Sub-componentes por producto (solo jeringa/gotero):
+  // { [prod_id]: { [subcomp_id]: fundas } }
+  const [subcomp, setSubcomp] = useState({});
 
   // Material consumido POR producto:
-  // { [prod_id]: { virgen: { [mat_id]: kg }, molido: [{ origen: prod_id, kg }] } }
-  const [consumo, setConsumo] = useState({
-    v_life:      { virgen: { pp_clarificado: 25, pp_omo: 12 }, molido: [{ origen: 'v_life', kg: 2.5 }] },
-    v_solplast:  { virgen: { pp_omo: 16 }, molido: [] },
-    cuchara_5ml: { virgen: { pp_clarificado: 8 }, molido: [{ origen: 'cuchara_5ml', kg: 1.2 }] },
-    j_life:      { virgen: { pp_clarificado: 12, pe_alta: 10, pe_baja: 7 }, molido: [] },
-  });
+  // { [prod_id]: { virgen: { [mat_id]: kg }, molido: [{ origen, kg }] } }
+  const [consumo, setConsumo] = useState({});
 
-  // Tachos armados por producto (solo jeringas/goteros: lotes intermedios ensamblados)
-  // { [prod_id]: numero_de_tachos }
-  const [tachos, setTachos] = useState({ j_life: 3 });
+  // Tachos armados por producto: { [prod_id]: numero_de_tachos }
+  const [tachos, setTachos] = useState({});
 
-  // Desechos y molido GENERADO por producto:
-  // { [prod_id]: { desecho_kg, molido_kg, desecho_emp_unidades } }
-  // desecho_kg  → piezas irrecuperables (vuelven a molido)
-  // desecho_emp_unidades → descarte final empacadora (no recuperable)
-  const [residuos, setResiduos] = useState({
-    v_life:      { desecho: 1.8, molido: 1.2, desecho_emp: 0 },
-    v_solplast:  { desecho: 1.0, molido: 0.5, desecho_emp: 0 },
-    cuchara_5ml: { desecho: 0.4, molido: 0.3, desecho_emp: 12 },
-    j_life:      { desecho: 2.2, molido: 1.5, desecho_emp: 8  },
-  });
+  // Desechos y molido generado por producto:
+  // { [prod_id]: { desecho, molido, desecho_emp } }
+  const [residuos, setResiduos] = useState({});
 
   const [obs, setObs] = useState('');
   // Número de lote asignado al guardar (formato L-YY-MM-NNN)
