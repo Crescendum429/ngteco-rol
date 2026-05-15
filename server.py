@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "6.1.2"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "6.1.3"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -457,7 +457,7 @@ def _build_data_jsx_uncached():
             })
         overrides_js.append(f"window.AUX_CONSUMO = {json.dumps(aux_consumo, ensure_ascii=False)};")
         overrides_js.append(f"window.QC_TPL = {json.dumps(qc_tpl, ensure_ascii=False)};")
-        overrides_js.append(f"window.INV_MOVIMIENTOS = {json.dumps(movimientos, ensure_ascii=False)};")
+        overrides_js.append(f"window.MOV_INVENTARIO_MOCK = {json.dumps(movimientos, ensure_ascii=False)};")
         # Mutar AUX_CONSUMO_HISTORICO en sitio
         overrides_js.append(
             f"(function() {{"

@@ -7099,10 +7099,21 @@ function InvPanoramica() {
 // ═══════════════════ Movimientos ═══════════════════
 function InvMovimientos() {
   const [filtro,   setFiltro]   = useState('todos');
-  const [movs,     setMovs]     = useState(() => [...MOV_INVENTARIO_MOCK]);
+  const [movs,     setMovs]     = useState(() => Array.isArray(MOV_INVENTARIO_MOCK) ? [...MOV_INVENTARIO_MOCK] : []);
   const [editId,   setEditId]   = useState(null);
   const [editForm, setEditForm] = useState({ nota:'', ref:'', fecha:'' });
   const [saving,   setSaving]   = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const r = await window._apiUtil?.fetchMovimientos?.();
+        if (vivo && Array.isArray(r)) setMovs(r);
+      } catch (e) { /* sin conexion: queda lo inyectado en el primer paint */ }
+    })();
+    return () => { vivo = false; };
+  }, []);
 
   const items = movs.filter(m => filtro==='todos' || m.tipo===filtro)
     .slice().sort((a,b) => b.fecha.localeCompare(a.fecha));
