@@ -68,22 +68,52 @@ def _normalizar_productos(data):
     activos |= {k for k, sc in subcomp.items()
                 if isinstance(sc, dict) and any((n or 0) > 0 for n in sc.values())}
 
+    def _consumo_de(key):
+        c = consumo.get(key) or {}
+        v = sum(float(x or 0) for x in (c.get("virgen") or {}).values())
+        ml = sum(float(m.get("kg", 0) or 0) for m in (c.get("molido") or []) if isinstance(m, dict))
+        return round(v, 2), round(ml, 2)
+
     productos = []
     for pid in sorted(activos):
-        c = consumo.get(pid) or {}
-        virgen = sum(float(v or 0) for v in (c.get("virgen") or {}).values())
-        molido_usado = sum(float(m.get("kg", 0) or 0) for m in (c.get("molido") or []) if isinstance(m, dict))
+        virgen, molido_usado = _consumo_de(pid)
         r = residuos.get(pid) or {}
         productos.append({
             "prod_id": pid,
             "cajas": int(prod.get(pid, 0) or 0),
             "tachos": int(tachos.get(pid, 0) or 0),
-            "virgen": round(virgen, 2),
-            "molido_usado": round(molido_usado, 2),
+            "virgen": virgen,
+            "molido_usado": molido_usado,
             "desecho": float(r.get("desecho", 0) or 0),
             "molido_gen": float(r.get("molido", 0) or 0),
             "desecho_emp": float(r.get("desecho_emp", 0) or 0),
             "subcomp": subcomp.get(pid) or {},
+        })
+
+    # Piezas producidas con material propio (key "prod::pieza" en consumo).
+    # Aparecen como entradas separadas en el desglose para que el material
+    # quede asociado a la pieza, no al producto padre que no se armo.
+    for key in consumo:
+        if "::" not in key:
+            continue
+        prod_padre, pieza_id = key.split("::", 1)
+        virgen, molido_usado = _consumo_de(key)
+        sc = subcomp.get(prod_padre) or {}
+        fundas = float(sc.get(pieza_id, 0) or 0)
+        productos.append({
+            "prod_id": key,
+            "es_pieza": True,
+            "producto_padre": prod_padre,
+            "pieza_id": pieza_id,
+            "cajas": 0,
+            "tachos": 0,
+            "fundas": fundas,
+            "virgen": virgen,
+            "molido_usado": molido_usado,
+            "desecho": 0,
+            "molido_gen": 0,
+            "desecho_emp": 0,
+            "subcomp": {},
         })
     return productos
 

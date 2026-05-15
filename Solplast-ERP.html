@@ -3770,7 +3770,7 @@ function RecurrentesModal({ empleadoId, onClose }) {
             <h3 className="panel-title">Descuentos y beneficios recurrentes</h3>
             <div className="panel-sub">{emp?.nombre} · se aplican automáticamente a los meses dentro de su vigencia</div>
           </div>
-          <Btn size="sm" variant="ghost" onClick={onClose}><Icon name="close" size={14}/></Btn>
+          <Btn size="sm" variant="ghost" onClick={onClose}><Icon name="x" size={14}/></Btn>
         </div>
         <div className="modal-body">
           {items.length === 0 && !nuevo && (
@@ -3927,13 +3927,16 @@ function RegistroWizard({ role, onOpenDetalle }) {
   ]));
   const totalCajas = Object.values(prod).reduce((a, b) => a + b, 0);
 
-  const totalVirgen = activeProds.reduce((sum, pid) => {
-    const v = consumo[pid]?.virgen || {};
-    return sum + Object.values(v).reduce((a, b) => a + (b || 0), 0);
+  // Suma sobre TODAS las entradas de consumo (productos Y piezas: las
+  // keys de pieza tienen formato "prod::pieza"). Asi el material usado
+  // para producir solo piezas tambien cuenta.
+  const totalVirgen = Object.values(consumo).reduce((sum, c) => {
+    const v = c?.virgen || {};
+    return sum + Object.values(v).reduce((a, b) => a + (Number(b) || 0), 0);
   }, 0);
-  const totalMolidoUsado = activeProds.reduce((sum, pid) => {
-    const ml = consumo[pid]?.molido || [];
-    return sum + ml.reduce((a, m) => a + (m.kg || 0), 0);
+  const totalMolidoUsado = Object.values(consumo).reduce((sum, c) => {
+    const ml = c?.molido || [];
+    return sum + ml.reduce((a, m) => a + (Number(m.kg) || 0), 0);
   }, 0);
   const totalMat = totalVirgen + totalMolidoUsado;
 
@@ -3976,7 +3979,7 @@ function RegistroWizard({ role, onOpenDetalle }) {
       <div className="panel" style={{ minHeight: 420 }}>
         {step === 0 && <RegStepDia date={date} setDate={setDate} />}
         {step === 1 && <RegStepProd prod={prod} setProd={setProd} subcomp={subcomp} setSubcomp={setSubcomp} tachos={tachos} setTachos={setTachos} />}
-        {step === 2 && <RegStepMaterial activeProds={activeProds} consumo={consumo} setConsumo={setConsumo} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} />}
+        {step === 2 && <RegStepMaterial activeProds={activeProds} prod={prod} tachos={tachos} subcomp={subcomp} consumo={consumo} setConsumo={setConsumo} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} />}
         {step === 3 && <RegStepResiduos activeProds={activeProds} residuos={residuos} setResiduos={setResiduos} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} />}
         {step === 4 && <RegStepRevisar date={date} activeProds={activeProds} prod={prod} consumo={consumo} residuos={residuos} obs={obs} setObs={setObs} totalMat={totalMat} totalVirgen={totalVirgen} totalMolidoUsado={totalMolidoUsado} totalCajas={totalCajas} totalDesecho={totalDesecho} totalMolidoGen={totalMolidoGen} mermaPct={mermaPct} subcomp={subcomp} tachos={tachos} loteNum={loteNum} />}
 
@@ -4201,16 +4204,47 @@ function RegStepProd({ prod, setProd, subcomp, setSubcomp, tachos, setTachos }) 
   );
 }
 
-function RegStepMaterial({ activeProds, consumo, setConsumo, totalMat, totalVirgen, totalMolidoUsado }) {
-  if (activeProds.length === 0) {
-    return <EmptyProducts msg="Primero selecciona los productos que se hicieron hoy (paso anterior)." />;
+function RegStepMaterial({ activeProds, prod, tachos, subcomp, consumo, setConsumo, totalMat, totalVirgen, totalMolidoUsado }) {
+  // Construye ITEMS de produccion: un producto si tuvo cajas/tachos, y
+  // CADA pieza suelta producida como item independiente (key prod::pieza).
+  // Asi el material se asigna a lo que realmente se inyecto (ej. capuchon,
+  // no gotero, si no se armo el gotero).
+  const items = [];
+  (activeProds || []).forEach(pid => {
+    const p = PRODUCTOS_MOCK.find(x => x.id === pid) || { id: pid, nombre: pid, kind: 'vaso', material: '—' };
+    const cajas = (prod && prod[pid]) || 0;
+    const tach = (tachos && tachos[pid]) || 0;
+    if (cajas > 0 || tach > 0) {
+      items.push({ key: pid, prodId: pid, label: p.nombre, sub: p.material, kind: p.kind, esPieza: false });
+    }
+    const sc = (subcomp && subcomp[pid]) || {};
+    const piezasDef = SUBCOMPONENTES_MOCK[p.kind] || [];
+    Object.entries(sc).forEach(([piezaId, n]) => {
+      if ((Number(n) || 0) > 0) {
+        const pdef = piezasDef.find(x => x.id === piezaId);
+        items.push({
+          key: `${pid}::${piezaId}`, prodId: pid, piezaId,
+          label: `${pdef?.nombre || piezaId} · ${n} fund`,
+          sub: `pieza de ${p.nombre}`, kind: p.kind, esPieza: true,
+        });
+      }
+    });
+    // Si el producto esta activo pero no tiene cajas/tachos NI piezas
+    // (caso raro), igual mostrarlo para no perder el material.
+    if (cajas === 0 && tach === 0 && Object.keys(sc).length === 0) {
+      items.push({ key: pid, prodId: pid, label: p.nombre, sub: p.material, kind: p.kind, esPieza: false });
+    }
+  });
+
+  if (items.length === 0) {
+    return <EmptyProducts msg="Primero registra producción (paso anterior): cajas, tachos o piezas sueltas." />;
   }
   return (
     <div>
-      <h3 className="panel-title" style={{ marginBottom: 4 }}>Material consumido por producto</h3>
+      <h3 className="panel-title" style={{ marginBottom: 4 }}>Material consumido por producto / pieza</h3>
       <div className="panel-sub" style={{ marginBottom: 14 }}>
-        Para cada producto, registra el material <strong>virgen</strong> (bodega) y el <strong>molido</strong> reusado.
-        Solo puedes reusar molido del mismo producto.
+        Registra el material <strong>virgen</strong> (bodega) y el <strong>molido</strong> reusado por cada
+        producto armado o pieza producida. Si solo se hicieron piezas (ej. capuchones), el material va a la pieza.
       </div>
 
       <div className="legend-row">
@@ -4219,8 +4253,9 @@ function RegStepMaterial({ activeProds, consumo, setConsumo, totalMat, totalVirg
       </div>
 
       <div className="prod-consumo-list">
-        {activeProds.map(pid => {
-          const p = PRODUCTOS_MOCK.find(x => x.id === pid);
+        {items.map(item => {
+          const pid = item.key;
+          const p = PRODUCTOS_MOCK.find(x => x.id === item.prodId) || { kind: item.kind };
           const c = consumo[pid] || { virgen: {}, molido: [] };
           const setC = (nc) => setConsumo({ ...consumo, [pid]: nc });
           const vTotal = Object.values(c.virgen || {}).reduce((a, b) => a + (b || 0), 0);
@@ -4229,10 +4264,10 @@ function RegStepMaterial({ activeProds, consumo, setConsumo, totalMat, totalVirg
           return (
             <div key={pid} className="prod-consumo-card">
               <div className="pcc-head">
-                <ProductIllus kind={p.kind} size={28} color="var(--accent-hi)" />
+                <ProductIllus kind={p.kind} size={28} color={item.esPieza ? 'var(--text-mute)' : 'var(--accent-hi)'} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600 }}>{p.nombre}</div>
-                  <div className="xs mute">{p.material}</div>
+                  <div style={{ fontWeight: 600 }}>{item.label}</div>
+                  <div className="xs mute">{item.sub}</div>
                 </div>
                 <div className="pcc-totals">
                   <div><span className="xs mute">Virgen</span><strong className="mono">{vTotal.toFixed(1)} kg</strong></div>
@@ -4265,8 +4300,8 @@ function RegStepMaterial({ activeProds, consumo, setConsumo, totalMat, totalVirg
               <div className="pcc-block">
                 <div className="pcc-label" style={{ justifyContent: 'space-between' }}>
                   <div className="row" style={{ gap: 6 }}><span className="dot" style={{ background: 'var(--good)' }}/> Molido reusado</div>
-                  <Btn size="sm" variant="ghost" onClick={() => setC({ ...c, molido: [...(c.molido||[]), { origen: pid, kg: 0 }] })}>
-                    <Icon name="plus" size={12}/> Agregar lote
+                  <Btn size="sm" variant="ghost" onClick={() => setC({ ...c, molido: [...(c.molido||[]), { origen: item.prodId, kg: 0 }] })}>
+                    <Icon name="plus" size={12}/> Agregar
                   </Btn>
                 </div>
                 {(c.molido || []).length === 0 ? (
@@ -4282,8 +4317,8 @@ function RegStepMaterial({ activeProds, consumo, setConsumo, totalMat, totalVirg
                             const nm = [...c.molido]; nm[i] = { ...m, origen: e.target.value };
                             setC({ ...c, molido: nm });
                           }}>
-                          {PRODUCTOS_MOCK.filter(pp => pp.id === pid || pp.kind === p.kind).map(pp => (
-                            <option key={pp.id} value={pp.id}>{pp.nombre}{pp.id === pid ? ' (mismo)' : ''}</option>
+                          {PRODUCTOS_MOCK.filter(pp => pp.id === item.prodId || pp.kind === p.kind).map(pp => (
+                            <option key={pp.id} value={pp.id}>{pp.nombre}{pp.id === item.prodId ? ' (mismo)' : ''}</option>
                           ))}
                         </select>
                         <div className="num-stepper sm">
@@ -4294,7 +4329,7 @@ function RegStepMaterial({ activeProds, consumo, setConsumo, totalMat, totalVirg
                         </div>
                         <span className="unit sm">kg</span>
                         <button className="pcc-del" onClick={() => setC({ ...c, molido: c.molido.filter((_, j) => j !== i) })}>
-                          <Icon name="close" size={12}/>
+                          <Icon name="x" size={12}/>
                         </button>
                       </div>
                     ))}
@@ -4649,9 +4684,22 @@ function RegistroDetalle({ id, onBack }) {
           <PanelHead title="Desglose por producto" sub={`${productos.length} productos registrados`} />
         </div>
         {productos.map((pp, i) => {
-          const p = PRODUCTOS_MOCK.find(x => x.id === pp.prod_id) || { nombre: pp.prod_id, kind: 'vaso', material: '—', unidades_caja: 0 };
-          const piezas = SUBCOMPONENTES_MOCK[p.kind] || null;
-          const unitEsperadas = pp.cajas * p.unidades_caja;
+          let p;
+          if (pp.es_pieza) {
+            // Entrada de pieza producida sin armar el producto padre.
+            const padre = PRODUCTOS_MOCK.find(x => x.id === pp.producto_padre);
+            const pdef = (SUBCOMPONENTES_MOCK[padre?.kind] || []).find(s => s.id === pp.pieza_id);
+            p = {
+              nombre: `${pdef?.nombre || pp.pieza_id}${pp.fundas ? ' · ' + pp.fundas + ' fund' : ''}`,
+              kind: padre?.kind || 'gotero',
+              material: `pieza de ${padre?.nombre || pp.producto_padre}`,
+              unidades_caja: 0,
+            };
+          } else {
+            p = PRODUCTOS_MOCK.find(x => x.id === pp.prod_id) || { nombre: pp.prod_id, kind: 'vaso', material: '—', unidades_caja: 0 };
+          }
+          const piezas = pp.es_pieza ? null : (SUBCOMPONENTES_MOCK[p.kind] || null);
+          const unitEsperadas = (pp.cajas || 0) * (p.unidades_caja || 0);
           return (
             <div key={i} className="reg-det-row">
               <div className="reg-det-head">
