@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "6.1.3"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "6.1.4"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
