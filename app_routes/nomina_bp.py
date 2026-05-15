@@ -45,21 +45,77 @@ nomina_bp = Blueprint("nomina", __name__)
 
 # ─── Registros diarios (legacy v1) ───
 
+def _normalizar_productos(data):
+    """Construye productos[] desde el shape del wizard (prod/consumo/residuos/
+    tachos/subcomp) para que RegistroDetalle pueda leerlo.
+
+    Wizard manda:
+      prod:    { prod_id: cajas }
+      consumo: { prod_id: { virgen: {mat_id: kg}, molido: [{origen, kg}] } }
+      residuos:{ prod_id: { desecho, molido, desecho_emp } }
+      tachos:  { prod_id: tachos }
+      subcomp: { prod_id: { pieza: fundas } }
+      activeProds: [prod_id]
+    """
+    prod = data.get("prod") or {}
+    consumo = data.get("consumo") or {}
+    residuos = data.get("residuos") or {}
+    tachos = data.get("tachos") or {}
+    subcomp = data.get("subcomp") or {}
+    activos = set(data.get("activeProds") or [])
+    activos |= {k for k, v in prod.items() if (v or 0) > 0}
+    activos |= {k for k, v in tachos.items() if (v or 0) > 0}
+    activos |= {k for k, sc in subcomp.items()
+                if isinstance(sc, dict) and any((n or 0) > 0 for n in sc.values())}
+
+    productos = []
+    for pid in sorted(activos):
+        c = consumo.get(pid) or {}
+        virgen = sum(float(v or 0) for v in (c.get("virgen") or {}).values())
+        molido_usado = sum(float(m.get("kg", 0) or 0) for m in (c.get("molido") or []) if isinstance(m, dict))
+        r = residuos.get(pid) or {}
+        productos.append({
+            "prod_id": pid,
+            "cajas": int(prod.get(pid, 0) or 0),
+            "tachos": int(tachos.get(pid, 0) or 0),
+            "virgen": round(virgen, 2),
+            "molido_usado": round(molido_usado, 2),
+            "desecho": float(r.get("desecho", 0) or 0),
+            "molido_gen": float(r.get("molido", 0) or 0),
+            "desecho_emp": float(r.get("desecho_emp", 0) or 0),
+            "subcomp": subcomp.get(pid) or {},
+        })
+    return productos
+
+
 @nomina_bp.route("/api/registros", methods=["POST"])
 @require_auth
 def save_registro():
     data = request.get_json(force=True) or {}
     fecha = data.get("date", date.today().isoformat())
+    productos = _normalizar_productos(data)
+    # total_cajas/material: usar lo del wizard si viene, sino derivar de productos
+    total_cajas = int(data.get("totalCajas", 0) or 0)
+    if total_cajas == 0:
+        total_cajas = sum(p["cajas"] for p in productos)
+    total_mat = float(data.get("totalMat", 0) or 0)
+    if total_mat == 0:
+        total_mat = sum(p["virgen"] + p["molido_usado"] for p in productos)
     payload = {
         "fecha": fecha,
-        "total_material_kg": float(data.get("totalMat", 0)),
-        "total_cajas": int(data.get("totalCajas", 0)),
+        "total_material_kg": round(total_mat, 2),
+        "total_cajas": total_cajas,
         "observaciones": data.get("obs", ""),
-        "merma_pct": float(data.get("mermaPct", 0)),
+        "merma_pct": float(data.get("mermaPct", 0) or 0),
+        "loteNum": data.get("loteNum", ""),
+        "desecho_total_kg": float(data.get("totalDesecho", 0) or 0),
+        "molido_gen_kg": float(data.get("totalMolidoGen", 0) or 0),
+        "productos": productos,
         "raw": data,
     }
     save_registro_diario(fecha, payload)
-    return jsonify({"ok": True})
+    log.info(f"registro {fecha}: {len(productos)} productos, {total_cajas} cajas, {total_mat:.1f}kg")
+    return jsonify({"ok": True, "productos": len(productos)})
 
 
 @nomina_bp.route("/api/registros/<month>", methods=["GET"])
