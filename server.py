@@ -83,7 +83,7 @@ from storage import (
     save_cambios_molde,
 )
 
-APP_VERSION = "6.1.1"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
+APP_VERSION = "6.1.2"  # semver MAJOR.MINOR.PATCH — bump PATCH en cada commit, MINOR en features grandes, MAJOR en breaking changes
 
 from logger import log, get_logger
 from validation import ValidationError, make_error_response
@@ -1126,7 +1126,7 @@ def _inject_html(raw_html):
     old_reg_save = "          setLoteNum(`L-${yy}-${mm}-${dd}-${nn}`);\n          setSaved(true);"
     new_reg_save = """          setLoteNum(`L-${yy}-${mm}-${dd}-${nn}`);
           if (window._api) {
-            try { await window._api.saveRegistro({ date, activeProds, prod, consumo, residuos, obs, tachos, totalMat, totalCajas, totalDesecho, totalMolidoGen, mermaPct, loteNum: `L-${yy}-${mm}-${dd}-${nn}` }); } catch(e) { console.error('saveRegistro', e); }
+            try { await window._api.saveRegistro({ date, activeProds, prod, subcomp, consumo, residuos, obs, tachos, totalMat, totalCajas, totalDesecho, totalMolidoGen, mermaPct, loteNum: `L-${yy}-${mm}-${dd}-${nn}` }); } catch(e) { console.error('saveRegistro', e); }
           }
           setSaved(true);"""
     if old_reg_save in raw_html:
